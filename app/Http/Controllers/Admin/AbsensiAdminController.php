@@ -451,6 +451,7 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
+            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
 
             $recapData[] = [
                 'user' => $user,
@@ -463,6 +464,7 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
                 'total_gaji_lembur' => $totalGajiLembur, // 🆕 Data baru
                 'total_menit_telat' => $absensiUser->sum('late_minutes'),
                 'total_gaji' => $totalGaji, // ✅ FIXED: Ini adalah total bersih
+                'total_potongan' => $totalPotongan, // ⬅️ 🆕 DAN TAMBAH INI
                 'total_absensi' => $absensiUser->count(),
             ];
         }

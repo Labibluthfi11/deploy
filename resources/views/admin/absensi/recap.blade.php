@@ -159,6 +159,10 @@
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
 
+                                <!-- ⬇️ 🆕 TAMBAH HEADER INI ⬇️ -->
+                                <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
+                                <!-- ⬆️ ----------------------- ⬆️ -->
+
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
@@ -174,6 +178,12 @@
                                     <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                     <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                     <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
+
+                                    <!-- ⬇️ 🆕 TAMBAH DATA INI ⬇️ -->
+                                    <td class="py-3 px-4 text-red-700 font-semibold">
+                                        Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <!-- ⬆️ --------------------- ⬆️ -->
 
                                     <td class="py-3 px-4 text-purple-700">
                                         {{ $data['total_menit_lembur'] ?? 0 }} Menit
@@ -192,13 +202,13 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center py-6 text-gray-500">Tidak ada data.</td>
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td> <!-- 🆕 UBAH COLSPAN DARI 10 JADI 11 -->
                                 </tr>
                             @endforelse
                             {{-- Total Row --}}
                             @if(count($organikData) > 0)
                                 <tr class="bg-green-50 dark:bg-green-900/20 font-bold">
-                                    <td class="py-3 px-4" colspan="8">TOTAL GAJI ORGANIK</td>
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI ORGANIK</td> <!-- 🆕 UBAH COLSPAN DARI 8 JADI 9 -->
                                     <td class="py-3 px-4 text-green-700 text-lg">
                                         Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}
                                     </td>
@@ -230,6 +240,10 @@
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
 
+                                <!-- ⬇️ 🆕 TAMBAH HEADER INI ⬇️ -->
+                                <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
+                                <!-- ⬆️ ----------------------- ⬆️ -->
+
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
@@ -245,6 +259,12 @@
                                     <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                     <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                     <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
+
+                                    <!-- ⬇️ 🆕 TAMBAH DATA INI ⬇️ -->
+                                    <td class="py-3 px-4 text-red-700 font-semibold">
+                                        Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <!-- ⬆️ --------------------- ⬆️ -->
 
                                     <td class="py-3 px-4 text-purple-700">
                                         {{ $data['total_menit_lembur'] ?? 0 }} Menit
@@ -263,13 +283,13 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center py-6 text-gray-500">Tidak ada data.</td>
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td> <!-- 🆕 UBAH COLSPAN DARI 10 JADI 11 -->
                                 </tr>
                             @endforelse
                             {{-- Total Row --}}
                             @if(count($freelanceData) > 0)
                                 <tr class="bg-orange-50 dark:bg-orange-900/20 font-bold">
-                                    <td class="py-3 px-4" colspan="8">TOTAL GAJI FREELANCE</td>
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI FREELANCE</td> <!-- 🆕 UBAH COLSPAN DARI 8 JADI 9 -->
                                     <td class="py-3 px-4 text-orange-700 text-lg">
                                         Rp {{ number_format($totalGajiFreelance, 0, ',', '.') }}
                                     </td>
