@@ -79,8 +79,23 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->insertNewRowBefore(1, 2);
+        // 1. TAMBAH 3 BARIS BARU di atas, bukan 2
+        $sheet->insertNewRowBefore(1, 3);
 
+        // 2. Siapin data periode
+        Carbon::setLocale('id'); // Biar jadi "November" bukan "November"
+
+        // Ambil tgl awal & akhir DARI DATA yang dikirim
+        $firstDate = $this->absensi->isNotEmpty() ? Carbon::parse($this->absensi->min('check_in_at'))->format('d M Y') : null;
+        $lastDate = $this->absensi->isNotEmpty() ? Carbon::parse($this->absensi->max('check_in_at'))->format('d M Y') : null;
+        $dateRange = "";
+
+        if ($firstDate && $lastDate) {
+            // Kalo data ada, bikin string Tgl Awal s/d Tgl Akhir
+            $dateRange = "($firstDate s/d $lastDate)";
+        }
+
+        // 3. Bikin string periode utamanya
         $periode = match ($this->filterType) {
             'monthly' => "Bulan " . Carbon::createFromFormat('!m', $this->month)->translatedFormat('F') . " {$this->year}",
             'weekly' => "Minggu ke-{$this->week}, " . Carbon::createFromFormat('!m', $this->month)->translatedFormat('F') . " {$this->year}",
@@ -88,26 +103,38 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
             default => "Semua Data",
         };
 
-        $sheet->setCellValue('A1', "Rekap Absensi - {$this->user->name}");
-        $sheet->setCellValue('A2', "Periode: {$periode}");
+        // 4. Set sel-sel baru (SESUAI REQUEST LO)
+        $sheet->setCellValue('A1', "Rekap Absensi Karyawan");
+        $sheet->setCellValue('A2', "Nama: {$this->user->name}  (ID: {$this->user->id_karyawan})"); // <-- ID KARYAWAN DI SINI
+        $sheet->setCellValue('A3', "Periode: {$periode} {$dateRange}"); // <-- RANGE TANGGAL DI SINI
 
+        // 5. Merge sel-sel header baru
         $sheet->mergeCells('A1:M1');
         $sheet->mergeCells('A2:M2');
+        $sheet->mergeCells('A3:M3');
 
-        $sheet->getStyle('A1:M2')->applyFromArray([
+        // 6. Style header baru (A1 sampai A3)
+        $sheet->getStyle('A1:M3')->applyFromArray([
             'font' => ['bold' => true, 'size' => 14],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
+        // Bikin A2 & A3 lebih kecil
+        $sheet->getStyle('A2:M3')->applyFromArray([
+            'font' => ['bold' => false, 'size' => 12],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
 
-        $sheet->getStyle('A3:M3')->applyFromArray([
+        // 7. Geser style header tabel (yang biru) ke BARIS 4
+        $sheet->getStyle('A4:M4')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
+        // 8. Geser style data tabel (border) mulai dari BARIS 5
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A4:M{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A5:M{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
