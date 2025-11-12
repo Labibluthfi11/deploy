@@ -24,7 +24,7 @@ class AuthController extends Controller
                 'password' => 'required|string|min:8|confirmed',
                 'id_karyawan' => 'required|string|max:255|unique:users',
                 'departemen' => 'required|string|max:255',
-                'employment_type' => 'required|in:organik,freelance', // ✅ kolom sesuai migration
+                'employment_type' => 'required|in:organik,freelance',
             ]);
 
             $user = User::create([
@@ -33,7 +33,7 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 'id_karyawan' => $request->id_karyawan,
                 'departemen' => $request->departemen,
-                'employment_type' => $request->employment_type, // ✅ kolom sesuai DB
+                'employment_type' => $request->employment_type,
             ]);
 
             $token = $user->createToken('authToken')->plainTextToken;
@@ -46,10 +46,17 @@ class AuthController extends Controller
             ], 201);
 
         } catch (ValidationException $e) {
+            // JARING 1: Kucing (Validasi) - Udah bener
             return response()->json([
-                'message' => 'Validation error',
+                'message' => 'Data yang dimasukkan tidak valid.',
                 'errors' => $e->errors(),
             ], 422);
+        } catch (\Exception $e) {
+            // JARING 2: Kulkas (Semua Error Lainnya)
+            return response()->json([
+                'message' => 'Registrasi gagal, terjadi kesalahan server.',
+                'error_debug' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -65,8 +72,9 @@ class AuthController extends Controller
             ]);
 
             if (!Auth::attempt($request->only('email', 'password'))) {
+                // JAWABAN SOPAN kalo email/pw salah
                 return response()->json([
-                    'message' => 'Invalid login details'
+                    'message' => 'Email atau Password yang Anda masukkan salah.'
                 ], 401);
             }
 
@@ -81,10 +89,17 @@ class AuthController extends Controller
             ]);
 
         } catch (ValidationException $e) {
+            // JARING 1: Kucing (Error Validasi)
             return response()->json([
-                'message' => 'Validation error',
+                'message' => 'Data yang dimasukkan tidak valid.',
                 'errors' => $e->errors(),
             ], 422);
+        } catch (\Exception $e) {
+            // JARING 2: Kulkas (Semua Error Lainnya)
+            return response()->json([
+                'message' => 'Terjadi kesalahan pada server.',
+                'error_debug' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -119,11 +134,11 @@ class AuthController extends Controller
 
         try {
             $request->validate([
-                'employment_type' => 'required|in:organik,freelance', // ✅ sesuai DB
+                'employment_type' => 'required|in:organik,freelance',
             ]);
 
             $user = $request->user();
-            $user->employment_type = $request->employment_type; // ✅ sesuai DB
+            $user->employment_type = $request->employment_type;
             $user->save();
 
             return response()->json([
