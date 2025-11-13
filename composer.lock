@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e1771538baa4f616289b4a46ff5192af",
+    "content-hash": "95959aa7cc95c6d988e2ed9fe816f8f6",
     "packages": [
         {
             "name": "brick/math",
@@ -2597,6 +2597,70 @@
                 }
             ],
             "time": "2025-03-24T10:02:05+00:00"
+        },
+        {
+            "name": "nasution/terbilang",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mul14/terbilang-php.git",
+                "reference": "bd6b8153575b22fe21627f1475d68f0f372173ef"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mul14/terbilang-php/zipball/bd6b8153575b22fe21627f1475d68f0f372173ef",
+                "reference": "bd6b8153575b22fe21627f1475d68f0f372173ef",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">= 5.3.3"
+            },
+            "require-dev": {
+                "cweagans/composer-patches": "^1.7",
+                "phpunit/phpunit": "4.8.34"
+            },
+            "type": "library",
+            "extra": {
+                "patches": {
+                    "phpunit/phpunit": {
+                        "Fix PHP 7 compatibility": "https://cdn.jsdelivr.net/gh/esyede/phpunit-patches/phpunit_php7.patch",
+                        "Fix PHP 8 compatibility": "https://cdn.jsdelivr.net/gh/esyede/phpunit-patches/phpunit_php8.patch"
+                    },
+                    "phpunit/phpunit-mock-objects": {
+                        "Fix PHP 7 and 8 compatibility": "https://cdn.jsdelivr.net/gh/esyede/phpunit-patches/phpunit_mock_objects.patch"
+                    }
+                },
+                "composer-exit-on-patch-failure": true
+            },
+            "autoload": {
+                "files": [
+                    "src/terbilang.php"
+                ],
+                "psr-4": {
+                    "Nasution\\": "src/Nasution"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "WTFPL"
+            ],
+            "authors": [
+                {
+                    "name": "Mulia Arifandi Nasution",
+                    "email": "mul14.net@gmail.com"
+                }
+            ],
+            "description": "Convert numbers into words (and vice-versa) in Indonesian language",
+            "homepage": "https://github.com/mul14/terbilang-php",
+            "keywords": [
+                "indonesia",
+                "terbilang"
+            ],
+            "support": {
+                "issues": "https://github.com/mul14/terbilang-php/issues",
+                "source": "https://github.com/mul14/terbilang-php/tree/v0.1.0"
+            },
+            "time": "2022-03-25T11:41:11+00:00"
         },
         {
             "name": "nesbot/carbon",
