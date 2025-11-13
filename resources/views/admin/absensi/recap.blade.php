@@ -147,6 +147,7 @@
                 <div class="overflow-x-auto custom-scrollbar">
                     @php
                         $organikData = array_filter($recapData, fn($data) => isset($data['user']) && $data['user']->employment_type === 'organik');
+                        usort($organikData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
                         $totalGajiOrganik = array_sum(array_column($organikData, 'total_gaji'));
                     @endphp
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
@@ -228,6 +229,7 @@
                 <div class="overflow-x-auto custom-scrollbar">
                     @php
                         $freelanceData = array_filter($recapData, fn($data) => isset($data['user']) && $data['user']->employment_type === 'freelance');
+                         usort($freelanceData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
                         $totalGajiFreelance = array_sum(array_column($freelanceData, 'total_gaji'));
                     @endphp
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
