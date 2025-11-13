@@ -47,6 +47,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         Route::get('/user/{id}/export', [AbsensiAdminController::class, 'exportUser'])
             ->name('admin.absensi.user.export');
 
+        // ⬇️ 🆕 TAMBAHIN DI SINI ⬇️
+        // Export Slip Gaji per user
+        Route::get('/user/{user}/export-slip', [AbsensiAdminController::class, 'exportSlipGaji'])
+            ->name('admin.absensi.user.export-slip');
+
         // Rekap bulanan
         Route::get('/recap', [AbsensiAdminController::class, 'recap'])->name('admin.absensi.recap');
 

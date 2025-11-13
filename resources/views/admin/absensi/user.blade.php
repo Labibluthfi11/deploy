@@ -255,19 +255,34 @@
             </div>
             <!-- 🆕 END RINGKASAN GAJI -->
 
-            {{-- Tombol Export Excel --}}
-<div class="flex justify-end mb-4">
-    <a href="{{ route('admin.absensi.user.export', [
-        'id' => $user->id,
-        'filter_type' => request('filter_type', 'all'),
-        'month' => request('month', now()->month),
-        'year' => request('year', now()->year),
-    ]) }}"
-       class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200">
-        <i class="fas fa-file-excel"></i>
-        Export Excel
-    </a>
-</div>
+           {{-- Tombol Export --}}
+        <div class="flex justify-end mb-4 gap-4">
+
+            {{-- Tombol Slip Gaji (BARU) --}}
+            <a href="{{ route('admin.absensi.user.export-slip', [
+                    'user' => $user->id,
+                    'filter_type' => request('filter_type', 'all'),
+                    'month' => request('month', now()->month),
+                    'year' => request('year', now()->year),
+                    'week' => request('week', 1)
+                ]) }}"
+               class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200">
+                <i class="fas fa-file-invoice-dollar"></i>
+                Export Slip Gaji
+            </a>
+
+            {{-- Tombol Export Detail (LAMA) --}}
+            <a href="{{ route('admin.absensi.user.export', [
+                    'id' => $user->id,
+                    'filter_type' => request('filter_type', 'all'),
+                    'month' => request('month', now()->month),
+                    'year' => request('year', now()->year),
+                ]) }}"
+               class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200">
+                <i class="fas fa-file-excel"></i>
+                Export Detail (Tabel)
+            </a>
+        </div>
 
 
             {{-- Tabel --}}

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
 use App\Exports\AbsensiUserExport;
+use App\Exports\SlipGajiExport;
 
 class AbsensiAdminController extends Controller
 {
@@ -264,7 +265,7 @@ class AbsensiAdminController extends Controller
             usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
             usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
 
-            
+
         return view('admin.absensi.index', compact(
             'users',
             'month',
@@ -524,5 +525,61 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
             $fileName
         );
     }
+
+    public function exportSlipGaji(Request $request, User $user)
+    {
+        // 1. COPY-PASTE SEMUA LOGIKA FILTER (monthly, weekly, all) DARI FUNGSI 'show()'
+        $filterType = $request->input('filter_type', 'all');
+        $year = $request->input('year', now()->year);
+        $month = $request->input('month', now()->month);
+        $week = $request->input('week', 1);
+
+        $query = Absensi::where('user_id', $user->id);
+
+        if ($filterType === 'yearly') {
+            $query->whereYear('check_in_at', $year);
+        } elseif ($filterType === 'monthly') {
+            $query->whereYear('check_in_at', $year)
+                  ->whereMonth('check_in_at', $month);
+        } elseif ($filterType === 'weekly') {
+            $firstMonday = \Carbon\Carbon::create($year, $month, 1)->startOfMonth()->next(\Carbon\Carbon::MONDAY);
+            if ($firstMonday->month != $month) {
+                $firstMonday = \Carbon\Carbon::create($year, $month, 1);
+            }
+            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+            $endDate = (clone $startDate)->endOfWeek();
+
+            $query->whereBetween('check_in_at', [$startDate, $endDate]);
+        }
+
+        // Ambil data yang DI-APPROVE AJA
+        $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+
+        // 2. AMBIL STATISTIK (SAMA KAYAK DI FUNGSI 'show')
+        $absensiStats = [
+            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'), // <-- Ini harusnya udah bener
+            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+        ];
+
+        // 3. AMBIL PERIODE (Buat judul slip)
+        $periode = match ($filterType) {
+            'monthly' => "Bulan " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
+            'weekly' => "Minggu ke-{$week}, " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
+            'yearly' => "Tahun {$year}",
+            default => "Semua Data",
+        };
+
+        // 4. PANGGIL SI EXCEL
+        $fileName = "Slip_Gaji_{$user->name}_{$month}_{$year}.xlsx";
+
+        return Excel::download(
+            new SlipGajiExport($user, $absensiStats, $periode),
+            $fileName
+        );
+    }
+    
 }
 
