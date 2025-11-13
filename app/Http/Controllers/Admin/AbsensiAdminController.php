@@ -259,6 +259,12 @@ class AbsensiAdminController extends Controller
                 ->count();
         }
 
+            // Sort daily statuses by user name
+        usort($dailyStatuses, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+            usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+            usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+
+            
         return view('admin.absensi.index', compact(
             'users',
             'month',
