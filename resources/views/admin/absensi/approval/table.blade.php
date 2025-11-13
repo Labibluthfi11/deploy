@@ -316,24 +316,24 @@
     <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
         {{-- ... (Sisa kode Pagination lo udah bener) ... --}}
         <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-700">
-                Showing <span class="font-medium">1</span> to <span class="font-medium">{{ $submissions->count() }}</span> of <span class="font-medium">{{ $submissions->count() }}</span> results
-            </div>
-            <div class="flex items-center gap-2">
-                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Previous
-                </button>
-                <button class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium">
-                    1
-                </button>
-                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    2
-                </button>
-                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    Next
-                </button>
-            </div>
-        </div>
+            <div class="text-sm text-gray-700">
+                Showing <span class="font-medium">1</span> to <span class="font-medium">{{ $submissions->count() }}</span> of <span class="font-medium">{{ $submissions->count() }}</span> results
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Previous
+                </button>
+                <button class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium">
+                    1
+                </button>
+                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    2
+                </button>
+                <button class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Next
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
