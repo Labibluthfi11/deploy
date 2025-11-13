@@ -354,6 +354,9 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
     /**
      * ✅ FIXED: Rekap bulanan semua user dengan perhitungan lembur yang benar
      */
+    /**
+     * ✅ FIXED V3: Rekap bulanan, NGAMBIL 'late_penalty' LANGSUNG
+     */
     public function recap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
@@ -361,7 +364,7 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
         $range = $request->input('range', 'monthly');
         $week = $request->input('week', null);
 
-        // Tentukan tanggal awal & akhir
+        // ... (kode $startDate $endDate lo udah bener) ...
         if ($range === 'weekly' && $week) {
             $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
             if ($firstMonday->month != $month) {
@@ -383,12 +386,13 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // ✅ PERBAIKAN LOGIKA:
-            // final_salary di DB = (base - late_penalty) + overtime_pay (dari ApprovalController)
-            // Jadi, total_gaji = sum(final_salary)
+            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
+            // ⬇️ INI DIA YANG DITUNGGU ⬇️
+            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+            // --- ----------------- ---
 
 
             $recapData[] = [
@@ -401,7 +405,8 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
                 'total_menit_telat' => $absensiUser->sum('late_minutes'),
                 'total_menit_lembur' => $totalMenitLembur,
                 'total_gaji_lembur' => $totalGajiLembur,
-                'total_gaji' => $totalGaji, // ✅ FIXED: Ini adalah total bersih
+                'total_gaji' => $totalGaji,
+                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP
             ];
         }
 
@@ -414,6 +419,9 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
     /**
      * ✅ FIXED: Export rekap bulanan ke Excel dengan perhitungan lembur yang benar
      */
+    /**
+     * ✅ FIXED V3: Export rekap, NGAMBIL 'late_penalty' LANGSUNG
+     */
     public function exportRecap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
@@ -422,22 +430,19 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
         $range = $request->input('range', 'monthly'); // 'monthly' atau 'weekly'
         $week = $request->input('week', null);
 
-        // Tentukan tanggal awal & akhir berdasarkan range
+        // ... (kode $startDate $endDate lo udah bener) ...
         if ($range === 'weekly' && $week) {
-            $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-
-            if ($firstMonday->month != $month) {
-                $firstMonday = Carbon::create($year, $month, 1);
-            }
-
-            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-            $endDate = (clone $startDate)->endOfWeek();
+             $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+             if ($firstMonday->month != $month) {
+                 $firstMonday = Carbon::create($year, $month, 1);
+             }
+             $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+             $endDate = (clone $startDate)->endOfWeek();
         } else {
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+             $endDate = Carbon::create($year, $month, 1)->endOfMonth();
         }
 
-        // Ambil semua user
         $users = User::all();
         $recapData = [];
 
@@ -447,11 +452,13 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // ✅ PERBAIKAN LOGIKA: Sama kayak di recap()
+            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
+            // ⬇️ INI DIA YANG DITUNGGU ⬇️
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+            // --- ----------------- ---
 
             $recapData[] = [
                 'user' => $user,
@@ -460,29 +467,26 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
                 'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
                 'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
                 'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-                'total_menit_lembur' => $totalMenitLembur, // 🆕 Data baru
-                'total_gaji_lembur' => $totalGajiLembur, // 🆕 Data baru
+                'total_menit_lembur' => $totalMenitLembur,
+                'total_gaji_lembur' => $totalGajiLembur,
                 'total_menit_telat' => $absensiUser->sum('late_minutes'),
-                'total_gaji' => $totalGaji, // ✅ FIXED: Ini adalah total bersih
-                'total_potongan' => $totalPotongan, // ⬅️ 🆕 DAN TAMBAH INI
+                'total_gaji' => $totalGaji,
+                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP EXCEL
                 'total_absensi' => $absensiUser->count(),
             ];
         }
 
-        // Tentukan nama file berdasarkan range
+        // ... (Sisa kode filename dan Excel::download lo udah bener) ...
         $filenameSuffix = $range === 'weekly' && $week
             ? "Minggu_{$week}"
             : Carbon::createFromFormat('!m', $month)->format('M');
-
         $typeLabel = match($type) {
             'organik' => 'Organik',
             'freelance' => 'Freelance',
             default => 'All'
         };
-
         $filename = "Rekap_Absensi_{$typeLabel}_{$filenameSuffix}_{$year}.xlsx";
 
-        // Export ke Excel
         return Excel::download(
             new AbsensiRekapExport($recapData, $month, $year, $type, $range, $week),
             $filename
