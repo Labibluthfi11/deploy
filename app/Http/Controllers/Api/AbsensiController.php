@@ -745,22 +745,100 @@ public function resubmitLembur(Request $request, $id)
 }
 
 
-    // ⬇️ ⬇️ ⬇️ INI FUNGSI BARU YANG LO BUTUHIN ⬇️ ⬇️ ⬇️
-    // Fungsi 1: Ngambil data lama (buat mode edit)
-    public function getDetailAbsensi($id)
-    {
-        // Cari absensi berdasarkan ID dan pastikan itu punya user yang lagi login
-        $absensi = Absensi::where('id', $id)
-                          ->where('user_id', auth()->id())
-                          ->first();
+    
+public function getDetailAbsensi($id)
+{
+    try {
+        // ⬇️ ⬇️ ⬇️ TAMBAHKAN DEBUG LOG ⬇️ ⬇️ ⬇️
+        \Log::info('🔍 [GET DETAIL] Request ID: ' . $id);
+        \Log::info('🔍 [GET DETAIL] Auth User ID: ' . auth()->id());
+        // ⬆️ ⬆️ ⬆️ SELESAI DEBUG ⬆️ ⬆️ ⬆️
+
+        // Cari absensi berdasarkan ID
+        $absensi = Absensi::find($id);
 
         if (!$absensi) {
-            return response()->json(['success' => false, 'message' => 'Data absensi tidak ditemukan.'], 404);
+            \Log::error('❌ [GET DETAIL] Absensi tidak ditemukan untuk ID: ' . $id);
+            return response()->json([
+                'success' => false,
+                'message' => 'Data absensi tidak ditemukan.'
+            ], 404);
         }
 
-        // Return datanya
-        return response()->json(['success' => true, 'absensi' => $absensi]);
+        // ⬇️ ⬇️ ⬇️ DEBUG USER OWNERSHIP ⬇️ ⬇️ ⬇️
+        \Log::info('🔍 [GET DETAIL] User ID di record: ' . $absensi->user_id);
+        \Log::info('🔍 [GET DETAIL] Auth User ID: ' . auth()->id());
+        \Log::info('🔍 [GET DETAIL] Match? ' . ($absensi->user_id == auth()->id() ? 'YES' : 'NO'));
+        // ⬆️ ⬆️ ⬆️ SELESAI DEBUG ⬆️ ⬆️ ⬆️
+
+        // ⬇️ ⬇️ ⬇️ CEK OWNERSHIP (PAKAI == BUKAN ===) ⬇️ ⬇️ ⬇️
+        if ($absensi->user_id != auth()->id()) {
+            \Log::error('❌ [GET DETAIL] User ID tidak cocok. Record: ' . $absensi->user_id . ', Auth: ' . auth()->id());
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. User ID tidak cocok.'
+            ], 403);
+        }
+        // ⬆️ ⬆️ ⬆️ SELESAI CEK OWNERSHIP ⬆️ ⬆️ ⬆️
+
+        // ⬇️ ⬇️ ⬇️ FORMAT DATA DENGAN JAM YANG BENAR ⬇️ ⬇️ ⬇️
+        $formattedAbsensi = [
+            'id' => $absensi->id,
+            'user_id' => $absensi->user_id,
+            'status' => $absensi->status,
+            'tipe' => $absensi->tipe,
+            'status_approval' => $absensi->status_approval,
+            'check_in_at' => $absensi->check_in_at,
+            'check_out_at' => $absensi->check_out_at,
+            'lokasi_masuk' => $absensi->lokasi_masuk,
+            'lokasi_pulang' => $absensi->lokasi_pulang,
+            'foto_masuk' => $absensi->foto_masuk,
+            'foto_pulang' => $absensi->foto_pulang,
+            'foto_masuk_url' => $absensi->foto_masuk ? Storage::url($absensi->foto_masuk) : null,
+            'foto_pulang_url' => $absensi->foto_pulang ? Storage::url($absensi->foto_pulang) : null,
+
+            // ✅ FORMAT JAM DENGAN BENAR (HH:mm)
+            'lembur_start' => $absensi->lembur_start
+                ? Carbon::parse($absensi->lembur_start)->format('H:i')
+                : null,
+            'lembur_end' => $absensi->lembur_end
+                ? Carbon::parse($absensi->lembur_end)->format('H:i')
+                : null,
+
+            'lembur_rest' => $absensi->lembur_rest ?? false,
+            'lembur_keterangan' => $absensi->lembur_keterangan,
+            'keterangan_izin_sakit' => $absensi->keterangan_izin_sakit,
+            'file_bukti' => $absensi->file_bukti,
+            'file_bukti_url' => $absensi->file_bukti ? Storage::url($absensi->file_bukti) : null,
+            'catatan_admin' => $absensi->catatan_admin,
+            'rejected_by' => $absensi->rejected_by,
+            'rejected_at' => $absensi->rejected_at,
+            'workflow_status' => $absensi->workflow_status,
+            'current_approval_level' => $absensi->current_approval_level,
+            'created_at' => $absensi->created_at,
+            'updated_at' => $absensi->updated_at,
+        ];
+        // ⬆️ ⬆️ ⬆️ SELESAI FORMAT ⬆️ ⬆️ ⬆️
+
+        // ⬇️ ⬇️ ⬇️ DEBUG RESPONSE ⬇️ ⬇️ ⬇️
+        \Log::info('✅ [GET DETAIL] Success. Jam Mulai: ' . $formattedAbsensi['lembur_start']);
+        \Log::info('✅ [GET DETAIL] Success. Jam Selesai: ' . $formattedAbsensi['lembur_end']);
+        // ⬆️ ⬆️ ⬆️ SELESAI DEBUG ⬆️ ⬆️ ⬆️
+
+        return response()->json([
+            'success' => true,
+            'absensi' => $formattedAbsensi
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('❌ [GET DETAIL] Exception: ' . $e->getMessage());
+        \Log::error('❌ [GET DETAIL] Stack trace: ' . $e->getTraceAsString());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan server: ' . $e->getMessage()
+        ], 500);
     }
-    // ⬆️ ⬆️ ⬆️ SELESAI FUNGSI BARU ⬆️ ⬆️ ⬆️
+}
 
 }
