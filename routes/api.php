@@ -17,6 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/absensi/lembur', [AbsensiController::class, 'absenLembur']);
     Route::get('/absensi/me', [AbsensiController::class, 'meAbsensi']);
     Route::post('/absensi/sakit', [AbsensiController::class, 'absenSakit']);
+    Route::post('/absensi/izin', [AbsensiController::class, 'absenIzin']);
 
     // ⬇️ ⬇️ ⬇️ INI TAMBAHANNYA ⬇️ ⬇️ ⬇️
     // Rute baru buat ngambil data lembur lama (mode edit)

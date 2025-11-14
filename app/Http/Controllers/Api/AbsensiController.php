@@ -354,6 +354,76 @@ class AbsensiController extends Controller
         }
     }
 
+    public function absenIzin(Request $request)
+{
+    try {
+        $request->validate([
+            'file_bukti' => 'required|file|max:2048',
+            'keterangan_izin_sakit' => 'required|string|max:500',
+            'catatan_admin' => 'nullable|string|max:255', // Ini buat "Catatan Kepentingan/Panggilan"
+        ]);
+
+        $user = Auth::user();
+        $today = Carbon::today();
+
+        // Cek absensi existing
+        $existingAbsensi = Absensi::where('user_id', $user->id)
+            ->whereDate('check_in_at', $today)
+            ->whereIn('status_approval', ['pending','approved'])
+            ->first();
+
+        if ($existingAbsensi) {
+            $tipe = $existingAbsensi->tipe ?? 'hadir';
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda sudah memiliki catatan absensi (' . ucfirst($tipe) . ') hari ini.'
+            ], 409);
+        }
+
+        // Upload file
+        $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+
+        // Setup workflow
+        $employment = strtolower($user->employment_type ?? 'organik');
+        $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+
+        // Buat record izin
+        $absensi = Absensi::create([
+            'user_id' => $user->id,
+            'check_in_at' => now(),
+            'status' => 'izin',
+            'tipe' => 'izin',
+            'status_approval' => 'pending',
+            'file_bukti' => $fileBuktiPath,
+            'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
+            'catatan_admin' => $request->catatan_admin, // ✅ Simpan catatan panggilan
+            'workflow_status' => $workflow,
+            'current_approval_level' => 1,
+            'late_minutes' => 0,
+        ]);
+
+        $absensi->load('user');
+        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan izin berhasil diajukan',
+            'data' => $absensi
+        ], 201);
+
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation error',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan server: ' . $e->getMessage()
+        ], 500);
+    }
+}
     // Resubmit methods tetap sama...
     public function absenLembur(Request $request)
     {
