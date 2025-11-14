@@ -585,15 +585,12 @@ class AbsensiController extends Controller
     // app/Http/Controllers/Api/AbsensiController.php
 // TAMBAHKAN LOGGING UNTUK DEBUG
 
-public function resubmitLembur(Request $request, $id)
+    public function resubmitLembur(Request $request, $id)
 {
     try {
-        // ⬇️ ⬇️ ⬇️ TAMBAHKAN DEBUG LOG DI SINI ⬇️ ⬇️ ⬇️
         \Log::info('🔍 [DEBUG RESUBMIT] User ID yang login: ' . Auth::id());
         \Log::info('🔍 [DEBUG RESUBMIT] Absensi ID yang diminta: ' . $id);
-        // ⬆️ ⬆️ ⬆️ SELESAI TAMBAH LOG ⬆️ ⬆️ ⬆️
 
-        // Validasi
         $validator = Validator::make($request->all(), [
             'foto'        => 'required|image|max:2048',
             'lat'         => 'required|numeric',
@@ -621,19 +618,19 @@ public function resubmitLembur(Request $request, $id)
             ], 404);
         }
 
-        // ⬇️ ⬇️ ⬇️ TAMBAHKAN DEBUG LOG SEBELUM CEK OWNERSHIP ⬇️ ⬇️ ⬇️
         \Log::info('🔍 [DEBUG RESUBMIT] User ID di absensi: ' . $absensi->user_id);
         \Log::info('🔍 [DEBUG RESUBMIT] Auth ID: ' . Auth::id());
-        \Log::info('🔍 [DEBUG RESUBMIT] Match? ' . ($absensi->user_id === Auth::id() ? 'YES' : 'NO'));
-        // ⬆️ ⬆️ ⬆️ SELESAI TAMBAH LOG ⬆️ ⬆️ ⬆️
+        \Log::info('🔍 [DEBUG RESUBMIT] Match? ' . ($absensi->user_id == Auth::id() ? 'YES' : 'NO')); // ⬅️ FIX: GANTI === JADI ==
 
-        if ($absensi->user_id !== Auth::id()) {
+        // ⬇️ ⬇️ ⬇️ FIX: GANTI !== JADI != ⬇️ ⬇️ ⬇️
+        if ($absensi->user_id != Auth::id()) {
             \Log::error('❌ [DEBUG RESUBMIT] Akses ditolak - User tidak cocok');
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak. User ID tidak cocok.'
             ], 403);
         }
+        // ⬆️ ⬆️ ⬆️ SELESAI FIX ⬆️ ⬆️ ⬆️
 
         if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
             \Log::error('❌ [DEBUG RESUBMIT] Status approval tidak valid: ' . $absensi->status_approval);
@@ -650,6 +647,7 @@ public function resubmitLembur(Request $request, $id)
                 'message' => 'Record ini bukan pengajuan lembur.'
             ], 400);
         }
+
 
         // Hapus foto lama
         if ($absensi->foto_pulang && Storage::disk('public')->exists($absensi->foto_pulang)) {
@@ -745,7 +743,7 @@ public function resubmitLembur(Request $request, $id)
 }
 
 
-    
+
 public function getDetailAbsensi($id)
 {
     try {
