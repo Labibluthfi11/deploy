@@ -18,7 +18,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/absensi/me', [AbsensiController::class, 'meAbsensi']);
     Route::post('/absensi/sakit', [AbsensiController::class, 'absenSakit']);
 
-    // Resubmit endpoints (baru)
+    // ⬇️ ⬇️ ⬇️ INI TAMBAHANNYA ⬇️ ⬇️ ⬇️
+    // Rute baru buat ngambil data lembur lama (mode edit)
+    Route::get('/absensi/detail/{id}', [AbsensiController::class, 'getDetailAbsensi']);
+
+    // Resubmit endpoints (ini udah bener)
     Route::post('/absensi/sakit/{id}/resubmit', [AbsensiController::class, 'resubmitSakit']);
     Route::post('/absensi/izin/{id}/resubmit', [AbsensiController::class, 'resubmitIzin']);
     Route::post('/absensi/lembur/{id}/resubmit', [AbsensiController::class, 'resubmitLembur']);
