@@ -60,7 +60,7 @@ class AbsensiAdminController extends Controller
             default     => 'Dashboard Absensi Semua Karyawan',
         };
 
-        // --- Pending Approvals
+        // --- Pending Approvals (Logika ini tetap)
         $pendingApprovals = collect([]);
         /*
             CATATAN PENTING:
@@ -140,7 +140,22 @@ class AbsensiAdminController extends Controller
             }
         }
 
-        // --- Statistik Bulanan
+        // ⬇️ ⬇️ ⬇️ INI DIA "SUNTIKAN" KODE BARUNYA ⬇️ ⬇️ ⬇️
+        // Ambil input pencarian dari request
+        $searchFreelance = $request->input('search_freelance');
+
+        // Jika ada pencarian, filter array $dailyStatusesFreelance
+        if ($searchFreelance) {
+            // Kita pake 'array_filter' PHP, karena $dailyStatusesFreelance adalah array PHP biasa
+            $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
+                // stripos = cari string, case-insensitive (Nurul, nurul, NURUL, semua kena)
+                return stripos($daily['user']->name, $searchFreelance) !== false;
+            });
+        }
+        // ⬆️ ⬆️ ⬆️ "SUNTIKAN" KODE SELESAI ⬆️ ⬆️ ⬆️
+
+
+        // --- Statistik Bulanan (Kode ini tetap sama)
         $absensiQueryFilter = function (Builder $query) use ($userFilter) {
             $query->whereHas('user', $userFilter);
         };
@@ -328,39 +343,36 @@ class AbsensiAdminController extends Controller
 
         // Hitung statistik berdasarkan data yang terfilter (HANYA YANG APPROVED)
         $absensiStats = [
-    'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-    'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
-    'izin' => $approvedAbsensi->where('status', 'izin')->count(),
-    'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
-    'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
-    'total_absensi' => $approvedAbsensi->count(),
-    'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-    'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-    'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-    'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-];
+            'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+            'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
+            'izin' => $approvedAbsensi->where('status', 'izin')->count(),
+            'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
+            'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
+            'total_absensi' => $approvedAbsensi->count(),
+            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+        ];
 
-// Tambahan khusus untuk filter mingguan
-$weeklySummary = null;
-if ($filterType === 'weekly') {
-    $weeklySummary = [
-        'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-        'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
-        'izin' => $approvedAbsensi->where('status', 'izin')->count(),
-        'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
-        'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
-        'total_menit_telat' => $approvedAbsensi->sum('late_minutes'),
-        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
-        'total_gaji' => $approvedAbsensi->sum('final_salary'),
-    ];
-}
+        // Tambahan khusus untuk filter mingguan
+        $weeklySummary = null;
+        if ($filterType === 'weekly') {
+            $weeklySummary = [
+                'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+                'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
+                'izin' => $approvedAbsensi->where('status', 'izin')->count(),
+                'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
+                'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
+                'total_menit_telat' => $approvedAbsensi->sum('late_minutes'),
+                'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+                'total_gaji' => $approvedAbsensi->sum('final_salary'),
+            ];
+        }
 
-return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'weeklySummary'));
+        return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'weeklySummary'));
     }
 
-    /**
-     * ✅ FIXED: Rekap bulanan semua user dengan perhitungan lembur yang benar
-     */
     /**
      * ✅ FIXED V3: Rekap bulanan, NGAMBIL 'late_penalty' LANGSUNG
      */
@@ -424,9 +436,6 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
     }
 
     /**
-     * ✅ FIXED: Export rekap bulanan ke Excel dengan perhitungan lembur yang benar
-     */
-    /**
      * ✅ FIXED V3: Export rekap, NGAMBIL 'late_penalty' LANGSUNG
      */
     public function exportRecap(Request $request)
@@ -441,7 +450,7 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
         if ($range === 'weekly' && $week) {
              $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
              if ($firstMonday->month != $month) {
-                 $firstMonday = Carbon::create($year, $month, 1);
+                  $firstMonday = Carbon::create($year, $month, 1);
              }
              $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
              $endDate = (clone $startDate)->endOfWeek();
@@ -580,6 +589,5 @@ return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'we
             $fileName
         );
     }
-    
-}
 
+}
