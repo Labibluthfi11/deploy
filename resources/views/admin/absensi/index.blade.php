@@ -574,167 +574,242 @@
             </div>
             @else
                {{-- ✅ TABEL 3: Tabel Single untuk Organik/Freelance (FIXED) --}}
-<div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
 
-    {{-- 1. JUDUL --}}
-    <div class="flex items-center gap-3 mb-6">
-        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
-            <i class="fas fa-users-cog text-white"></i>
-        </div>
-        <div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Absensi Hari Ini</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-        </div>
-    </div>
+                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
 
-    {{-- Kita pake 'search_organik' sebagai nama default, tapi ini bakal dibaca oleh controller --}}
-    <form action="{{ url()->current() }}" method="GET" class="mb-4">
-        <div class="flex items-center gap-2">
-            <div class="relative flex-grow">
-                {{-- Icon LUP --}}
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
+                    <div class="flex items-center gap-3 mb-6">
+
+                        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
+
+                            <i class="fas fa-users-cog text-white"></i>
+
+                        </div>
+
+                        <div>
+
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Absensi Hari Ini</h3>
+
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="overflow-x-auto">
+
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+
+                                <tr>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+
+                                @forelse ($dailyStatuses as $daily)
+
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
+
+                                                <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
+
+                                                    {{ $daily['user']->name }}
+
+                                                </div>
+
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 mt-1">
+
+                                                    {{ ucfirst($daily['user']->employment_type ?? '-') }}
+
+                                                </span>
+
+                                            </a>
+
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1
+
+                                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700
+
+                                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800
+
+                                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800
+
+                                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800
+
+                                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800
+
+                                                @endif">
+
+                                                {{ $daily['status'] }}
+
+                                            </span>
+
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            @if($daily['check_in_time'])
+
+                                                <div class="flex items-center gap-2">
+
+                                                    <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
+
+                                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+
+                                                        {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
+
+                                                    </span>
+
+                                                </div>
+
+                                            @else
+
+                                                <span class="text-gray-400 text-sm">-</span>
+
+                                            @endif
+
+                                        </td>
+
+                                        {{-- ✅ FIXED: Kolom Keterlambatan Single Table --}}
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            @php
+
+                                                $lateMinutes = $daily['late_minutes'] ?? 0;
+
+                                            @endphp
+
+
+
+                                            @if($lateMinutes > 0)
+
+                                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+
+                                                    <i class="fas fa-clock"></i>
+
+                                                    @if($lateMinutes < 60)
+
+                                                        {{ $lateMinutes }} menit
+
+                                                    @else
+
+                                                        @php
+
+                                                            $hours = floor($lateMinutes / 60);
+
+                                                            $mins = $lateMinutes % 60;
+
+                                                        @endphp
+
+                                                        {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
+
+                                                    @endif
+
+                                                </span>
+
+                                            @else
+
+                                                <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
+
+                                            @endif
+
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            @if($daily['check_out_time'])
+
+                                                <div class="flex items-center gap-2">
+
+                                                    <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
+
+                                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+
+                                                        {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
+
+                                                    </span>
+
+                                                </div>
+
+                                            @else
+
+                                                <span class="text-gray-400 text-sm">-</span>
+
+                                            @endif
+
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap">
+
+                                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
+
+                                                <i class="fas fa-eye"></i>
+
+                                                <span>Detail</span>
+
+                                            </a>
+
+                                        </td>
+
+                                    </tr>
+
+                                @empty
+
+                                    <tr>
+
+                                        <td colspan="6" class="text-center py-12">
+
+                                            <div class="flex flex-col items-center">
+
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+
+                                                <p class="text-gray-500">Tidak ada data absensi hari ini</p>
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+
+                                @endforelse
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
                 </div>
-                {{-- Kolom Input --}}
-                <input
-                    type="search"
-                    name="search_organik" {{-- (Controller bakal ngebaca ini atau search_freelance) --}}
-                    id="search_organik"
-                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
-                           focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
-                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    placeholder="Cari nama karyawan..."
-                    value="{{ request('search_organik') ?? request('search_freelance') }}">
-            </div>
 
-            {{-- Tombol Cari --}}
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium
-                           rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700
-                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cari
-            </button>
-
-            {{-- Tombol Reset (muncul kalo lagi nyari) --}}
-            @if(request('search_organik') || request('search_freelance'))
-                <a href="{{ url()->current() }}"
-                   class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
-                    Reset
-                </a>
             @endif
+
         </div>
-    </form>
-    {{-- 3. TABEL --}}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                {{-- ⬇️ ⬇️ ⬇️ PENTING: Variabel $dailyStatuses ini harusnya UDAH TERFILTER dari Controller ⬇️ ⬇️ ⬇️ --}}
-                @forelse ($dailyStatuses as $daily)
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{-- ... (sisa kode <td> karyawan lo) ... --}}
-                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                                <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
-                                    {{ $daily['user']->name }}
-                                </div>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 mt-1">
-                                    {{ ucfirst($daily['user']->employment_type ?? '-') }}
-                                </span>
-                            </a>
-                        </td>
-                        {{-- ... (sisa kode <td> lo yang lain) ... --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1
-                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700
-                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800
-                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800
-                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800
-                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800
-                                @endif">
-                                {{ $daily['status'] }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($daily['check_in_time'])
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                                    </span>
-                                </div>
-                            @else
-                                <span class="text-gray-400 text-sm">-</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @php
-                                $lateMinutes = $daily['late_minutes'] ?? 0;
-                            @endphp
-                            @if($lateMinutes > 0)
-                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                    <i class="fas fa-clock"></i>
-                                    @if($lateMinutes < 60)
-                                        {{ $lateMinutes }} menit
-                                    @else
-                                        @php
-                                            $hours = floor($lateMinutes / 60);
-                                            $mins = $lateMinutes % 60;
-                                        @endphp
-                                        {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                                    @endif
-                                </span>
-                            @else
-                                <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($daily['check_out_time'])
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                                    </span>
-                                </div>
-                            @else
-                                <span class="text-gray-400 text-sm">-</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
-                                <i class="fas fa-eye"></i>
-                                <span>Detail</span>
-                            </a>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-12">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                                {{-- ⬇️ PESAN DINAMIS JIKA LAGI NYARI TAPI GAK KETEMU ⬇️ --}}
-                                @if(request('search_organik') || request('search_freelance'))
-                                    <p class="text-gray-500">Karyawan dengan nama "<strong class="text-indigo-600">{{ request('search_organik') ?? request('search_freelance') }}</strong>" tidak ditemukan.</p>
-                                @else
-                                    <p class="text-gray-500">Tidak ada data absensi hari ini</p>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+
     </div>
-</div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
