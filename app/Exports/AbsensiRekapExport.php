@@ -38,7 +38,10 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
         $no = 1;
 
         foreach ($this->recapData as $recap) {
-            if ($this->type !== 'all' && $recap['user']->employment_type !== $this->type) {
+            // 🔥 FILTER BERDASARKAN KATEGORI YANG DIPILIH 🔥
+            $kategori = $recap['kategori'] ?? 'organik';
+
+            if ($this->type !== 'all' && $kategori !== $this->type) {
                 continue;
             }
 
@@ -47,18 +50,17 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
                 'nama' => $recap['user']->name,
                 'id_karyawan' => $recap['user']->id_karyawan,
                 'departemen' => $recap['user']->departemen,
-                'tipe_karyawan' => ucfirst($recap['user']->employment_type),
+                'tipe_karyawan' => ucfirst($kategori), // 🔥 GANTI DARI employment_type JADI kategori
                 'hadir' => $recap['total_hadir'],
                 'izin' => $recap['total_izin'],
                 'sakit' => $recap['total_sakit'],
                 'lembur' => $recap['total_lembur'],
                 'telat' => $recap['total_telat'],
-                // 🆕 DATA BARU KITA SISIPIN DI SINI
+                'total_potongan' => 'Rp ' . number_format($recap['total_potongan'] ?? 0, 0, ',', '.'),
                 'total_menit_lembur' => ($recap['total_menit_lembur'] ?? 0) . ' Menit',
                 'total_gaji_lembur' => 'Rp ' . number_format($recap['total_gaji_lembur'] ?? 0, 0, ',', '.'),
-                // ---------------------------------
                 'total_gaji' => 'Rp ' . number_format($recap['total_gaji'] ?? 0, 0, ',', '.'),
-                'total' => $recap['total_absensi'],
+                'total' => $recap['total_absensi'] ?? 0,
             ]);
         }
 
@@ -72,16 +74,15 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'Nama Karyawan',
             'ID Karyawan',
             'Departemen',
-            'Tipe Karyawan',
+            'Kategori', // 🔥 GANTI DARI "Tipe Karyawan" JADI "Kategori"
             'Hadir',
             'Izin',
             'Sakit',
             'Lembur',
             'Telat (x)',
-            // 🆕 HEADER BARU KITA SISIPIN DI SINI
+            'Total Potongan',
             'Total Menit Lembur',
             'Total Gaji Lembur',
-            // ---------------------------------
             'Total Gaji',
             'Total Absensi',
         ];
@@ -90,9 +91,13 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
     public function styles(Worksheet $sheet)
     {
         $monthName = Carbon::createFromFormat('!m', $this->month)->translatedFormat('F');
+
+        // 🔥 LABEL KATEGORI UNTUK HEADER EXCEL 🔥
         $typeLabel = match($this->type) {
             'organik' => 'Karyawan Organik',
             'freelance' => 'Karyawan Freelance',
+            'borongan' => 'Karyawan Borongan',
+            'magang' => 'Karyawan Magang',
             default => 'Semua Karyawan'
         };
 
@@ -105,11 +110,11 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
         $sheet->setCellValue('A1', "REKAP ABSENSI - {$typeLabel}");
         $sheet->setCellValue('A2', "Periode: {$periode}");
 
-        // 🆕 KITA SEKARANG PUNYA 14 KOLOM (A-N), BUKAN 12 (A-L)
-        $sheet->mergeCells('A1:N1'); // 🆕 UBAH DARI L1 JADI N1
-        $sheet->mergeCells('A2:N2'); // 🆕 UBAH DARI L2 JADI N2
+        // 🔥 SEKARANG PUNYA 15 KOLOM (A-O) 🔥
+        $sheet->mergeCells('A1:O1');
+        $sheet->mergeCells('A2:O2');
 
-        $sheet->getStyle('A1:N2')->applyFromArray([ // 🆕 UBAH DARI L2 JADI N2
+        $sheet->getStyle('A1:O2')->applyFromArray([
             'font' => ['bold' => true, 'size' => 14],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -118,7 +123,7 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
         ]);
 
         // Style header
-        $sheet->getStyle('A3:N3')->applyFromArray([ // 🆕 UBAH DARI L3 JADI N3
+        $sheet->getStyle('A3:O3')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
             'alignment' => [
@@ -132,18 +137,18 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
 
         // Style isi data
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A4:N{$lastRow}")->applyFromArray([ // 🆕 UBAH DARI L JADI N
+        $sheet->getStyle("A4:O{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
-        // 🆕 STYLE UNTUK KOLOM ANGKA (F-K dan N) KITA BUAT CENTER
-        $sheet->getStyle("F4:K{$lastRow}") // 🆕 Kolom F (Hadir) s/d K (Total Menit Lembur)
+        // Style kolom angka (F-J dan O) CENTER
+        $sheet->getStyle("F4:J{$lastRow}")
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("N4:N{$lastRow}") // 🆕 Kolom N (Total Absensi)
+        $sheet->getStyle("O4:O{$lastRow}")
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // 🆕 STYLE KHUSUS UNTUK KOLOM GAJI (L & M) (ALIGN LEFT BIAR RUPIAH RAPI)
-        $sheet->getStyle("L4:M{$lastRow}") // 🆕 Kolom L (Gaji Lembur) & M (Total Gaji)
+        // Style kolom gaji (K-N) ALIGN LEFT
+        $sheet->getStyle("K4:N{$lastRow}")
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
         return [];
@@ -156,24 +161,24 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'B' => 25, // Nama
             'C' => 15, // ID
             'D' => 20, // Dept
-            'E' => 15, // Tipe
+            'E' => 15, // Kategori
             'F' => 10, // Hadir
             'G' => 10, // Izin
             'H' => 10, // Sakit
             'I' => 10, // Lembur
             'J' => 10, // Telat
-            // 🆕 KOLOM BARU DAN GESER KOLOM LAMA
-            'K' => 18, // Total Menit Lembur (BARU)
-            'L' => 20, // Total Gaji Lembur (BARU)
-            'M' => 20, // Total Gaji (Geser dari K)
-            'N' => 15, // Total Absensi (Geser dari L)
+            'K' => 18, // Total Potongan
+            'L' => 18, // Total Menit Lembur
+            'M' => 20, // Total Gaji Lembur
+            'N' => 20, // Total Gaji
+            'O' => 15, // Total Absensi
         ];
     }
 
     public function title(): string
     {
         $monthName = Carbon::createFromFormat('!m', $this->month)->format('M');
-        $suffix = $this->range === 'weekly' && $this.week ? "W{$this->week}" : $monthName;
+        $suffix = $this->range === 'weekly' && $this->week ? "W{$this->week}" : $monthName;
         return "Rekap_{$suffix}_{$this->year}";
     }
 }

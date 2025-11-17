@@ -47,7 +47,6 @@ class AbsensiAdminController extends Controller
         $month = $request->input('month', Carbon::now()->month);
         $year = $request->input('year', Carbon::now()->year);
 
-        // Filter user sesuai employment_type (organik/freelance/semua)
         $userFilter = function (Builder $query) use ($type) {
             if ($type) {
                 $query->where('employment_type', $type);
@@ -60,15 +59,7 @@ class AbsensiAdminController extends Controller
             default     => 'Dashboard Absensi Semua Karyawan',
         };
 
-        // --- Pending Approvals (Logika ini tetap)
         $pendingApprovals = collect([]);
-        /*
-            CATATAN PENTING:
-            Data 'pendingApprovals' kini TIDAK diambil secara lengkap di Controller ini
-            karena sudah dipindahkan ke ApprovalController untuk workflow bertahap.
-        */
-
-        // --- Status Harian
         $today = Carbon::today();
         $users = User::where($userFilter)->get();
         $dailyStatuses = [];
@@ -76,7 +67,6 @@ class AbsensiAdminController extends Controller
         $dailyStatusesFreelance = [];
 
         foreach ($users as $user) {
-            // Absensi yang statusnya sudah Approved
             $absensiTodayApproved = Absensi::where('user_id', $user->id)
                 ->whereDate('check_in_at', $today)
                 ->where('status_approval', 'approved')
@@ -102,7 +92,6 @@ class AbsensiAdminController extends Controller
                     $fotoCheckIn = $absensiTodayApproved->foto_masuk;
                 }
             } else {
-                // Absensi yang statusnya Pending (menunggu approval bertahap)
                 $pendingAbsensiToday = Absensi::where('user_id', $user->id)
                     ->whereDate('check_in_at', $today)
                     ->where('status_approval', 'pending')
@@ -132,7 +121,6 @@ class AbsensiAdminController extends Controller
 
             $dailyStatuses[] = $dailyData;
 
-            // Pisahkan berdasarkan employment_type untuk halaman "Semua"
             if ($user->employment_type === 'organik') {
                 $dailyStatusesOrganik[] = $dailyData;
             } elseif ($user->employment_type === 'freelance') {
@@ -140,29 +128,21 @@ class AbsensiAdminController extends Controller
             }
         }
 
-        // ⬇️ ⬇️ ⬇️ INI DIA "SUNTIKAN" KODE BARUNYA ⬇️ ⬇️ ⬇️
-        // Ambil input pencarian dari request
         $searchOrganik = $request->input('search_organik');
         $searchFreelance = $request->input('search_freelance');
 
-        // Jika ada pencarian, filter array $dailyStatusesOrganik
         if ($searchOrganik) {
             $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
-                // stripos = cari string, case-insensitive (Nurul, nurul, NURUL, semua kena)
                 return stripos($daily['user']->name, $searchOrganik) !== false;
             });
         }
 
-        // Jika ada pencarian, filter array $dailyStatusesFreelance
         if ($searchFreelance) {
             $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
                 return stripos($daily['user']->name, $searchFreelance) !== false;
             });
         }
-        // ⬆️ ⬆️ ⬆️ "SUNTIKAN" KODE SELESAI ⬆️ ⬆️ ⬆️
 
-
-        // --- Statistik Bulanan (Kode ini tetap sama)
         $absensiQueryFilter = function (Builder $query) use ($userFilter) {
             $query->whereHas('user', $userFilter);
         };
@@ -195,9 +175,8 @@ class AbsensiAdminController extends Controller
             ->where($absensiQueryFilter)
             ->count();
 
-        // --- Perbandingan Organik vs Freelance (hanya untuk halaman "semua")
         $comparison = null;
-        if (!$type) { // Hanya untuk halaman "semua"
+        if (!$type) {
             $comparison = [
                 'organik' => [
                     'hadir' => Absensi::whereHas('user', fn($q) => $q->where('employment_type', 'organik'))
@@ -254,7 +233,6 @@ class AbsensiAdminController extends Controller
             ];
         }
 
-        // --- Grafik Bulanan PER KATEGORI (for Chart.js Line)
         $grafikBulananOrganik = [];
         $grafikBulananFreelance = [];
         for ($m = 1; $m <= 12; $m++) {
@@ -271,7 +249,6 @@ class AbsensiAdminController extends Controller
                 ->count();
         }
 
-        // --- Grafik Bulanan (all, jika mau)
         $grafikBulanan = [];
         for ($m = 1; $m <= 12; $m++) {
             $grafikBulanan[$m] = Absensi::whereYear('check_in_at', $year)
@@ -281,11 +258,9 @@ class AbsensiAdminController extends Controller
                 ->count();
         }
 
-            // Sort daily statuses by user name
         usort($dailyStatuses, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-            usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-            usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-
+        usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+        usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
 
         return view('admin.absensi.index', compact(
             'users',
@@ -307,10 +282,6 @@ class AbsensiAdminController extends Controller
         ))->with('currentStatus', $type ?? 'semua');
     }
 
-    /**
-     * ❗️❗️ INI METHOD 'SHOW' YANG UDAH DIBENERIN ❗️❗️
-     * Detail absensi user
-     */
     public function show(Request $request, User $user)
     {
         $filterType = $request->input('filter_type', 'all');
@@ -318,17 +289,14 @@ class AbsensiAdminController extends Controller
         $month = $request->input('month', now()->month);
         $week = $request->input('week', 1);
 
-        // Query dasar
         $query = Absensi::where('user_id', $user->id);
 
-        // Apply filter berdasarkan tipe
         if ($filterType === 'yearly') {
             $query->whereYear('check_in_at', $year);
         } elseif ($filterType === 'monthly') {
             $query->whereYear('check_in_at', $year)
                   ->whereMonth('check_in_at', $month);
         } elseif ($filterType === 'weekly') {
-            // Hitung tanggal awal dan akhir minggu
             $firstMonday = \Carbon\Carbon::create($year, $month, 1)->startOfMonth()->next(\Carbon\Carbon::MONDAY);
             if ($firstMonday->month != $month) {
                 $firstMonday = \Carbon\Carbon::create($year, $month, 1);
@@ -338,16 +306,10 @@ class AbsensiAdminController extends Controller
 
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
         }
-        // Kalo 'all', gausah di-filter
 
-        // Ambil semua data absensi yang terfilter (termasuk pending/rejected)
         $absensi = $query->orderBy('check_in_at', 'desc')->get();
-
-        // ❗️❗️ INI BAGIAN BARUNYA ❗️❗️
-        // Kita filter sekali lagi HANYA yang 'approved' untuk ngitung statistik
         $approvedAbsensi = $absensi->where('status_approval', 'approved');
 
-        // Hitung statistik berdasarkan data yang terfilter (HANYA YANG APPROVED)
         $absensiStats = [
             'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
             'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
@@ -361,7 +323,6 @@ class AbsensiAdminController extends Controller
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
         ];
 
-        // Tambahan khusus untuk filter mingguan
         $weeklySummary = null;
         if ($filterType === 'weekly') {
             $weeklySummary = [
@@ -380,7 +341,7 @@ class AbsensiAdminController extends Controller
     }
 
     /**
-     * ✅ FIXED V3: Rekap bulanan, NGAMBIL 'late_penalty' LANGSUNG
+     * 🔥 FUNGSI RECAP BARU - 4 KATEGORI 🔥
      */
     public function recap(Request $request)
     {
@@ -389,7 +350,6 @@ class AbsensiAdminController extends Controller
         $range = $request->input('range', 'monthly');
         $week = $request->input('week', null);
 
-        // ... (kode $startDate $endDate lo udah bener) ...
         if ($range === 'weekly' && $week) {
             $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
             if ($firstMonday->month != $month) {
@@ -411,17 +371,17 @@ class AbsensiAdminController extends Controller
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            // ⬇️ INI DIA YANG DITUNGGU ⬇️
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            // --- ----------------- ---
 
+            // 🔥 DETEKSI KATEGORI BERDASARKAN PREFIX ID 🔥
+            $kategori = $this->detectKategori($user);
 
             $recapData[] = [
                 'user' => $user,
+                'kategori' => $kategori, // 🆕 TAMBAHAN
                 'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
                 'total_izin' => $absensiUser->where('status', 'izin')->count(),
                 'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
@@ -431,7 +391,7 @@ class AbsensiAdminController extends Controller
                 'total_menit_lembur' => $totalMenitLembur,
                 'total_gaji_lembur' => $totalGajiLembur,
                 'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP
+                'total_potongan' => $totalPotongan,
             ];
         }
 
@@ -442,17 +402,16 @@ class AbsensiAdminController extends Controller
     }
 
     /**
-     * ✅ FIXED V3: Export rekap, NGAMBIL 'late_penalty' LANGSUNG
+     * 🔥 FUNGSI EXPORT BARU - 4 KATEGORI 🔥
      */
     public function exportRecap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
         $year = $request->input('year', Carbon::now()->year);
-        $type = $request->input('type', 'all'); // all, organik, freelance
-        $range = $request->input('range', 'monthly'); // 'monthly' atau 'weekly'
+        $type = $request->input('type', 'all'); // all, organik, freelance, borongan, magang
+        $range = $request->input('range', 'monthly');
         $week = $request->input('week', null);
 
-        // ... (kode $startDate $endDate lo udah bener) ...
         if ($range === 'weekly' && $week) {
              $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
              if ($firstMonday->month != $month) {
@@ -474,16 +433,17 @@ class AbsensiAdminController extends Controller
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            // ⬇️ INI DIA YANG DITUNGGU ⬇️
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            // --- ----------------- ---
+
+            // 🔥 DETEKSI KATEGORI
+            $kategori = $this->detectKategori($user);
 
             $recapData[] = [
                 'user' => $user,
+                'kategori' => $kategori, // 🆕
                 'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
                 'total_izin' => $absensiUser->where('status', 'izin')->count(),
                 'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
@@ -493,26 +453,50 @@ class AbsensiAdminController extends Controller
                 'total_gaji_lembur' => $totalGajiLembur,
                 'total_menit_telat' => $absensiUser->sum('late_minutes'),
                 'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP EXCEL
+                'total_potongan' => $totalPotongan,
                 'total_absensi' => $absensiUser->count(),
             ];
         }
 
-        // ... (Sisa kode filename dan Excel::download lo udah bener) ...
         $filenameSuffix = $range === 'weekly' && $week
             ? "Minggu_{$week}"
             : Carbon::createFromFormat('!m', $month)->format('M');
+
         $typeLabel = match($type) {
             'organik' => 'Organik',
             'freelance' => 'Freelance',
+            'borongan' => 'Borongan',
+            'magang' => 'Magang',
             default => 'All'
         };
+
         $filename = "Rekap_Absensi_{$typeLabel}_{$filenameSuffix}_{$year}.xlsx";
 
         return Excel::download(
             new AbsensiRekapExport($recapData, $month, $year, $type, $range, $week),
             $filename
         );
+    }
+
+    /**
+     * 🔥 HELPER: DETEKSI KATEGORI BERDASARKAN PREFIX ID 🔥
+     */
+    private function detectKategori(User $user): string
+    {
+        $idKaryawan = $user->id_karyawan ?? '';
+
+        // Cek prefix CS-AMB (Borongan)
+        if (str_starts_with($idKaryawan, 'CS-AMB')) {
+            return 'borongan';
+        }
+
+        // Cek prefix MG-AMB (Magang)
+        if (str_starts_with($idKaryawan, 'MG-AMB')) {
+            return 'magang';
+        }
+
+        // Kalo ga ada prefix, pake employment_type
+        return $user->employment_type ?? 'organik';
     }
 
     public function exportUser(Request $request, $id)
@@ -543,7 +527,6 @@ class AbsensiAdminController extends Controller
 
     public function exportSlipGaji(Request $request, User $user)
     {
-        // 1. COPY-PASTE SEMUA LOGIKA FILTER (monthly, weekly, all) DARI FUNGSI 'show()'
         $filterType = $request->input('filter_type', 'all');
         $year = $request->input('year', now()->year);
         $month = $request->input('month', now()->month);
@@ -567,19 +550,16 @@ class AbsensiAdminController extends Controller
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
         }
 
-        // Ambil data yang DI-APPROVE AJA
         $approvedAbsensi = $query->where('status_approval', 'approved')->get();
 
-        // 2. AMBIL STATISTIK (SAMA KAYAK DI FUNGSI 'show')
         $absensiStats = [
             'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
             'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-            'total_potongan' => $approvedAbsensi->sum('late_penalty'), // <-- Ini harusnya udah bener
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
             'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
         ];
 
-        // 3. AMBIL PERIODE (Buat judul slip)
         $periode = match ($filterType) {
             'monthly' => "Bulan " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
             'weekly' => "Minggu ke-{$week}, " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
@@ -587,7 +567,6 @@ class AbsensiAdminController extends Controller
             default => "Semua Data",
         };
 
-        // 4. PANGGIL SI EXCEL
         $fileName = "Slip_Gaji_{$user->name}_{$month}_{$year}.xlsx";
 
         return Excel::download(
@@ -595,5 +574,4 @@ class AbsensiAdminController extends Controller
             $fileName
         );
     }
-
 }

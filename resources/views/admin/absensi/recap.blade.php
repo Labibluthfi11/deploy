@@ -10,7 +10,7 @@
                     <i class="fas fa-arrow-left mr-2"></i> Kembali ke Dashboard
                 </a>
 
-                {{-- Dropdown Export --}}
+                {{-- Dropdown Export (5 PILIHAN SEKARANG) --}}
                 <div class="relative inline-block text-left" x-data="{ open: false }">
                     <button @click="open = !open"
                             type="button"
@@ -23,7 +23,6 @@
                         </svg>
                     </button>
 
-                    {{-- Dropdown Menu --}}
                     <div x-show="open" @click.away="open = false"
                          x-transition:enter="transition ease-out duration-100"
                          x-transition:enter-start="transform opacity-0 scale-95"
@@ -68,6 +67,30 @@
                             ]) }}"
                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150">
                                 <i class="fas fa-user-clock mr-2 text-orange-500"></i> Karyawan Freelance
+                            </a>
+
+                            {{-- 🔥 BORONGAN (BARU) --}}
+                            <a href="{{ route('admin.absensi.recap.export', [
+                                'month' => $selectedMonth,
+                                'year' => $selectedYear,
+                                'type' => 'borongan',
+                                'range' => request('range', 'monthly'),
+                                'week' => request('week', null),
+                            ]) }}"
+                               class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150">
+                                <i class="fas fa-hammer mr-2 text-purple-500"></i> Karyawan Borongan
+                            </a>
+
+                            {{-- 🔥 MAGANG (BARU) --}}
+                            <a href="{{ route('admin.absensi.recap.export', [
+                                'month' => $selectedMonth,
+                                'year' => $selectedYear,
+                                'type' => 'magang',
+                                'range' => request('range', 'monthly'),
+                                'week' => request('week', null),
+                            ]) }}"
+                               class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150">
+                                <i class="fas fa-graduation-cap mr-2 text-blue-500"></i> Karyawan Magang
                             </a>
                         </div>
                     </div>
@@ -139,14 +162,14 @@
                 </form>
             </div>
 
-            {{-- Organik --}}
+            {{-- 🔥 TABEL 1: ORGANIK --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
                 <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
                     <i class="fas fa-calendar-alt mr-3 text-green-500"></i> Rekap Karyawan Organik
                 </h3>
                 <div class="overflow-x-auto custom-scrollbar">
                     @php
-                        $organikData = array_filter($recapData, fn($data) => isset($data['user']) && $data['user']->employment_type === 'organik');
+                        $organikData = array_filter($recapData, fn($data) => isset($data['kategori']) && $data['kategori'] === 'organik');
                         usort($organikData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
                         $totalGajiOrganik = array_sum(array_column($organikData, 'total_gaji'));
                     @endphp
@@ -159,11 +182,7 @@
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Sakit</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
-
-                                <!-- ⬇️ 🆕 TAMBAH HEADER INI ⬇️ -->
                                 <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                <!-- ⬆️ ----------------------- ⬆️ -->
-
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
@@ -179,13 +198,9 @@
                                     <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                     <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                     <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-
-                                    <!-- ⬇️ 🆕 TAMBAH DATA INI ⬇️ -->
                                     <td class="py-3 px-4 text-red-700 font-semibold">
                                         Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
                                     </td>
-                                    <!-- ⬆️ --------------------- ⬆️ -->
-
                                     <td class="py-3 px-4 text-purple-700">
                                         {{ $data['total_menit_lembur'] ?? 0 }} Menit
                                     </td>
@@ -203,13 +218,12 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td> <!-- 🆕 UBAH COLSPAN DARI 10 JADI 11 -->
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td>
                                 </tr>
                             @endforelse
-                            {{-- Total Row --}}
                             @if(count($organikData) > 0)
                                 <tr class="bg-green-50 dark:bg-green-900/20 font-bold">
-                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI ORGANIK</td> <!-- 🆕 UBAH COLSPAN DARI 8 JADI 9 -->
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI ORGANIK</td>
                                     <td class="py-3 px-4 text-green-700 text-lg">
                                         Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}
                                     </td>
@@ -221,14 +235,14 @@
                 </div>
             </div>
 
-            {{-- Freelance --}}
+            {{-- 🔥 TABEL 2: FREELANCE --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
                 <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
                     <i class="fas fa-calendar-alt mr-3 text-orange-500"></i> Rekap Karyawan Freelance
                 </h3>
                 <div class="overflow-x-auto custom-scrollbar">
                     @php
-                        $freelanceData = array_filter($recapData, fn($data) => isset($data['user']) && $data['user']->employment_type === 'freelance');
+                        $freelanceData = array_filter($recapData, fn($data) => isset($data['kategori']) && $data['kategori'] === 'freelance');
                         usort($freelanceData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
                         $totalGajiFreelance = array_sum(array_column($freelanceData, 'total_gaji'));
                     @endphp
@@ -241,11 +255,7 @@
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Sakit</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
-
-                                <!-- ⬇️ 🆕 TAMBAH HEADER INI ⬇️ -->
                                 <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                <!-- ⬆️ ----------------------- ⬆️ -->
-
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
                                 <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
@@ -261,13 +271,9 @@
                                     <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                     <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                     <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-
-                                    <!-- ⬇️ 🆕 TAMBAH DATA INI ⬇️ -->
                                     <td class="py-3 px-4 text-red-700 font-semibold">
                                         Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
                                     </td>
-                                    <!-- ⬆️ --------------------- ⬆️ -->
-
                                     <td class="py-3 px-4 text-purple-700">
                                         {{ $data['total_menit_lembur'] ?? 0 }} Menit
                                     </td>
@@ -285,13 +291,12 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td> <!-- 🆕 UBAH COLSPAN DARI 10 JADI 11 -->
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td>
                                 </tr>
                             @endforelse
-                            {{-- Total Row --}}
                             @if(count($freelanceData) > 0)
                                 <tr class="bg-orange-50 dark:bg-orange-900/20 font-bold">
-                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI FREELANCE</td> <!-- 🆕 UBAH COLSPAN DARI 8 JADI 9 -->
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI FREELANCE</td>
                                     <td class="py-3 px-4 text-orange-700 text-lg">
                                         Rp {{ number_format($totalGajiFreelance, 0, ',', '.') }}
                                     </td>
@@ -303,9 +308,155 @@
                 </div>
             </div>
 
-            {{-- Grand Total --}}
+            {{-- 🔥 TABEL 3: BORONGAN (BARU!) --}}
+            <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                    <i class="fas fa-hammer mr-3 text-purple-500"></i> Rekap Karyawan Borongan
+                </h3>
+                <div class="overflow-x-auto custom-scrollbar">
+                    @php
+                        $boronganData = array_filter($recapData, fn($data) => isset($data['kategori']) && $data['kategori'] === 'borongan');
+                        usort($boronganData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+                        $totalGajiBorongan = array_sum(array_column($boronganData, 'total_gaji'));
+                    @endphp
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
+                        <thead class="bg-blue-50 dark:bg-indigo-800">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Sakit</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
+                            @forelse ($boronganData as $data)
+                                <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
+                                    <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
+                                    <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
+                                    <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
+                                    <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
+                                    <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
+                                    <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
+                                    <td class="py-3 px-4 text-red-700 font-semibold">
+                                        Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4 text-purple-700">
+                                        {{ $data['total_menit_lembur'] ?? 0 }} Menit
+                                    </td>
+                                    <td class="py-3 px-4 text-purple-700 font-semibold">
+                                        Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4 text-green-700 font-bold">
+                                        Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
+                                            <i class="fas fa-eye mr-2"></i>Detail
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td>
+                                </tr>
+                            @endforelse
+                            @if(count($boronganData) > 0)
+                                <tr class="bg-purple-50 dark:bg-purple-900/20 font-bold">
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI BORONGAN</td>
+                                    <td class="py-3 px-4 text-purple-700 text-lg">
+                                        Rp {{ number_format($totalGajiBorongan, 0, ',', '.') }}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- 🔥 TABEL 4: MAGANG (BARU!) --}}
+            <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                    <i class="fas fa-graduation-cap mr-3 text-blue-500"></i> Rekap Karyawan Magang
+                </h3>
+                <div class="overflow-x-auto custom-scrollbar">
+                    @php
+                        $magangData = array_filter($recapData, fn($data) => isset($data['kategori']) && $data['kategori'] === 'magang');
+                        usort($magangData, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+                        $totalGajiMagang = array_sum(array_column($magangData, 'total_gaji'));
+                    @endphp
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
+                        <thead class="bg-blue-50 dark:bg-indigo-800">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Sakit</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
+                            @forelse ($magangData as $data)
+                                <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
+                                    <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
+                                    <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
+                                    <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
+                                    <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
+                                    <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
+                                    <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
+                                    <td class="py-3 px-4 text-red-700 font-semibold">
+                                        Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4 text-purple-700">
+                                        {{ $data['total_menit_lembur'] ?? 0 }} Menit
+                                    </td>
+                                    <td class="py-3 px-4 text-purple-700 font-semibold">
+                                        Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4 text-green-700 font-bold">
+                                        Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
+                                            <i class="fas fa-eye mr-2"></i>Detail
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="11" class="text-center py-6 text-gray-500">Tidak ada data.</td>
+                                </tr>
+                            @endforelse
+                            @if(count($magangData) > 0)
+                                <tr class="bg-blue-50 dark:bg-blue-900/20 font-bold">
+                                    <td class="py-3 px-4" colspan="9">TOTAL GAJI MAGANG</td>
+                                    <td class="py-3 px-4 text-blue-700 text-lg">
+                                        Rp {{ number_format($totalGajiMagang, 0, ',', '.') }}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- 🔥 GRAND TOTAL (4 KATEGORI) --}}
             @php
-                $grandTotal = $totalGajiOrganik + $totalGajiFreelance;
+                $grandTotal = $totalGajiOrganik + $totalGajiFreelance + $totalGajiBorongan + $totalGajiMagang;
             @endphp
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-800 dark:to-indigo-900 p-6 rounded-xl shadow-2xl border-2 border-blue-300 dark:border-indigo-600">
                 <div class="flex items-center justify-between">
@@ -314,7 +465,7 @@
                             <i class="fas fa-money-bill-wave text-3xl text-white"></i>
                         </div>
                         <div>
-                            <p class="text-white/80 text-sm font-semibold uppercase tracking-wide">Grand Total Gaji</p>
+                            <p class="text-white/80 text-sm font-semibold uppercase tracking-wide">Grand Total Gaji (4 Kategori)</p>
                             <p class="text-white text-3xl font-bold mt-1">
                                 Rp {{ number_format($grandTotal, 0, ',', '.') }}
                             </p>
