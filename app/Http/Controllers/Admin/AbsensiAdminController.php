@@ -130,14 +130,19 @@ class AbsensiAdminController extends Controller
                 'late_minutes' => $lateMinutes,
             ];
 
-            $dailyStatuses[] = $dailyData;
-
-            // Pisahkan berdasarkan employment_type untuk halaman "Semua"
-            if ($user->employment_type === 'organik') {
-                $dailyStatusesOrganik[] = $dailyData;
-            } elseif ($user->employment_type === 'freelance') {
-                $dailyStatusesFreelance[] = $dailyData;
+            // ⬇️ ⬇️ ⬇️ INI LOGIKA BARU ⬇️ ⬇️ ⬇️
+            // Kalo kita di halaman /organik atau /freelance, $dailyStatuses cuma diisi yang relevan
+            if ($type) {
+                $dailyStatuses[] = $dailyData;
+            } else {
+            // Kalo kita di halaman / (semua), kita pisah
+                if ($user->employment_type === 'organik') {
+                    $dailyStatusesOrganik[] = $dailyData;
+                } elseif ($user->employment_type === 'freelance') {
+                    $dailyStatusesFreelance[] = $dailyData;
+                }
             }
+            // ⬆️ ⬆️ ⬆️ SELESAI LOGIKA BARU ⬆️ ⬆️ ⬆️
         }
 
         // ⬇️ ⬇️ ⬇️ INI DIA "SUNTIKAN" KODE BARUNYA ⬇️ ⬇️ ⬇️
@@ -146,18 +151,35 @@ class AbsensiAdminController extends Controller
         $searchFreelance = $request->input('search_freelance');
 
         // Jika ada pencarian, filter array $dailyStatusesOrganik
+        // Ini cuma jalan kalo $searchOrganik ada isinya
         if ($searchOrganik) {
-            $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
-                // stripos = cari string, case-insensitive (Nurul, nurul, NURUL, semua kena)
-                return stripos($daily['user']->name, $searchOrganik) !== false;
-            });
+            // Kalo di halaman "Semua", filter $dailyStatusesOrganik
+            if (!$type) {
+                $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
+                    return stripos($daily['user']->name, $searchOrganik) !== false;
+                });
+            } else {
+            // Kalo di halaman "Organik", filter $dailyStatuses
+                $dailyStatuses = array_filter($dailyStatuses, function($daily) use ($searchOrganik) {
+                    return stripos($daily['user']->name, $searchOrganik) !== false;
+                });
+            }
         }
 
         // Jika ada pencarian, filter array $dailyStatusesFreelance
+        // Ini cuma jalan kalo $searchFreelance ada isinya
         if ($searchFreelance) {
-            $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
-                return stripos($daily['user']->name, $searchFreelance) !== false;
-            });
+            // Kalo di halaman "Semua", filter $dailyStatusesFreelance
+            if (!$type) {
+                $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
+                    return stripos($daily['user']->name, $searchFreelance) !== false;
+                });
+            } else {
+            // Kalo di halaman "Freelance", filter $dailyStatuses
+                $dailyStatuses = array_filter($dailyStatuses, function($daily) use ($searchFreelance) {
+                    return stripos($daily['user']->name, $searchFreelance) !== false;
+                });
+            }
         }
         // ⬆️ ⬆️ ⬆️ "SUNTIKAN" KODE SELESAI ⬆️ ⬆️ ⬆️
 
@@ -281,10 +303,10 @@ class AbsensiAdminController extends Controller
                 ->count();
         }
 
-            // Sort daily statuses by user name
+        // Sort daily statuses by user name
         usort($dailyStatuses, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-            usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-            usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+        usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+        usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
 
 
         return view('admin.absensi.index', compact(
@@ -295,9 +317,9 @@ class AbsensiAdminController extends Controller
             'grafikBulananOrganik',
             'grafikBulananFreelance',
             'pendingApprovals',
-            'dailyStatuses',
-            'dailyStatusesOrganik',
-            'dailyStatusesFreelance',
+            'dailyStatuses', // Ini dipake sama halaman Organik/Freelance
+            'dailyStatusesOrganik', // Ini dipake sama halaman Semua
+            'dailyStatusesFreelance', // Ini dipake sama halaman Semua
             'totalHadir',
             'totalIzin',
             'totalSakit',
@@ -308,7 +330,6 @@ class AbsensiAdminController extends Controller
     }
 
     /**
-     * ❗️❗️ INI METHOD 'SHOW' YANG UDAH DIBENERIN ❗️❗️
      * Detail absensi user
      */
     public function show(Request $request, User $user)
@@ -343,7 +364,6 @@ class AbsensiAdminController extends Controller
         // Ambil semua data absensi yang terfilter (termasuk pending/rejected)
         $absensi = $query->orderBy('check_in_at', 'desc')->get();
 
-        // ❗️❗️ INI BAGIAN BARUNYA ❗️❗️
         // Kita filter sekali lagi HANYA yang 'approved' untuk ngitung statistik
         $approvedAbsensi = $absensi->where('status_approval', 'approved');
 
@@ -380,7 +400,7 @@ class AbsensiAdminController extends Controller
     }
 
     /**
-     * ✅ FIXED V3: Rekap bulanan, NGAMBIL 'late_penalty' LANGSUNG
+     * Rekap bulanan
      */
     public function recap(Request $request)
     {
@@ -411,14 +431,10 @@ class AbsensiAdminController extends Controller
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            // ⬇️ INI DIA YANG DITUNGGU ⬇️
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            // --- ----------------- ---
-
 
             $recapData[] = [
                 'user' => $user,
@@ -431,7 +447,7 @@ class AbsensiAdminController extends Controller
                 'total_menit_lembur' => $totalMenitLembur,
                 'total_gaji_lembur' => $totalGajiLembur,
                 'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP
+                'total_potongan' => $totalPotongan,
             ];
         }
 
@@ -442,7 +458,7 @@ class AbsensiAdminController extends Controller
     }
 
     /**
-     * ✅ FIXED V3: Export rekap, NGAMBIL 'late_penalty' LANGSUNG
+     * Export rekap
      */
     public function exportRecap(Request $request)
     {
@@ -452,7 +468,6 @@ class AbsensiAdminController extends Controller
         $range = $request->input('range', 'monthly'); // 'monthly' atau 'weekly'
         $week = $request->input('week', null);
 
-        // ... (kode $startDate $endDate lo udah bener) ...
         if ($range === 'weekly' && $week) {
              $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
              if ($firstMonday->month != $month) {
@@ -474,13 +489,10 @@ class AbsensiAdminController extends Controller
                 ->where('status_approval', 'approved')
                 ->get();
 
-            // --- 🆕 LOGIKA V3 (YANG BENER) 🆕 ---
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            // ⬇️ INI DIA YANG DITUNGGU ⬇️
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            // --- ----------------- ---
 
             $recapData[] = [
                 'user' => $user,
@@ -493,12 +505,11 @@ class AbsensiAdminController extends Controller
                 'total_gaji_lembur' => $totalGajiLembur,
                 'total_menit_telat' => $absensiUser->sum('late_minutes'),
                 'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan, // ⬅️ 🆕 MASUKIN KE REKAP EXCEL
+                'total_potongan' => $totalPotongan,
                 'total_absensi' => $absensiUser->count(),
             ];
         }
 
-        // ... (Sisa kode filename dan Excel::download lo udah bener) ...
         $filenameSuffix = $range === 'weekly' && $week
             ? "Minggu_{$week}"
             : Carbon::createFromFormat('!m', $month)->format('M');
