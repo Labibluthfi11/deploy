@@ -142,13 +142,20 @@ class AbsensiAdminController extends Controller
 
         // ⬇️ ⬇️ ⬇️ INI DIA "SUNTIKAN" KODE BARUNYA ⬇️ ⬇️ ⬇️
         // Ambil input pencarian dari request
+        $searchOrganik = $request->input('search_organik');
         $searchFreelance = $request->input('search_freelance');
+
+        // Jika ada pencarian, filter array $dailyStatusesOrganik
+        if ($searchOrganik) {
+            $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
+                // stripos = cari string, case-insensitive (Nurul, nurul, NURUL, semua kena)
+                return stripos($daily['user']->name, $searchOrganik) !== false;
+            });
+        }
 
         // Jika ada pencarian, filter array $dailyStatusesFreelance
         if ($searchFreelance) {
-            // Kita pake 'array_filter' PHP, karena $dailyStatusesFreelance adalah array PHP biasa
             $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
-                // stripos = cari string, case-insensitive (Nurul, nurul, NURUL, semua kena)
                 return stripos($daily['user']->name, $searchFreelance) !== false;
             });
         }
@@ -160,7 +167,6 @@ class AbsensiAdminController extends Controller
             $query->whereHas('user', $userFilter);
         };
 
-        // Semua query statistik harus tetap mengambil yang status_approval-nya 'approved' saja
         $totalHadir = Absensi::where('status_approval', 'approved')
             ->where('status', 'hadir')
             ->whereYear('check_in_at', $year)

@@ -433,7 +433,8 @@
         </div>
     </div>
 
-    <form action="{{ route('admin.absensi.freelance') }}" method="GET" class="mb-4">
+    {{-- 2. FORM PENCARIAN --}}
+    <form action="{{ url()->current() }}" method="GET" class="mb-4">
         <div class="flex items-center gap-2">
             <div class="relative flex-grow">
                 {{-- Icon LUP --}}
