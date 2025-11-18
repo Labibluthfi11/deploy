@@ -6,7 +6,7 @@ use App\Models\User;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
-use Nasution\Terbilang\Terbilang; // ⬅️ MANGGIL DUKUN KITA
+use Nasution\Terbilang; 
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;

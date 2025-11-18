@@ -15,32 +15,23 @@ use App\Exports\SlipGajiExport;
 
 class AbsensiAdminController extends Controller
 {
-    /**
-     * Dashboard Absensi Semua Karyawan
-     */
     public function index(Request $request)
     {
         return $this->indexByEmploymentType($request, null);
     }
 
-    /**
-     * Dashboard Absensi Karyawan Organik
-     */
     public function indexOrganik(Request $request)
     {
         return $this->indexByEmploymentType($request, 'organik');
     }
 
-    /**
-     * Dashboard Absensi Karyawan Freelance
-     */
     public function indexFreelance(Request $request)
     {
         return $this->indexByEmploymentType($request, 'freelance');
     }
 
     /**
-     * Helper Dashboard berdasarkan employment_type
+     * 🔥 V5: Helper Dashboard dengan 4 KATEGORI 🔥
      */
     private function indexByEmploymentType(Request $request, ?string $type)
     {
@@ -62,9 +53,13 @@ class AbsensiAdminController extends Controller
         $pendingApprovals = collect([]);
         $today = Carbon::today();
         $users = User::where($userFilter)->get();
+
+        // 🔥 ARRAY BARU: 4 Kategori
         $dailyStatuses = [];
         $dailyStatusesOrganik = [];
         $dailyStatusesFreelance = [];
+        $dailyStatusesBorongan = []; // 🆕
+        $dailyStatusesMagang = [];   // 🆕
 
         foreach ($users as $user) {
             $absensiTodayApproved = Absensi::where('user_id', $user->id)
@@ -121,15 +116,25 @@ class AbsensiAdminController extends Controller
 
             $dailyStatuses[] = $dailyData;
 
-            if ($user->employment_type === 'organik') {
+            // 🔥 PISAHKAN BERDASARKAN KATEGORI
+            $kategori = $this->detectKategori($user);
+
+            if ($kategori === 'organik') {
                 $dailyStatusesOrganik[] = $dailyData;
-            } elseif ($user->employment_type === 'freelance') {
+            } elseif ($kategori === 'freelance') {
                 $dailyStatusesFreelance[] = $dailyData;
+            } elseif ($kategori === 'borongan') {
+                $dailyStatusesBorongan[] = $dailyData; // 🆕
+            } elseif ($kategori === 'magang') {
+                $dailyStatusesMagang[] = $dailyData;   // 🆕
             }
         }
 
+        // 🔥 FILTER PENCARIAN (4 Kategori)
         $searchOrganik = $request->input('search_organik');
         $searchFreelance = $request->input('search_freelance');
+        $searchBorongan = $request->input('search_borongan');   // 🆕
+        $searchMagang = $request->input('search_magang');       // 🆕
 
         if ($searchOrganik) {
             $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
@@ -140,6 +145,20 @@ class AbsensiAdminController extends Controller
         if ($searchFreelance) {
             $dailyStatusesFreelance = array_filter($dailyStatusesFreelance, function($daily) use ($searchFreelance) {
                 return stripos($daily['user']->name, $searchFreelance) !== false;
+            });
+        }
+
+        // 🆕 FILTER BORONGAN
+        if ($searchBorongan) {
+            $dailyStatusesBorongan = array_filter($dailyStatusesBorongan, function($daily) use ($searchBorongan) {
+                return stripos($daily['user']->name, $searchBorongan) !== false;
+            });
+        }
+
+        // 🆕 FILTER MAGANG
+        if ($searchMagang) {
+            $dailyStatusesMagang = array_filter($dailyStatusesMagang, function($daily) use ($searchMagang) {
+                return stripos($daily['user']->name, $searchMagang) !== false;
             });
         }
 
@@ -261,6 +280,8 @@ class AbsensiAdminController extends Controller
         usort($dailyStatuses, fn($a, $b) => $a['user']->name <=> $b['user']->name);
         usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
         usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+        usort($dailyStatusesBorongan, fn($a, $b) => $a['user']->name <=> $b['user']->name); // 🆕
+        usort($dailyStatusesMagang, fn($a, $b) => $a['user']->name <=> $b['user']->name);   // 🆕
 
         return view('admin.absensi.index', compact(
             'users',
@@ -273,6 +294,8 @@ class AbsensiAdminController extends Controller
             'dailyStatuses',
             'dailyStatusesOrganik',
             'dailyStatusesFreelance',
+            'dailyStatusesBorongan',  // 🆕
+            'dailyStatusesMagang',    // 🆕
             'totalHadir',
             'totalIzin',
             'totalSakit',
@@ -340,9 +363,6 @@ class AbsensiAdminController extends Controller
         return view('admin.absensi.user', compact('user', 'absensi', 'absensiStats', 'weeklySummary'));
     }
 
-    /**
-     * 🔥 FUNGSI RECAP BARU - 4 KATEGORI 🔥
-     */
     public function recap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
@@ -375,13 +395,11 @@ class AbsensiAdminController extends Controller
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-
-            // 🔥 DETEKSI KATEGORI BERDASARKAN PREFIX ID 🔥
             $kategori = $this->detectKategori($user);
 
             $recapData[] = [
                 'user' => $user,
-                'kategori' => $kategori, // 🆕 TAMBAHAN
+                'kategori' => $kategori,
                 'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
                 'total_izin' => $absensiUser->where('status', 'izin')->count(),
                 'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
@@ -401,14 +419,11 @@ class AbsensiAdminController extends Controller
           ->with('selectedYear', $year);
     }
 
-    /**
-     * 🔥 FUNGSI EXPORT BARU - 4 KATEGORI 🔥
-     */
     public function exportRecap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
         $year = $request->input('year', Carbon::now()->year);
-        $type = $request->input('type', 'all'); // all, organik, freelance, borongan, magang
+        $type = $request->input('type', 'all');
         $range = $request->input('range', 'monthly');
         $week = $request->input('week', null);
 
@@ -437,13 +452,11 @@ class AbsensiAdminController extends Controller
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
             $totalMenitLembur = $absensiUser->sum('overtime_minutes');
             $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-
-            // 🔥 DETEKSI KATEGORI
             $kategori = $this->detectKategori($user);
 
             $recapData[] = [
                 'user' => $user,
-                'kategori' => $kategori, // 🆕
+                'kategori' => $kategori,
                 'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
                 'total_izin' => $absensiUser->where('status', 'izin')->count(),
                 'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
@@ -485,24 +498,20 @@ class AbsensiAdminController extends Controller
     {
         $idKaryawan = $user->id_karyawan ?? '';
 
-        // Cek prefix CS-AMB (Borongan)
         if (str_starts_with($idKaryawan, 'CS-AMB')) {
             return 'borongan';
         }
 
-        // Cek prefix MG-AMB (Magang)
         if (str_starts_with($idKaryawan, 'MG-AMB')) {
             return 'magang';
         }
 
-        // Kalo ga ada prefix, pake employment_type
         return $user->employment_type ?? 'organik';
     }
 
     public function exportUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
-
         $query = Absensi::where('user_id', $id);
 
         if ($request->filter_type === 'monthly') {
