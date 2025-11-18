@@ -65,6 +65,14 @@
                         </button>
                     </div>
                 </form>
+
+                {{-- Export Massal Button --}}
+                <div class="mt-4 flex justify-end">
+                    <button onclick="openBulkModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-md transition flex items-center gap-2">
+                        <i class="fas fa-file-export"></i>
+                        Export Massal
+                    </button>
+                </div>
             </div>
 
             {{-- Summary Cards --}}
@@ -134,7 +142,7 @@
                 </div>
             </div>
 
-            {{-- Comparison Cards (Hanya untuk halaman "Semua") --}}
+            {{-- Comparison Cards --}}
             @if($currentStatus === 'semua' && $comparison)
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
@@ -269,7 +277,7 @@
 
             {{-- Charts --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {{-- Statistik Bulanan - Line Chart Modern --}}
+                {{-- Statistik Bulanan --}}
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
@@ -279,19 +287,13 @@
                             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Statistik Bulanan</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">Tahun {{ $year }}</p>
                         </div>
-                        <div class="ml-auto">
-                            <select class="bg-gray-100 dark:bg-gray-900 rounded px-2 py-1 text-xs text-gray-700 dark:text-gray-300 font-semibold border">
-                                <option value="all">All time</option>
-                                <option value="year">Tahun ini</option>
-                            </select>
-                        </div>
                     </div>
                     <div class="h-80 px-2 pt-2">
                         <canvas id="grafikBulananLine"></canvas>
                     </div>
                 </div>
 
-                {{-- Ringkasan Status - Pie Chart --}}
+                {{-- Ringkasan Status --}}
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl">
@@ -310,7 +312,7 @@
 
             {{-- Today's Status --}}
             @if($currentStatus === 'semua')
-                {{-- ✅ TABEL 1: Tabel Organik (FIXED) --}}
+                {{-- Tabel Organik --}}
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
@@ -362,12 +364,10 @@
                                                 <span class="text-gray-400 text-sm">-</span>
                                             @endif
                                         </td>
-                                        {{-- ✅ FIXED: Kolom Keterlambatan Organik --}}
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @php
                                                 $lateMinutes = $daily['late_minutes'] ?? 0;
                                             @endphp
-
                                             @if($lateMinutes > 0)
                                                 <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                                                     <i class="fas fa-clock"></i>
@@ -419,397 +419,325 @@
                     </div>
                 </div>
 
-                {{-- ✅ TABEL 2: Tabel Freelance (FIXED) --}}
-<div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 mt-8">
-
-    {{-- 1. JUDUL --}}
-    <div class="flex items-center gap-3 mb-6">
-        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
-            <i class="fas fa-users text-white"></i>
-        </div>
-        <div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Freelance Hari Ini</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-        </div>
-    </div>
-
-    {{-- 2. FORM PENCARIAN --}}
-    <form action="{{ url()->current() }}" method="GET" class="mb-4">
-        <div class="flex items-center gap-2">
-            <div class="relative flex-grow">
-                {{-- Icon LUP --}}
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
-                </div>
-                {{-- Kolom Input --}}
-                <input
-                    type="search"
-                    name="search_freelance"
-                    id="search_freelance"
-                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
-                           focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
-                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    placeholder="Cari nama freelance..."
-                    value="{{ request('search_freelance') }}">
-            </div>
-
-            {{-- Tombol Cari --}}
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium
-                           rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700
-                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cari
-            </button>
-
-            {{-- Tombol Reset (muncul kalo lagi nyari) --}}
-            @if(request('search_freelance'))
-                <a href="{{ route('admin.absensi.freelance') }}"
-                   class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
-                    Reset
-                </a>
-            @endif
-        </div>
-    </form>
-    {{-- 3. TABEL --}}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                @forelse ($dailyStatusesFreelance as $daily)
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{-- ... (sisa kode <td> karyawan lo) ... --}}
-                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                                <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
-                                    {{ $daily['user']->name }}
-                                </div>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 mt-1">
-                                    Freelance
-                                </span>
-                            </a>
-                        </td>
-                        {{-- ... (sisa kode <td> lo yang lain) ... --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($daily['check_in_time'])
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                                    </span>
-                                </div>
-                            @else
-                                <span class="text-gray-400 text-sm">-</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @php
-                                $lateMinutes = $daily['late_minutes'] ?? 0;
-                            @endphp
-                            @if($lateMinutes > 0)
-                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                    <i class="fas fa-clock"></i>
-                                    @if($lateMinutes < 60)
-                                        {{ $lateMinutes }} menit
-                                    @else
-                                        @php
-                                            $hours = floor($lateMinutes / 60);
-                                            $mins = $lateMinutes % 60;
-                                        @endphp
-                                        {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                                    @endif
-                                </span>
-                            @else
-                                <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($daily['check_out_time'])
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                                    </span>
-                                </div>
-                            @else
-                                <span class="text-gray-400 text-sm">-</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
-                                <i class="fas fa-eye"></i>
-                                <span>Detail</span>
-                            </a>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-12">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                                {{-- ⬇️ PESAN DINAMIS JIKA LAGI NYARI TAPI GAK KETEMU ⬇️ --}}
-                                @if(request('search_freelance'))
-                                    <p class="text-gray-500">Karyawan freelance dengan nama "<strong class="text-indigo-600">{{ request('search_freelance') }}</strong>" tidak ditemukan.</p>
-                                @else
-                                    <p class="text-gray-500">Tidak ada karyawan freelance hari ini</p>
-                                @endif
-                                 </div>
-                              </td>
-                          </tr>
-                        @endforelse
-                 </tbody>
-                </table>
-                </div>
-            </div>
-            @else
-               {{-- ✅ TABEL 3: Tabel Single untuk Organik/Freelance (FIXED) --}}
-
+                {{-- Tabel Freelance --}}
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-
                     <div class="flex items-center gap-3 mb-6">
-
                         <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
-
-                            <i class="fas fa-users-cog text-white"></i>
-
+                            <i class="fas fa-users text-white"></i>
                         </div>
-
                         <div>
-
-                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Absensi Hari Ini</h3>
-
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Freelance Hari Ini</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-
                         </div>
-
                     </div>
 
-
+                    {{-- Form Pencarian --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_freelance" id="search_freelance" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama freelance..." value="{{ request('search_freelance') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_freelance'))
+                                <a href="{{ route('admin.absensi.freelance') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
+                            @endif
+                        </div>
+                    </form>
 
                     <div class="overflow-x-auto">
-
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-
                             <thead class="bg-gray-50 dark:bg-gray-900">
-
                                 <tr>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-
                                 </tr>
-
                             </thead>
-
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-
-                                @forelse ($dailyStatuses as $daily)
-
+                                @forelse ($dailyStatusesFreelance as $daily)
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
                                             <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-
                                                 <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
-
                                                     {{ $daily['user']->name }}
-
                                                 </div>
-
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 mt-1">
-
-                                                    {{ ucfirst($daily['user']->employment_type ?? '-') }}
-
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 mt-1">
+                                                    Freelance
                                                 </span>
-
                                             </a>
-
                                         </td>
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
-                                            <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1
-
-                                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700
-
-                                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800
-
-                                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800
-
-                                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800
-
-                                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800
-
-                                                @endif">
-
-                                                {{ $daily['status'] }}
-
-                                            </span>
-
+                                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
                                         </td>
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
                                             @if($daily['check_in_time'])
-
                                                 <div class="flex items-center gap-2">
-
                                                     <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-
                                                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-
                                                         {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-
                                                     </span>
-
                                                 </div>
-
                                             @else
-
                                                 <span class="text-gray-400 text-sm">-</span>
-
                                             @endif
-
                                         </td>
-
-                                        {{-- ✅ FIXED: Kolom Keterlambatan Single Table --}}
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
                                             @php
-
                                                 $lateMinutes = $daily['late_minutes'] ?? 0;
-
                                             @endphp
-
-
-
                                             @if($lateMinutes > 0)
-
                                                 <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-
                                                     <i class="fas fa-clock"></i>
-
                                                     @if($lateMinutes < 60)
-
                                                         {{ $lateMinutes }} menit
-
                                                     @else
-
                                                         @php
-
                                                             $hours = floor($lateMinutes / 60);
-
                                                             $mins = $lateMinutes % 60;
-
                                                         @endphp
-
                                                         {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-
                                                     @endif
-
                                                 </span>
-
                                             @else
-
                                                 <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-
                                             @endif
-
                                         </td>
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
                                             @if($daily['check_out_time'])
-
                                                 <div class="flex items-center gap-2">
-
                                                     <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-
                                                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-
                                                         {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-
                                                     </span>
-
                                                 </div>
-
                                             @else
-
                                                 <span class="text-gray-400 text-sm">-</span>
-
                                             @endif
-
                                         </td>
-
                                         <td class="px-6 py-4 whitespace-nowrap">
-
                                             <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
-
                                                 <i class="fas fa-eye"></i>
-
                                                 <span>Detail</span>
-
                                             </a>
-
                                         </td>
-
                                     </tr>
-
                                 @empty
-
                                     <tr>
-
                                         <td colspan="6" class="text-center py-12">
-
                                             <div class="flex flex-col items-center">
-
                                                 <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-
-                                                <p class="text-gray-500">Tidak ada data absensi hari ini</p>
-
+                                                @if(request('search_freelance'))
+                                                    <p class="text-gray-500">Karyawan freelance dengan nama "<strong class="text-indigo-600">{{ request('search_freelance') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan freelance hari ini</p>
+                                                @endif
                                             </div>
-
                                         </td>
-
                                     </tr>
-
                                 @endforelse
-
                             </tbody>
-
                         </table>
-
+                    </div>
+                </div>
+            @else
+                {{-- Tabel Single --}}
+                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
+                            <i class="fas fa-users-cog text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Absensi Hari Ini</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                        </div>
                     </div>
 
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatuses as $daily)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
+                                                <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
+                                                    {{ $daily['user']->name }}
+                                                </div>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 mt-1">
+                                                    {{ ucfirst($daily['user']->employment_type ?? '-') }}
+                                                </span>
+                                            </a>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1
+                                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700
+                                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800
+                                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800
+                                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800
+                                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800
+                                                @endif">
+                                                {{ $daily['status'] }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @if($daily['check_in_time'])
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
+                                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
+                                                    </span>
+                                                </div>
+                                            @else
+                                                <span class="text-gray-400 text-sm">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @php
+                                                $lateMinutes = $daily['late_minutes'] ?? 0;
+                                            @endphp
+                                            @if($lateMinutes > 0)
+                                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                                    <i class="fas fa-clock"></i>
+                                                    @if($lateMinutes < 60)
+                                                        {{ $lateMinutes }} menit
+                                                    @else
+                                                        @php
+                                                            $hours = floor($lateMinutes / 60);
+                                                            $mins = $lateMinutes % 60;
+                                                        @endphp
+                                                        {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
+                                                    @endif
+                                                </span>
+                                            @else
+                                                <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @if($daily['check_out_time'])
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
+                                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
+                                                    </span>
+                                                </div>
+                                            @else
+                                                <span class="text-gray-400 text-sm">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
+                                                <i class="fas fa-eye"></i>
+                                                <span>Detail</span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                <p class="text-gray-500">Tidak ada data absensi hari ini</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-
             @endif
 
         </div>
-
     </div>
+
+    {{-- MODAL EXPORT MASSAL --}}
+    <div id="bulkModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeBulkModal()"></div>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <form action="{{ route('admin.absensi.bulk-export-detail') }}" method="POST">
+                    @csrf
+                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                                    Export Detail Absensi Massal
+                                </h3>
+
+                                <div class="mt-4 space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rentang Tanggal</label>
+                                        <div class="flex gap-2">
+                                            <input type="date" name="start_date" required class="w-1/2 rounded-md border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                            <input type="date" name="end_date" required class="w-1/2 rounded-md border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Karyawan</label>
+                                            <button type="button" onclick="toggleAllUsers()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">Pilih Semua</button>
+                                        </div>
+
+                                        <div class="h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2 space-y-2">
+                                            @foreach($users as $u)
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" name="user_ids[]" value="{{ $u->id }}" class="user-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                                    <label class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                                                        {{ $u->name }} <span class="text-xs text-gray-500">({{ ucfirst($u->employment_type) }})</span>
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Download Excel
+                        </button>
+                        <button type="button" onclick="closeBulkModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openBulkModal() { document.getElementById('bulkModal').classList.remove('hidden'); }
+        function closeBulkModal() { document.getElementById('bulkModal').classList.add('hidden'); }
+
+        function toggleAllUsers() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            const allChecked = Array.from(checkboxes).every(c => c.checked);
+            checkboxes.forEach(c => c.checked = !allChecked);
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -818,7 +746,6 @@
             Chart.defaults.color = isDark ? '#cbd5e0' : '#4b5563';
             Chart.defaults.borderColor = isDark ? '#4a5568' : '#e5e7eb';
 
-            // Modern Line Chart (Statistik Bulanan)
             new Chart(document.getElementById('grafikBulananLine'), {
                 type: 'line',
                 data: {
@@ -877,7 +804,6 @@
                 }
             });
 
-            // Doughnut Chart (Ringkasan Status)
             new Chart(document.getElementById('grafikStatus'), {
                 type: 'doughnut',
                 data: {

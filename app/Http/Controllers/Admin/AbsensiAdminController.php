@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
 use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
+use App\Exports\BulkUserDetailExport;
 
 class AbsensiAdminController extends Controller
 {
@@ -584,6 +585,31 @@ class AbsensiAdminController extends Controller
 
         return Excel::download(
             new SlipGajiExport($user, $absensiStats, $periodeLabel),
+            $fileName
+        );
+    }
+
+    // ⬇️ ⬇️ ⬇️ INI FUNGSI BARU BUAT NANGANIN CHECKBOX ⬇️ ⬇️ ⬇️
+    public function bulkExportDetail(Request $request)
+    {
+        // 1. Validasi input
+        $request->validate([
+            'user_ids'   => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $userIds = $request->input('user_ids');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        // 2. Siapin nama file
+        $fileName = "Rekap_Detail_Karyawan_(" . date('Y-m-d') . ").xlsx";
+
+        // 3. Panggil "Koki Utama" Excel
+        return Excel::download(
+            new BulkUserDetailExport($userIds, $startDate, $endDate),
             $fileName
         );
     }
