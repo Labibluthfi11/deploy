@@ -10,12 +10,6 @@
                     <i class="fas fa-arrow-left mr-2"></i> Kembali ke Dashboard
                 </a>
 
-                {{-- 🔥 TOMBOL BARU: Export Detail Massal --}}
-                <button onclick="openBulkModal()"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Export Detail Massal
-                </button>
             </div>
         </div>
     </x-slot>
