@@ -6,7 +6,6 @@ use App\Models\User;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
-use Nasution\Terbilang; 
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -22,6 +21,37 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
         $this->user = $user;
         $this->stats = $stats;
         $this->periode = $periode;
+    }
+
+    /**
+     * Fungsi Helper Terbilang (Manual, Anti Ribet)
+     */
+    private function terbilang($nilai) {
+        $nilai = abs($nilai);
+        $huruf = array("", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas");
+        $temp = "";
+        if ($nilai < 12) {
+            $temp = " ". $huruf[$nilai];
+        } else if ($nilai <20) {
+            $temp = $this->terbilang($nilai - 10). " belas";
+        } else if ($nilai < 100) {
+            $temp = $this->terbilang($nilai/10)." puluh". $this->terbilang($nilai % 10);
+        } else if ($nilai < 200) {
+            $temp = " seratus" . $this->terbilang($nilai - 100);
+        } else if ($nilai < 1000) {
+            $temp = $this->terbilang($nilai/100) . " ratus" . $this->terbilang($nilai % 100);
+        } else if ($nilai < 2000) {
+            $temp = " seribu" . $this->terbilang($nilai - 1000);
+        } else if ($nilai < 1000000) {
+            $temp = $this->terbilang($nilai/1000) . " ribu" . $this->terbilang($nilai % 1000);
+        } else if ($nilai < 1000000000) {
+            $temp = $this->terbilang($nilai/1000000) . " juta" . $this->terbilang($nilai % 1000000);
+        } else if ($nilai < 1000000000000) {
+            $temp = $this->terbilang($nilai/1000000000) . " milyar" . $this->terbilang(fmod($nilai,1000000000));
+        } else if ($nilai < 1000000000000000) {
+            $temp = $this->terbilang($nilai/1000000000000) . " trilyun" . $this->terbilang(fmod($nilai,1000000000000));
+        }
+        return $temp;
     }
 
     /**
@@ -60,10 +90,10 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue('B5', ': ' . $this->user->name);
 
                 $sheet->setCellValue('A6', 'Nomor Induk Pegawai');
-                $sheet->setCellValue('B6', ': ' . $this->user->id_karyawan); // ⬅️ Pake ID Karyawan
+                $sheet->setCellValue('B6', ': ' . $this->user->id_karyawan);
 
                 $sheet->setCellValue('D5', 'Periode Penggajian');
-                $sheet->setCellValue('E5', ': ' . $this->periode); // ⬅️ Pake Periode
+                $sheet->setCellValue('E5', ': ' . $this->periode);
 
                 $sheet->setCellValue('D6', 'Tipe Karyawan');
                 $sheet->setCellValue('E6', ': ' . ucfirst($this->user->employment_type));
@@ -112,11 +142,12 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->getStyle('A14:F14')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFC6E0B4'); // Hijau muda
 
 
-                // --- TERBILANG (PAKE SIHIR) ---
-                $terbilang = Terbilang::make($gajiBersih, ' rupiah'); // ⬅️ MANTRA-NYA
+                // --- TERBILANG (PAKE FUNGSI MANUAL DI ATAS) ---
+                // Kita panggil $this->terbilang()
+                $textTerbilang = trim($this->terbilang($gajiBersih)) . ' Rupiah';
 
                 $sheet->mergeCells('A16:F16');
-                $sheet->setCellValue('A16', 'Terbilang: ' . ucwords($terbilang));
+                $sheet->setCellValue('A16', 'Terbilang: ' . ucwords($textTerbilang));
                 $sheet->getStyle('A16')->getFont()->setBold(true)->setItalic(true);
                 $sheet->getStyle('A16')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
