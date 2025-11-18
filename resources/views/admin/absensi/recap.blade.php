@@ -44,37 +44,50 @@
                     }
                 @endphp
 
-                <form method="GET" action="{{ route('admin.absensi.recap') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <select name="month" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-                        @for ($m = 1; $m <= 12; $m++)
-                            <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
-                                {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
-                            </option>
-                        @endfor
-                    </select>
+                <form method="GET" action="{{ route('admin.absensi.recap') }}" class="grid grid-cols-1 md:grid-cols-6 gap-4" id="filterForm">
+    <select name="month" id="monthSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+        @for ($m = 1; $m <= 12; $m++)
+            <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
+                {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
+            </option>
+        @endfor
+    </select>
 
-                    <select name="year" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-                        @for ($y = date('Y'); $y >= 2020; $y--)
-                            <option value="{{ $y }}" {{ $selectedYear == $y ? 'selected' : '' }}>{{ $y }}</option>
-                        @endfor
-                    </select>
+    <select name="year" id="yearSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+        @for ($y = date('Y'); $y >= 2020; $y--)
+            <option value="{{ $y }}" {{ $selectedYear == $y ? 'selected' : '' }}>{{ $y }}</option>
+        @endfor
+    </select>
 
-                    <select name="range" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-                        <option value="monthly" {{ request('range') == 'monthly' ? 'selected' : '' }}>Bulanan</option>
-                        <option value="weekly" {{ request('range') == 'weekly' ? 'selected' : '' }}>Mingguan</option>
-                    </select>
+    <select name="range" id="rangeSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+        <option value="monthly" {{ request('range') == 'monthly' ? 'selected' : '' }}>Bulanan</option>
+        <option value="weekly" {{ request('range') == 'weekly' ? 'selected' : '' }}>Mingguan</option>
+        <option value="custom" {{ request('range') == 'custom' ? 'selected' : '' }}>🆕 Custom (Pilih Tanggal)</option>
+    </select>
 
-                    <select name="week" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-                        <option value="">Semua Minggu</option>
-                        @for ($i = 1; $i <= $weeks; $i++)
-                            <option value="{{ $i }}" {{ request('week') == $i ? 'selected' : '' }}>Minggu ke-{{ $i }}</option>
-                        @endfor
-                    </select>
+    {{-- 🔥 MINGGUAN (Muncul kalo pilih "Mingguan") --}}
+    <select name="week" id="weekSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+        <option value="">Semua Minggu</option>
+        @for ($i = 1; $i <= $weeks; $i++)
+            <option value="{{ $i }}" {{ request('week') == $i ? 'selected' : '' }}>Minggu ke-{{ $i }}</option>
+        @endfor
+    </select>
 
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:scale-105">
-                        <i class="fas fa-search mr-2"></i> Tampilkan Rekap
-                    </button>
-                </form>
+    {{-- 🔥 CUSTOM DATE (Muncul kalo pilih "Custom") --}}
+    <div id="customDateStart" class="hidden">
+        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Dari Tanggal</label>
+        <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+    </div>
+
+    <div id="customDateEnd" class="hidden">
+        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sampai Tanggal</label>
+        <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+    </div>
+
+    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:scale-105">
+        <i class="fas fa-search mr-2"></i> Tampilkan Rekap
+    </button>
+</form>
             </div>
 
             {{-- 🔥 TABEL 1: ORGANIK (DENGAN FORM + CHECKBOX) --}}
@@ -505,24 +518,48 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     {{-- 🔥 JAVASCRIPT: Toggle Checkbox "Pilih Semua" --}}
+
     <script>
-        // Fungsi untuk toggle semua checkbox dalam satu kategori
-        function toggleTable(source, type) {
-            const checkboxes = document.querySelectorAll('.user-checkbox-' + type);
-            for (var i = 0, n = checkboxes.length; i < n; i++) {
-                checkboxes[i].checked = source.checked;
+    // Toggle Mingguan / Custom Date
+    document.addEventListener('DOMContentLoaded', function() {
+        const rangeSelect = document.getElementById('rangeSelect');
+        const weekSelect = document.getElementById('weekSelect');
+        const customDateStart = document.getElementById('customDateStart');
+        const customDateEnd = document.getElementById('customDateEnd');
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+
+        function toggleFields() {
+            const selectedRange = rangeSelect.value;
+
+            if (selectedRange === 'weekly') {
+                // Kalo mingguan: tampilin minggu, sembunyiin custom
+                weekSelect.classList.remove('hidden');
+                customDateStart.classList.add('hidden');
+                customDateEnd.classList.add('hidden');
+                monthSelect.disabled = false;
+                yearSelect.disabled = false;
+            } else if (selectedRange === 'custom') {
+                // Kalo custom: sembunyiin minggu, tampilin custom date
+                weekSelect.classList.add('hidden');
+                customDateStart.classList.remove('hidden');
+                customDateEnd.classList.remove('hidden');
+                monthSelect.disabled = true; // Disable month/year (gak dipake)
+                yearSelect.disabled = true;
+            } else {
+                // Bulanan: sembunyiin semuanya
+                weekSelect.classList.add('hidden');
+                customDateStart.classList.add('hidden');
+                customDateEnd.classList.add('hidden');
+                monthSelect.disabled = false;
+                yearSelect.disabled = false;
             }
         }
 
-        // Fungsi untuk modal (placeholder)
-        function openBulkModal() {
-            document.getElementById('bulkModal').classList.remove('hidden');
-        }
-
-        function closeBulkModal() {
-            document.getElementById('bulkModal').classList.add('hidden');
-        }
-    </script>
+        rangeSelect.addEventListener('change', toggleFields);
+        toggleFields(); // Jalanin pas pertama kali load
+    });
+</script>
 
     <style>
         .custom-scrollbar::-webkit-scrollbar { height: 8px; }

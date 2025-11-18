@@ -12,7 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
 use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
-use App\Exports\BulkDetailExport; 
+use App\Exports\BulkDetailExport;
 
 class AbsensiAdminController extends Controller
 {
@@ -365,81 +365,106 @@ class AbsensiAdminController extends Controller
     }
 
     public function recap(Request $request)
-    {
-        $month = $request->input('month', Carbon::now()->month);
-        $year = $request->input('year', Carbon::now()->year);
-        $range = $request->input('range', 'monthly');
-        $week = $request->input('week', null);
+{
+    $month = $request->input('month', Carbon::now()->month);
+    $year = $request->input('year', Carbon::now()->year);
+    $range = $request->input('range', 'monthly');
+    $week = $request->input('week', null);
 
-        if ($range === 'weekly' && $week) {
-            $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-            if ($firstMonday->month != $month) {
-                $firstMonday = Carbon::create($year, $month, 1);
-            }
-            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-            $endDate = (clone $startDate)->endOfWeek();
-        } else {
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+    // 🔥 LOGIKA BARU: 3 PILIHAN
+    if ($range === 'custom') {
+        // ⬅️ CUSTOM: Ambil dari input tanggal
+        $startDate = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()
+            : Carbon::now()->startOfMonth();
+
+        $endDate = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()
+            : Carbon::now()->endOfMonth();
+
+    } elseif ($range === 'weekly' && $week) {
+        // ⬅️ MINGGUAN (Logika lama lo)
+        $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+        if ($firstMonday->month != $month) {
+            $firstMonday = Carbon::create($year, $month, 1);
         }
+        $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+        $endDate = (clone $startDate)->endOfWeek();
 
-        $users = User::all();
-        $recapData = [];
-
-        foreach ($users as $user) {
-            $absensiUser = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$startDate, $endDate])
-                ->where('status_approval', 'approved')
-                ->get();
-
-            $totalGaji = $absensiUser->sum('final_salary') ?? 0;
-            $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
-            $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            $kategori = $this->detectKategori($user);
-
-            $recapData[] = [
-                'user' => $user,
-                'kategori' => $kategori,
-                'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-                'total_izin' => $absensiUser->where('status', 'izin')->count(),
-                'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
-                'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
-                'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-                'total_menit_telat' => $absensiUser->sum('late_minutes'),
-                'total_menit_lembur' => $totalMenitLembur,
-                'total_gaji_lembur' => $totalGajiLembur,
-                'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan,
-            ];
-        }
-
-        // ... (kode foreach $users lo) ...
-                return view('admin.absensi.recap', compact(
-            'recapData', 'month', 'year', 'range', 'week',
-            'startDate', 'endDate' // ⬅️ TAMBAH 2 INI
-        ))->with('selectedMonth', $month)
-          ->with('selectedYear', $year);
+    } else {
+        // ⬅️ BULANAN (Default)
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
     }
+
+    // ... (sisanya tetep sama, loop foreach $users dst) ...
+
+    $users = User::all();
+    $recapData = [];
+
+    foreach ($users as $user) {
+        $absensiUser = Absensi::where('user_id', $user->id)
+            ->whereBetween('check_in_at', [$startDate, $endDate])
+            ->where('status_approval', 'approved')
+            ->get();
+
+        $totalGaji = $absensiUser->sum('final_salary') ?? 0;
+        $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
+        $totalMenitLembur = $absensiUser->sum('overtime_minutes');
+        $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+        $kategori = $this->detectKategori($user);
+
+        $recapData[] = [
+            'user' => $user,
+            'kategori' => $kategori,
+            'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
+            'total_izin' => $absensiUser->where('status', 'izin')->count(),
+            'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
+            'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
+            'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+            'total_menit_telat' => $absensiUser->sum('late_minutes'),
+            'total_menit_lembur' => $totalMenitLembur,
+            'total_gaji_lembur' => $totalGajiLembur,
+            'total_gaji' => $totalGaji,
+            'total_potongan' => $totalPotongan,
+        ];
+    }
+
+    return view('admin.absensi.recap', compact(
+        'recapData', 'month', 'year', 'range', 'week',
+        'startDate', 'endDate'
+    ))->with('selectedMonth', $month)
+      ->with('selectedYear', $year);
+}
     public function exportRecap(Request $request)
     {
-        $month = $request->input('month', Carbon::now()->month);
-        $year = $request->input('year', Carbon::now()->year);
-        $type = $request->input('type', 'all');
-        $range = $request->input('range', 'monthly');
-        $week = $request->input('week', null);
+    $month = $request->input('month', Carbon::now()->month);
+    $year = $request->input('year', Carbon::now()->year);
+    $type = $request->input('type', 'all');
+    $range = $request->input('range', 'monthly');
+    $week = $request->input('week', null);
 
-        if ($range === 'weekly' && $week) {
-             $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-             if ($firstMonday->month != $month) {
-                  $firstMonday = Carbon::create($year, $month, 1);
-             }
-             $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-             $endDate = (clone $startDate)->endOfWeek();
-        } else {
-             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-             $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+    // 🔥 LOGIKA BARU (SAMA KAYAK DI recap())
+    if ($range === 'custom') {
+        $startDate = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()
+            : Carbon::now()->startOfMonth();
+
+        $endDate = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()
+            : Carbon::now()->endOfMonth();
+
+    } elseif ($range === 'weekly' && $week) {
+        $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+        if ($firstMonday->month != $month) {
+            $firstMonday = Carbon::create($year, $month, 1);
         }
+        $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+        $endDate = (clone $startDate)->endOfWeek();
+    } else {
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+    }
 
         $users = User::all();
         $recapData = [];
