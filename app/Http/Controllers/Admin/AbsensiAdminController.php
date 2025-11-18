@@ -591,8 +591,8 @@ class AbsensiAdminController extends Controller
 
     // ⬇️ ⬇️ ⬇️ INI FUNGSI BARU BUAT NANGANIN CHECKBOX ⬇️ ⬇️ ⬇️
     public function bulkExportDetail(Request $request)
-    {
-        // 1. Validasi input
+{
+    try {
         $request->validate([
             'user_ids'   => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
@@ -604,13 +604,19 @@ class AbsensiAdminController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        // 2. Siapin nama file
         $fileName = "Rekap_Detail_Karyawan_(" . date('Y-m-d') . ").xlsx";
 
-        // 3. Panggil "Koki Utama" Excel
         return Excel::download(
             new BulkUserDetailExport($userIds, $startDate, $endDate),
             $fileName
         );
+    } catch (\Exception $e) {
+        // ⬇️ TAMBAHIN INI BUAT LIAT ERROR ASLINYA
+        return response()->json([
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], 500);
     }
+}
 }
