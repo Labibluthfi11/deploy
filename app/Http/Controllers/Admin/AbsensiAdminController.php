@@ -537,30 +537,40 @@ class AbsensiAdminController extends Controller
     public function exportSlipGaji(Request $request, User $user)
     {
         $filterType = $request->input('filter_type', 'all');
-        $year = $request->input('year', now()->year);
-        $month = $request->input('month', now()->month);
-        $week = $request->input('week', 1);
 
+        // Query dasar
         $query = Absensi::where('user_id', $user->id);
+        $periodeLabel = "Semua Data";
 
-        if ($filterType === 'yearly') {
-            $query->whereYear('check_in_at', $year);
-        } elseif ($filterType === 'monthly') {
+        // Logic Filter
+        if ($filterType === 'monthly') {
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', now()->month);
+
             $query->whereYear('check_in_at', $year)
                   ->whereMonth('check_in_at', $month);
-        } elseif ($filterType === 'weekly') {
-            $firstMonday = \Carbon\Carbon::create($year, $month, 1)->startOfMonth()->next(\Carbon\Carbon::MONDAY);
-            if ($firstMonday->month != $month) {
-                $firstMonday = \Carbon\Carbon::create($year, $month, 1);
-            }
-            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-            $endDate = (clone $startDate)->endOfWeek();
 
-            $query->whereBetween('check_in_at', [$startDate, $endDate]);
+            $periodeLabel = "Bulan " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}";
+
+        } elseif ($filterType === 'custom') { // ⬅️ LOGIKA BARU
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+
+            if ($startDate && $endDate) {
+                // Tambahin jam biar seharian keambil (00:00:00 sampe 23:59:59)
+                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+                $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+
+                $query->whereBetween('check_in_at', [$start, $end]);
+
+                $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
+            }
         }
 
+        // Ambil data yang DI-APPROVE AJA
         $approvedAbsensi = $query->where('status_approval', 'approved')->get();
 
+        // Hitung Statistik
         $absensiStats = [
             'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
             'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
@@ -569,17 +579,11 @@ class AbsensiAdminController extends Controller
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
         ];
 
-        $periode = match ($filterType) {
-            'monthly' => "Bulan " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
-            'weekly' => "Minggu ke-{$week}, " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}",
-            'yearly' => "Tahun {$year}",
-            default => "Semua Data",
-        };
-
-        $fileName = "Slip_Gaji_{$user->name}_{$month}_{$year}.xlsx";
+        // Nama File
+        $fileName = "Slip_Gaji_{$user->name}_{$filterType}.xlsx";
 
         return Excel::download(
-            new SlipGajiExport($user, $absensiStats, $periode),
+            new SlipGajiExport($user, $absensiStats, $periodeLabel),
             $fileName
         );
     }

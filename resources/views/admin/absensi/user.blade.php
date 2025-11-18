@@ -60,68 +60,66 @@
     <div class="py-8 premium-bg min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
-            {{-- Filter Section --}}
+           {{-- Filter Section --}}
             <div class="premium-card p-6 rounded-2xl">
                 <form method="GET" action="{{ route('admin.absensi.user', $user->id) }}" class="flex flex-wrap items-end gap-4">
+
+                    {{-- Pilihan Tipe Filter --}}
                     <div class="flex flex-col gap-2">
-                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Periode</label>
+                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Tipe Filter</label>
                         <select name="filter_type" id="filter_type" class="filter-select" onchange="toggleFilterInputs()">
                             <option value="all" {{ request('filter_type', 'all') == 'all' ? 'selected' : '' }}>Semua Data</option>
                             <option value="monthly" {{ request('filter_type') == 'monthly' ? 'selected' : '' }}>Per Bulan</option>
-                            <option value="weekly" {{ request('filter_type') == 'weekly' ? 'selected' : '' }}>Per Minggu</option>
-                            <option value="yearly" {{ request('filter_type') == 'yearly' ? 'selected' : '' }}>Per Tahun</option>
+                            <option value="custom" {{ request('filter_type') == 'custom' ? 'selected' : '' }}>Range Tanggal (Custom)</option> {{-- ⬅️ INI BARU --}}
                         </select>
                     </div>
 
-                    <div class="flex flex-col gap-2" id="year_filter">
-                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Tahun</label>
-                        <select name="year" class="filter-select">
-                            @for($y = now()->year; $y >= 2020; $y--)
-                                <option value="{{ $y }}" {{ request('year', now()->year) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                            @endfor
-                        </select>
+                    {{-- Filter Bulan (Muncul kalo pilih Per Bulan) --}}
+                    <div class="flex flex-col gap-2" id="month_section" style="display: none;">
+                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Bulan & Tahun</label>
+                        <div class="flex gap-2">
+                            <select name="month" class="filter-select">
+                                @for ($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ request('month', now()->month) == $m ? 'selected' : '' }}>
+                                        {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
+                                    </option>
+                                @endfor
+                            </select>
+                            <select name="year" class="filter-select">
+                                @for($y = now()->year; $y >= 2020; $y--)
+                                    <option value="{{ $y }}" {{ request('year', now()->year) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="flex flex-col gap-2" id="month_filter" style="display: none;">
-                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Bulan</label>
-                        <select name="month" class="filter-select">
-                            <option value="1" {{ request('month', now()->month) == 1 ? 'selected' : '' }}>Januari</option>
-                            <option value="2" {{ request('month', now()->month) == 2 ? 'selected' : '' }}>Februari</option>
-                            <option value="3" {{ request('month', now()->month) == 3 ? 'selected' : '' }}>Maret</option>
-                            <option value="4" {{ request('month', now()->month) == 4 ? 'selected' : '' }}>April</option>
-                            <option value="5" {{ request('month', now()->month) == 5 ? 'selected' : '' }}>Mei</option>
-                            <option value="6" {{ request('month', now()->month) == 6 ? 'selected' : '' }}>Juni</option>
-                            <option value="7" {{ request('month', now()->month) == 7 ? 'selected' : '' }}>Juli</option>
-                            <option value="8" {{ request('month', now()->month) == 8 ? 'selected' : '' }}>Agustus</option>
-                            <option value="9" {{ request('month', now()->month) == 9 ? 'selected' : '' }}>September</option>
-                            <option value="10" {{ request('month', now()->month) == 10 ? 'selected' : '' }}>Oktober</option>
-                            <option value="11" {{ request('month', now()->month) == 11 ? 'selected' : '' }}>November</option>
-                            <option value="12" {{ request('month', now()->month) == 12 ? 'selected' : '' }}>Desember</option>
-                        </select>
-                    </div>
-
-                    <div class="flex flex-col gap-2" id="week_filter" style="display: none;">
-                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Minggu Ke-</label>
-                        <select name="week" class="filter-select">
-                            <option value="1" {{ request('week') == 1 ? 'selected' : '' }}>Minggu 1</option>
-                            <option value="2" {{ request('week') == 2 ? 'selected' : '' }}>Minggu 2</option>
-                            <option value="3" {{ request('week') == 3 ? 'selected' : '' }}>Minggu 3</option>
-                            <option value="4" {{ request('week') == 4 ? 'selected' : '' }}>Minggu 4</option>
-                            <option value="5" {{ request('week') == 5 ? 'selected' : '' }}>Minggu 5</option>
-                        </select>
+                    {{-- Filter Custom Tanggal (Muncul kalo pilih Range Tanggal) --}}
+                    <div class="flex flex-col gap-2" id="custom_date_section" style="display: none;">
+                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Pilih Tanggal</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" name="start_date" value="{{ request('start_date') }}" class="filter-select text-gray-700">
+                            <span class="text-gray-500">s/d</span>
+                            <input type="date" name="end_date" value="{{ request('end_date') }}" class="filter-select text-gray-700">
+                        </div>
                     </div>
 
                     <button type="submit" class="filter-btn">
-                        <i class="fas fa-filter mr-2"></i>
-                        Terapkan Filter
+                        <i class="fas fa-filter mr-2"></i> Terapkan
                     </button>
 
-                    @if(request()->hasAny(['filter_type', 'year', 'month', 'week']))
-                        <a href="{{ route('admin.absensi.user', $user->id) }}" class="filter-btn" style="background: #ef4444;">
-                            <i class="fas fa-times mr-2"></i>
-                            Reset
-                        </a>
-                    @endif
+                    {{-- Tombol Export Slip Gaji (Ikut Filter) --}}
+                    <a href="{{ route('admin.absensi.user.export-slip', [
+                            'user' => $user->id,
+                            'filter_type' => request('filter_type', 'all'),
+                            'month' => request('month', now()->month),
+                            'year' => request('year', now()->year),
+                            'start_date' => request('start_date'), // ⬅️ Kirim start_date
+                            'end_date' => request('end_date')      // ⬅️ Kirim end_date
+                        ]) }}"
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200"
+                       style="height: 46px;">
+                        <i class="fas fa-file-invoice-dollar"></i> Export Slip Gaji
+                    </a>
                 </form>
             </div>
 
@@ -558,32 +556,22 @@
 
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
-        function toggleFilterInputs() {
-            const filterType = document.getElementById('filter_type').value;
-            const yearFilter = document.getElementById('year_filter');
-            const monthFilter = document.getElementById('month_filter');
-            const weekFilter = document.getElementById('week_filter');
+                function toggleFilterInputs() {
+                    const type = document.getElementById('filter_type').value;
+                    const monthSection = document.getElementById('month_section');
+                    const customSection = document.getElementById('custom_date_section');
 
-            // Reset semua dulu
-            yearFilter.style.display = 'none';
-            monthFilter.style.display = 'none';
-            weekFilter.style.display = 'none';
+                    // Hide all first
+                    monthSection.style.display = 'none';
+                    customSection.style.display = 'none';
 
-            if (filterType === 'yearly') {
-                yearFilter.style.display = 'flex';
-            } else if (filterType === 'monthly') {
-                yearFilter.style.display = 'flex';
-                monthFilter.style.display = 'flex';
-            } else if (filterType === 'weekly') {
-                yearFilter.style.display = 'flex';
-                monthFilter.style.display = 'flex';
-                weekFilter.style.display = 'flex';
-            } else if (filterType === 'all') {
-                // 'all' tidak menampilkan apa-apa (selain tombol)
-            }
-        }
-
-        // Panggil saat halaman dimuat
-        document.addEventListener('DOMContentLoaded', toggleFilterInputs);
-    </script>
+                    if (type === 'monthly') {
+                        monthSection.style.display = 'flex';
+                    } else if (type === 'custom') {
+                        customSection.style.display = 'flex';
+                    }
+                }
+                // Jalanin pas loading
+                document.addEventListener('DOMContentLoaded', toggleFilterInputs);
+            </script>
 </x-app-layout>
