@@ -1,11 +1,24 @@
+{{-- Ini adalah file HTML yang bakal jadi Excel --}}
 <table>
+    {{-- Loop per Karyawan --}}
     @foreach($users as $user)
         {{-- Header Karyawan --}}
         <thead>
-            <tr><td colspan="14" style="font-weight: bold; font-size: 14px; text-align: center; height: 30px; vertical-align: middle;">REKAP ABSENSI KARYAWAN</td></tr>
-            <tr><td colspan="14" style="font-weight: bold; text-align: center;">Nama: {{ $user->name }} (ID: {{ $user->id_karyawan }})</td></tr>
-            <tr><td colspan="14" style="font-weight: bold; text-align: center;">Periode: {{ $periodeStr }}</td></tr>
-            <tr><td colspan="14"></td></tr>
+            <tr>
+                <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; height: 30px; vertical-align: middle; background-color: #BDD7EE;">
+                    REKAP ABSENSI KARYAWAN
+                </td>
+            </tr>
+            <tr>
+                <td colspan="7" style="font-weight: bold; text-align: left;">Nama: {{ $user->name }}</td>
+                <td colspan="7" style="font-weight: bold; text-align: left;">ID: {{ $user->id_karyawan }}</td>
+            </tr>
+            <tr>
+                <td colspan="14" style="font-weight: bold; text-align: left;">Periode: {{ $periodeStr }}</td>
+            </tr>
+            <tr>
+                <td colspan="14"></td> {{-- Spasi --}}
+            </tr>
 
             {{-- Header Tabel --}}
             <tr style="background-color: #4F46E5; color: #FFFFFF;">
@@ -28,11 +41,18 @@
 
         {{-- Body Tabel --}}
         <tbody>
-            @php $totalGajiAll = 0; $no = 1; @endphp
+            @php
+                $totalGajiAll = 0;
+                $no = 1;
+                // Ambil data absensi SI USER INI AJA dari koleksi besar
+                $userAbsensi = $absensiData->where('user_id', $user->id);
+            @endphp
 
-            @foreach($absensiData->where('user_id', $user->id) as $item)
+            @forelse($userAbsensi as $item)
                 @php
-                    $totalGajiAll += $item->final_salary;
+                    // ⬇️ INI RUMUS TOTAL GAJI PER HARI LO ⬇️
+                    $totalGajiHari = ($item->base_salary + $item->overtime_pay) - $item->late_penalty;
+                    $totalGajiAll += $totalGajiHari; // Tambahin ke total si user
                 @endphp
                 <tr>
                     <td style="text-align: center; border: 1px solid #000000;">{{ $no++ }}</td>
@@ -47,23 +67,23 @@
                     <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->base_salary, 0, ',', '.') }}</td>
                     <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->late_penalty, 0, ',', '.') }}</td>
                     <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->final_salary, 0, ',', '.') }}</td>
-                    <td style="text-align: right; border: 1px solid #000000; background-color: #E2EFDA; font-weight: bold;">Rp {{ number_format($item->final_salary, 0, ',', '.') }}</td>
+                    <td style="text-align: right; border: 1px solid #000000; background-color: #E2EFDA; font-weight: bold;">Rp {{ number_format($totalGajiHari, 0, ',', '.') }}</td>
                     <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status_approval) }}</td>
                 </tr>
-            @endforeach
-
-            @if($absensiData->where('user_id', $user->id)->isEmpty())
+            @empty
                 <tr><td colspan="14" style="text-align: center; border: 1px solid #000000;">Tidak ada data absensi.</td></tr>
-            @else
-                <tr>
-                    <td colspan="11" style="text-align: right; font-weight: bold; border: 1px solid #000000;">TOTAL DITERIMA:</td>
-                    <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; font-size: 12px;">
-                        Rp {{ number_format($totalGajiAll, 0, ',', '.') }}
-                    </td>
-                    <td style="border: 1px solid #000000;"></td>
-                </tr>
-            @endif
+            @endforelse
 
+            {{-- Baris Total --}}
+            <tr>
+                <td colspan="11" style="text-align: right; font-weight: bold; border: 1px solid #000000;">TOTAL DITERIMA:</td>
+                <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; font-size: 12px;">
+                    Rp {{ number_format($totalGajiAll, 0, ',', '.') }}
+                </td>
+                <td style="border: 1px solid #000000;"></td>
+            </tr>
+
+            {{-- Jarak Antar Karyawan --}}
             <tr><td colspan="14"></td></tr>
             <tr><td colspan="14"></td></tr>
         </tbody>

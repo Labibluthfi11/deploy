@@ -7,9 +7,10 @@ use App\Models\Absensi;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use Carbon\Carbon;
 
-class BulkDetailExport implements FromView, ShouldAutoSize
+class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 {
     protected $userIds;
     protected $startDate;
@@ -24,25 +25,29 @@ class BulkDetailExport implements FromView, ShouldAutoSize
 
     public function view(): View
     {
+        // Ambil user yang dipilih, urutin namanya
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // Ambil SEMUA data absensi sekaligus biar gak query n+1
-        // Kita filter berdasarkan user_id dan tanggal
+        // Ambil SEMUA data absensi yang relevan sekaligus (biar cepet)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
-            ->whereBetween('check_in_at', [
-                Carbon::parse($this->startDate)->startOfDay(),
-                Carbon::parse($this->endDate)->endOfDay()
-            ])
+            ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->where('status_approval', 'approved')
             ->orderBy('check_in_at', 'asc')
-            ->get();
+            ->get(); // Ambil semua datanya
 
+        // Bikin label periode
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
+        // Lempar semua data ke file Blade
         return view('exports.bulk_detail', [
             'users' => $users,
-            'absensiData' => $absensiData,
+            'absensiData' => $absensiData, // Ini koleksi data absensi SEMUA user
             'periodeStr' => $periodeStr
         ]);
+    }
+
+    public function title(): string
+    {
+        return 'Rekap Detail Massal'; // Nama Sheet-nya
     }
 }

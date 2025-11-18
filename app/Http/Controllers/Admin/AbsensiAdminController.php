@@ -12,7 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
 use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
-use App\Exports\BulkUserDetailExport;
+use App\Exports\BulkDetailExport; 
 
 class AbsensiAdminController extends Controller
 {
@@ -414,12 +414,13 @@ class AbsensiAdminController extends Controller
             ];
         }
 
-        return view('admin.absensi.recap', compact(
-            'recapData', 'month', 'year', 'range', 'week'
+        // ... (kode foreach $users lo) ...
+                return view('admin.absensi.recap', compact(
+            'recapData', 'month', 'year', 'range', 'week',
+            'startDate', 'endDate' // ⬅️ TAMBAH 2 INI
         ))->with('selectedMonth', $month)
           ->with('selectedYear', $year);
     }
-
     public function exportRecap(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
@@ -589,34 +590,26 @@ class AbsensiAdminController extends Controller
         );
     }
 
-    // ⬇️ ⬇️ ⬇️ INI FUNGSI BARU BUAT NANGANIN CHECKBOX ⬇️ ⬇️ ⬇️
+    // INI FUNGSI BARU BUAT NANGANIN CHECKBOX
     public function bulkExportDetail(Request $request)
-{
-    try {
+    {
         $request->validate([
             'user_ids'   => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
-            'start_date' => 'required|date',
-            'end_date'   => 'required|date|after_or_equal:start_date',
+            'start_date' => 'required|date_format:Y-m-d H:i:s', // ⬅️ Kita ambil dari hidden input
+            'end_date'   => 'required|date_format:Y-m-d H:i:s', // ⬅️ Kita ambil dari hidden input
         ]);
 
         $userIds = $request->input('user_ids');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $fileName = "Rekap_Detail_Karyawan_(" . date('Y-m-d') . ").xlsx";
+        $fileName = "Rekap_Detail_Massal_" . date('Ymd_His') . ".xlsx";
 
+        // Panggil "Resep" Excel baru
         return Excel::download(
-            new BulkUserDetailExport($userIds, $startDate, $endDate),
+            new BulkDetailExport($userIds, $startDate, $endDate),
             $fileName
         );
-    } catch (\Exception $e) {
-        // ⬇️ TAMBAHIN INI BUAT LIAT ERROR ASLINYA
-        return response()->json([
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ], 500);
     }
-}
 }

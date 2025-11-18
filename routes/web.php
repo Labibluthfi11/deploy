@@ -57,8 +57,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
         // Export rekap bulanan ke Excel
         Route::get('/recap/export', [AbsensiAdminController::class, 'exportRecap'])->name('admin.absensi.recap.export');
-        Route::post('/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
-             ->name('admin.absensi.bulk-export-detail');
+
+
+            Route::post('/absensi/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
+            ->name('admin.absensi.bulk-export-detail');
     });
 
     // --------------------------------------------------------
