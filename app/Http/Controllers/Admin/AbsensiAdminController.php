@@ -36,22 +36,20 @@ class AbsensiAdminController extends Controller
      */
     private function indexByEmploymentType(Request $request, ?string $type)
     {
-         $month = $request->input('month', Carbon::now()->month);
-    $year = $request->input('year', Carbon::now()->year);
+        $month = $request->input('month', Carbon::now()->month);
+        $year = $request->input('year', Carbon::now()->year);
 
-    // ✅ FIX: Ambil users yang BENER
-    $users = User::when($type, function($query, $type) {
-        return $query->where('employment_type', $type);
-    })->get();
+        $userFilter = function (Builder $query) use ($type) {
+            if ($type) {
+                $query->where('employment_type', $type);
+            }
+        };
 
-    // ATAU bisa juga pake cara simpel gini:
-    // $users = $type ? User::where('employment_type', $type)->get() : User::all();
-
-    $dashboardTitle = match ($type) {
-        'organik'   => 'Dashboard Absensi Karyawan Organik',
-        'freelance' => 'Dashboard Absensi Karyawan Freelance',
-        default     => 'Dashboard Absensi Semua Karyawan',
-    };
+        $dashboardTitle = match ($type) {
+            'organik'   => 'Dashboard Absensi Karyawan Organik',
+            'freelance' => 'Dashboard Absensi Karyawan Freelance',
+            default     => 'Dashboard Absensi Semua Karyawan',
+        };
 
         $pendingApprovals = collect([]);
         $today = Carbon::today();
