@@ -9,44 +9,48 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 
 class SlipGajiExport implements WithEvents, ShouldAutoSize
 {
     protected $user;
     protected $stats;
     protected $periode;
+    protected $terbilangString;
 
     public function __construct(User $user, array $stats, string $periode)
     {
         $this->user = $user;
         $this->stats = $stats;
         $this->periode = $periode;
+
+        // HITUNG TERBILANG DI SINI (BIAR AMAN)
+        $gajiBersih = $stats['total_gaji_bersih'] ?? 0;
+        $this->terbilangString = $this->penyebut($gajiBersih) . ' Rupiah';
     }
 
     /**
-     * Fungsi Helper Terbilang Manual
+     * Fungsi Penyebut Angka (Manual & Aman)
      */
-    private function terbilang($nilai) {
+    private function penyebut($nilai) {
         $nilai = abs($nilai);
         $huruf = array("", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas");
         $temp = "";
         if ($nilai < 12) {
             $temp = " ". $huruf[$nilai];
         } else if ($nilai <20) {
-            $temp = $this->terbilang($nilai - 10). " belas";
+            $temp = $this->penyebut($nilai - 10). " belas";
         } else if ($nilai < 100) {
-            $temp = $this->terbilang($nilai/10)." puluh". $this->terbilang($nilai % 10);
+            $temp = $this->penyebut($nilai/10)." puluh". $this->penyebut($nilai % 10);
         } else if ($nilai < 200) {
-            $temp = " seratus" . $this->terbilang($nilai - 100);
+            $temp = " seratus" . $this->penyebut($nilai - 100);
         } else if ($nilai < 1000) {
-            $temp = $this->terbilang($nilai/100) . " ratus" . $this->terbilang($nilai % 100);
+            $temp = $this->penyebut($nilai/100) . " ratus" . $this->penyebut($nilai % 100);
         } else if ($nilai < 2000) {
-            $temp = " seribu" . $this->terbilang($nilai - 1000);
+            $temp = " seribu" . $this->penyebut($nilai - 1000);
         } else if ($nilai < 1000000) {
-            $temp = $this->terbilang($nilai/1000) . " ribu" . $this->terbilang($nilai % 1000);
+            $temp = $this->penyebut($nilai/1000) . " ribu" . $this->penyebut($nilai % 1000);
         } else if ($nilai < 1000000000) {
-            $temp = $this->terbilang($nilai/1000000) . " juta" . $this->terbilang($nilai % 1000000);
+            $temp = $this->penyebut($nilai/1000000) . " juta" . $this->penyebut($nilai % 1000000);
         }
         return $temp;
     }
@@ -57,166 +61,137 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // --- SETUP STYLE ---
-                $headerBlue = 'BDD7EE'; // Biru Muda Header
-                $tableHeaderBlue = 'DEEBF7'; // Biru Sangat Muda untuk Header Tabel
-                $summaryBlue = 'BDD7EE'; // Biru Summary
-                $grayRow = 'F2F2F2'; // Abu-abu untuk baris selang-seling (opsional)
+                // VARIABEL WARNA (BIAR GANTENG)
+                $blueHeader = 'BDD7EE'; // Biru Muda
+                $greyTotal  = 'D9D9D9'; // Abu-abu
+                $greenNet   = 'C6E0B4'; // Hijau Muda (Gaji Bersih)
 
-                // --- LEBAR KOLOM (Biar Mirip Contoh) ---
-                $sheet->getColumnDimension('A')->setWidth(25);
+                // AMBIL DATA
+                $gajiPokok = $this->stats['total_gaji_pokok'] ?? 0;
+                $gajiLembur = $this->stats['total_gaji_lembur'] ?? 0;
+                $potongan = $this->stats['total_potongan'] ?? 0;
+                $gajiBersih = $this->stats['total_gaji_bersih'] ?? 0;
+
+                // SET LEBAR KOLOM MANUAL (BIAR RAPI)
+                $sheet->getColumnDimension('A')->setWidth(30);
                 $sheet->getColumnDimension('B')->setWidth(20);
-                $sheet->getColumnDimension('C')->setWidth(25); // Spasi Tengah
-                $sheet->getColumnDimension('D')->setWidth(25);
+                $sheet->getColumnDimension('C')->setWidth(5); // Spasi
+                $sheet->getColumnDimension('D')->setWidth(30);
                 $sheet->getColumnDimension('E')->setWidth(20);
 
-                // --- 1. HEADER PERUSAHAAN ---
-                // Baris 1-4
+                // --- HEADER ---
                 $sheet->mergeCells('A1:E1');
                 $sheet->setCellValue('A1', 'PT. ANSEL MUDA BERKARYA');
-                $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $sheet->mergeCells('A2:E2');
-                $sheet->setCellValue('A2', 'JL. Wibawa Mukti II km. 4 Nomor 57 Rt. 06/rw 04 Kelurahan Jati Sari,');
-                $sheet->getStyle('A2')->getFont()->setSize(10);
+                $sheet->setCellValue('A2', 'SLIP GAJI KARYAWAN');
+                $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+                $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $sheet->mergeCells('A3:E3');
-                $sheet->setCellValue('A3', 'Kecamatan Jati Asih, Kota Bekasi');
-                $sheet->getStyle('A3')->getFont()->setSize(10);
-
-                // Garis Bawah Header
-                $sheet->getStyle('A4:E4')->getBorders()->getTop()->setBorderStyle(Border::BORDER_THICK);
-
-
-                // --- 2. DATA KARYAWAN (Kotak Abu/Biru) ---
-                // Baris 6
-                $sheet->setCellValue('A6', 'DATA KARYAWAN');
-                $sheet->getStyle('A6')->getFont()->setBold(true);
-
-                // Tabel Info Karyawan (Baris 7-9)
-                $sheet->setCellValue('A7', 'Nomor Induk Pegawai');
-                $sheet->setCellValue('B7', $this->user->id_karyawan ?? '-');
-
-                $sheet->setCellValue('D7', 'Periode Penggajian');
-                $sheet->setCellValue('E7', $this->periode);
-
-                $sheet->setCellValue('A8', 'Nama Karyawan');
-                $sheet->setCellValue('B8', strtoupper($this->user->name));
-
-                $sheet->setCellValue('D8', 'Status Pegawai');
-                $sheet->setCellValue('E8', ucfirst($this->user->employment_type));
-
-                $sheet->setCellValue('A9', 'Jabatan');
-                $sheet->setCellValue('B9', ucfirst($this->user->role ?? 'Staff')); // Asumsi ada kolom role
-
-                $sheet->setCellValue('D9', 'Tanggal Cetak');
-                $sheet->setCellValue('E9', date('d M Y'));
-
-                // Styling Info Karyawan (Background Biru Tipis)
-                $sheet->getStyle('A7:B9')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($tableHeaderBlue);
-                $sheet->getStyle('D7:E9')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($tableHeaderBlue);
-
-
-                // --- 3. RINCIAN GAJI (Dua Kolom Kiri Kanan) ---
-                // Header Tabel (Baris 12)
-                $sheet->setCellValue('A12', 'PENGHASILAN');
-                $sheet->setCellValue('D12', 'POTONGAN');
-                $sheet->getStyle('A12')->getFont()->setBold(true);
-                $sheet->getStyle('D12')->getFont()->setBold(true);
-
-                // Isi Tabel Penghasilan (Kiri)
-                $row = 13;
-
-                $sheet->setCellValue('A'.$row, 'Gaji Pokok (Harian)');
-                $sheet->setCellValue('B'.$row, $this->stats['total_gaji_pokok']);
+                // --- DATA KARYAWAN ---
+                $row = 4;
+                $sheet->setCellValue('A'.$row, 'DATA KARYAWAN');
+                $sheet->getStyle('A'.$row)->getFont()->setBold(true);
                 $row++;
 
-                $sheet->setCellValue('A'.$row, 'Lembur (Overtime)');
-                $sheet->setCellValue('B'.$row, $this->stats['total_gaji_lembur']);
+                $sheet->setCellValue('A'.$row, 'Nama Karyawan');
+                $sheet->setCellValue('B'.$row, ': ' . $this->user->name);
+                $sheet->setCellValue('D'.$row, 'Periode Penggajian');
+                $sheet->setCellValue('E'.$row, ': ' . $this->periode);
                 $row++;
 
-                // Isi Tabel Potongan (Kanan) - Mulai lagi dari baris 13
-                $rowPot = 13;
-                $sheet->setCellValue('D'.$rowPot, 'Potongan Keterlambatan');
-                $sheet->setCellValue('E'.$rowPot, $this->stats['total_potongan']);
-                $rowPot++;
+                $sheet->setCellValue('A'.$row, 'Nomor Induk Pegawai');
+                $sheet->setCellValue('B'.$row, ': ' . ($this->user->id_karyawan ?? '-'));
+                $sheet->setCellValue('D'.$row, 'Tipe Karyawan');
+                $sheet->setCellValue('E'.$row, ': ' . ucfirst($this->user->employment_type));
+                $row += 2; // Spasi
 
-                // ... Tambah potongan lain kalo ada ...
+                // --- TABEL GAJI (HEADER) ---
+                $sheet->setCellValue('A'.$row, 'PENGHASILAN');
+                $sheet->setCellValue('D'.$row, 'POTONGAN');
+                $sheet->getStyle('A'.$row)->getFont()->setBold(true);
+                $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+                // Border Header Tabel
+                $sheet->getStyle('A'.$row.':B'.$row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle('D'.$row.':E'.$row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $row++;
 
+                // --- ISI TABEL ---
+                $startRow = $row;
+                // Kiri (Penghasilan)
+                $sheet->setCellValue('A'.$row, 'Upah Harian (Total)');
+                $sheet->setCellValue('B'.$row, $gajiPokok);
+                $sheet->setCellValue('D'.$row, 'Potongan Keterlambatan');
+                $sheet->setCellValue('E'.$row, $potongan);
+                $row++;
 
-                // --- 4. TOTAL ---
-                $totalRow = 18; // Kasih jarak dikit
+                $sheet->setCellValue('A'.$row, 'Upah Lembur (Total)');
+                $sheet->setCellValue('B'.$row, $gajiLembur);
+                // Kanan (Potongan) - Kosongin baris kedua kalo gak ada potongan lain
+                $sheet->setCellValue('D'.$row, '');
+                $sheet->setCellValue('E'.$row, '');
+                $row++;
 
-                // Subtotal Penghasilan
-                $sheet->setCellValue('A'.$totalRow, 'TOTAL PENGHASILAN');
-                $sheet->setCellValue('B'.$totalRow, $this->stats['total_gaji_pokok'] + $this->stats['total_gaji_lembur']);
-                $sheet->getStyle('A'.$totalRow.':B'.$totalRow)->getFont()->setBold(true);
-                $sheet->getStyle('A'.$totalRow.':B'.$totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($summaryBlue);
+                // Border Isi Tabel
+                $sheet->getStyle('A'.$startRow.':B'.($row-1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle('D'.$startRow.':E'.($row-1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                // Subtotal Potongan
-                $sheet->setCellValue('D'.$totalRow, 'TOTAL POTONGAN');
-                $sheet->setCellValue('E'.$totalRow, $this->stats['total_potongan']);
-                $sheet->getStyle('D'.$totalRow.':E'.$totalRow)->getFont()->setBold(true);
-                $sheet->getStyle('D'.$totalRow.':E'.$totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($summaryBlue);
+                // --- TOTAL ---
+                $row++; // Spasi
+                $sheet->setCellValue('A'.$row, 'TOTAL PENGHASILAN');
+                $sheet->setCellValue('B'.$row, $gajiPokok + $gajiLembur);
+                $sheet->setCellValue('D'.$row, 'TOTAL POTONGAN');
+                $sheet->setCellValue('E'.$row, $potongan);
 
-                // --- 5. GAJI BERSIH & TERBILANG ---
-                $netRow = 20;
-                $sheet->mergeCells('A'.$netRow.':D'.$netRow);
-                $sheet->setCellValue('A'.$netRow, 'PENGHASILAN BERSIH (TAKE HOME PAY)');
-                $sheet->setCellValue('E'.$netRow, $this->stats['total_gaji_bersih']);
+                // Style Total (Abu-abu)
+                $sheet->getStyle('A'.$row.':E'.$row)->getFont()->setBold(true);
+                $sheet->getStyle('A'.$row.':E'.$row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($greyTotal);
+                $sheet->getStyle('A'.$row.':E'.$row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                // Style Gaji Bersih (Mirip contoh)
-                $sheet->getStyle('A'.$netRow.':E'.$netRow)->getFont()->setBold(true)->setSize(12);
-                $sheet->getStyle('A'.$netRow.':E'.$netRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($headerBlue);
-                $sheet->getStyle('A'.$netRow.':E'.$netRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                // --- GAJI BERSIH ---
+                $row += 2;
+                $sheet->mergeCells('A'.$row.':D'.$row);
+                $sheet->setCellValue('A'.$row, 'PENGHASILAN BERSIH (TAKE HOME PAY)');
+                $sheet->setCellValue('E'.$row, $gajiBersih);
 
-                // Terbilang
-                $terbilangRow = 21;
-                $textTerbilang = trim($this->terbilang($this->stats['total_gaji_bersih'])) . ' Rupiah';
-                $sheet->mergeCells('A'.$terbilangRow.':E'.$terbilangRow);
-                $sheet->setCellValue('A'.$terbilangRow, 'Terbilang: # ' . ucwords($textTerbilang) . ' #');
-                $sheet->getStyle('A'.$terbilangRow)->getFont()->setItalic(true);
-                $sheet->getStyle('A'.$terbilangRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                // Style Gaji Bersih (Hijau)
+                $sheet->getStyle('A'.$row.':E'.$row)->getFont()->setBold(true)->setSize(11);
+                $sheet->getStyle('A'.$row.':E'.$row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($greenNet);
+                $sheet->getStyle('A'.$row.':E'.$row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
+                // --- TERBILANG ---
+                $row++;
+                $sheet->mergeCells('A'.$row.':E'.$row);
+                $sheet->setCellValue('A'.$row, 'Terbilang: ' . ucwords($this->terbilangString));
+                $sheet->getStyle('A'.$row)->getFont()->setItalic(true)->setBold(true);
+                $sheet->getStyle('A'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                // --- 6. FOOTER & TTD ---
-                $footerRow = 25;
-                $sheet->mergeCells('A'.$footerRow.':E'.$footerRow);
-                $sheet->setCellValue('A'.$footerRow, '“Keep Up The Good Work”');
-                $sheet->getStyle('A'.$footerRow)->getFont()->setItalic(true)->setBold(true)->setName('Times New Roman');
-                $sheet->getStyle('A'.$footerRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                // --- FOOTER & TTD ---
+                $row += 3;
+                $sheet->mergeCells('A'.$row.':E'.$row);
+                $sheet->setCellValue('A'.$row, '“Keep Up The Good Work”');
+                $sheet->getStyle('A'.$row)->getFont()->setItalic(true)->setBold(true)->setName('Times New Roman');
+                $sheet->getStyle('A'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $ttdRow = 27;
-                $sheet->mergeCells('C'.$ttdRow.':E'.$ttdRow);
-                $sheet->setCellValue('C'.$ttdRow, 'Bekasi, ' . date('d F Y'));
-                $sheet->getStyle('C'.$ttdRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $row += 2;
+                $sheet->mergeCells('D'.$row.':E'.$row);
+                $sheet->setCellValue('D'.$row, 'HRGA Division');
+                $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+                $sheet->getStyle('D'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $rowHR = $ttdRow + 2;
-                $sheet->mergeCells('C'.$rowHR.':E'.$rowHR);
-                $sheet->setCellValue('C'.$rowHR, 'HRGA Division');
-                $sheet->getStyle('C'.$rowHR)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setBold(true);
+                $row++;
+                $sheet->mergeCells('D'.$row.':E'.$row);
+                $sheet->setCellValue('D'.$row, 'PT. ANSEL MUDA BERKARYA');
+                $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+                $sheet->getStyle('D'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $rowPT = $rowHR + 1;
-                $sheet->mergeCells('C'.$rowPT.':E'.$rowPT);
-                $sheet->setCellValue('C'.$rowPT, 'PT. ANSEL MUDA BERKARYA');
-                $sheet->getStyle('C'.$rowPT)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setBold(true);
-
-
-                // --- FORMATTING GENERAL ---
-                // Format Rupiah
-                $currencyFormat = '"Rp" #,##0';
-                $sheet->getStyle('B13:B15')->getNumberFormat()->setFormatCode($currencyFormat); // Penghasilan
-                $sheet->getStyle('E13:E15')->getNumberFormat()->setFormatCode($currencyFormat); // Potongan
-                $sheet->getStyle('B'.$totalRow)->getNumberFormat()->setFormatCode($currencyFormat); // Total Penghasilan
-                $sheet->getStyle('E'.$totalRow)->getNumberFormat()->setFormatCode($currencyFormat); // Total Potongan
-                $sheet->getStyle('E'.$netRow)->getNumberFormat()->setFormatCode($currencyFormat);   // Gaji Bersih
-
-                // Borders untuk Tabel Penghasilan & Potongan
-                $styleBorder = ['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]];
-                $sheet->getStyle('A12:B'.$totalRow)->applyFromArray($styleBorder);
-                $sheet->getStyle('D12:E'.$totalRow)->applyFromArray($styleBorder);
-
+                // --- FORMAT RUPIAH ---
+                $rupiahFormat = '"Rp" #,##0';
+                // Format kolom B (Penghasilan) dan E (Potongan) dari baris awal tabel sampe bawah
+                $sheet->getStyle('B10:B50')->getNumberFormat()->setFormatCode($rupiahFormat);
+                $sheet->getStyle('E10:E50')->getNumberFormat()->setFormatCode($rupiahFormat);
             },
         ];
     }
