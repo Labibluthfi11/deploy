@@ -284,6 +284,23 @@ class AbsensiAdminController extends Controller
         usort($dailyStatusesBorongan, fn($a, $b) => $a['user']->name <=> $b['user']->name); // 🆕
         usort($dailyStatusesMagang, fn($a, $b) => $a['user']->name <=> $b['user']->name);   // 🆕
 
+        $totalUserDB = $users->count();
+
+        // Cek data mentah salah satu user yang ILANG (Ganti namanya kalo tau)
+        // Misal cari user yang harusnya freelance tapi gak muncul
+        $cekUserIlang = $users->where('employment_type', 'freelance')->first();
+
+        dd([
+            '1. Total User di Query Awal' => $totalUserDB,
+            '2. Jumlah Array Organik' => count($dailyStatusesOrganik),
+            '3. Jumlah Array Freelance' => count($dailyStatusesFreelance),
+            '4. Jumlah Array Borongan' => count($dailyStatusesBorongan),
+            '5. Jumlah Array Magang' => count($dailyStatusesMagang),
+            '6. Total User yang Masuk Kategori' => count($dailyStatusesOrganik) + count($dailyStatusesFreelance) + count($dailyStatusesBorongan) + count($dailyStatusesMagang),
+            '7. Contoh Data User Freelance (Asli DB)' => $cekUserIlang ? $cekUserIlang->employment_type : 'Gak Ketemu',
+            '8. Hasil Deteksi Kategori User Tersebut' => $cekUserIlang ? $this->detectKategori($cekUserIlang) : '-'
+        ]);
+
         return view('admin.absensi.index', compact(
             'users',
             'month',
