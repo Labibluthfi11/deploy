@@ -313,14 +313,19 @@ class AbsensiAdminController extends Controller
         $month = $request->input('month', now()->month);
         $week = $request->input('week', 1);
 
+        // Query dasar
         $query = Absensi::where('user_id', $user->id);
 
+        // --- LOGIKA FILTER ---
         if ($filterType === 'yearly') {
             $query->whereYear('check_in_at', $year);
+
         } elseif ($filterType === 'monthly') {
             $query->whereYear('check_in_at', $year)
                   ->whereMonth('check_in_at', $month);
+
         } elseif ($filterType === 'weekly') {
+            // Hitung tanggal awal dan akhir minggu
             $firstMonday = \Carbon\Carbon::create($year, $month, 1)->startOfMonth()->next(\Carbon\Carbon::MONDAY);
             if ($firstMonday->month != $month) {
                 $firstMonday = \Carbon\Carbon::create($year, $month, 1);
@@ -329,11 +334,27 @@ class AbsensiAdminController extends Controller
             $endDate = (clone $startDate)->endOfWeek();
 
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
+
+        } elseif ($filterType === 'custom') {
+            // 🔥 INI DIA JURUS BARUNYA (RANGE TANGGAL) 🔥
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+
+            if ($startDate && $endDate) {
+                $query->whereBetween('check_in_at', [
+                    \Carbon\Carbon::parse($startDate)->startOfDay(),
+                    \Carbon\Carbon::parse($endDate)->endOfDay()
+                ]);
+            }
         }
 
+        // Ambil data (urutkan dari yang terbaru)
         $absensi = $query->orderBy('check_in_at', 'desc')->get();
+
+        // Filter data yang approved untuk statistik
         $approvedAbsensi = $absensi->where('status_approval', 'approved');
 
+        // Hitung statistik berdasarkan data yang sudah difilter
         $absensiStats = [
             'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
             'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
@@ -347,9 +368,10 @@ class AbsensiAdminController extends Controller
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
         ];
 
+        // Variabel dummy untuk mingguan (biar view gak error)
         $weeklySummary = null;
         if ($filterType === 'weekly') {
-            $weeklySummary = [
+             $weeklySummary = [
                 'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
                 'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
                 'izin' => $approvedAbsensi->where('status', 'izin')->count(),
