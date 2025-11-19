@@ -951,6 +951,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // 🔥 AUTO SCROLL KE TABEL YANG DI-SEARCH 🔥
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('search_organik') && urlParams.get('search_organik') !== '') {
+                document.getElementById('tabel-organik')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (urlParams.has('search_freelance') && urlParams.get('search_freelance') !== '') {
+                document.getElementById('tabel-freelance')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (urlParams.has('search_borongan') && urlParams.get('search_borongan') !== '') {
+                document.getElementById('tabel-borongan')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (urlParams.has('search_magang') && urlParams.get('search_magang') !== '') {
+                document.getElementById('tabel-magang')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
             const isDark = document.documentElement.classList.contains('dark');
 
             Chart.defaults.color = isDark ? '#cbd5e0' : '#4b5563';
