@@ -305,16 +305,16 @@
             {{-- 🔥 TODAY'S STATUS: 4 TABEL (ORGANIK, FREELANCE, BORONGAN, MAGANG) --}}
             @if($currentStatus === 'semua')
                 {{-- Tabel Organik --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
-                            <i class="fas fa-users-cog text-white"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Organik Hari Ini</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-                        </div>
+                            <div id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
+                        <i class="fas fa-users-cog text-white"></i>
                     </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Organik Hari Ini</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                    </div>
+                </div>
 
                     {{-- Form Pencarian Organik --}}
                     <form action="{{ url()->current() }}" method="GET" class="mb-4">
@@ -436,7 +436,7 @@
                 </div>
 
                 {{-- Tabel Freelance --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                                <div id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
                             <i class="fas fa-users text-white"></i>
@@ -567,17 +567,16 @@
                 </div>
 
                 {{-- 🔥 TABEL BARU: BORONGAN 🔥 --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
-                            <i class="fas fa-hammer text-white"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Borongan Hari Ini</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-                        </div>
+                        <div id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
+                        <i class="fas fa-hammer text-white"></i>
                     </div>
-
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Borongan Hari Ini</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                    </div>
+                </div>
                     {{-- Form Pencarian Borongan --}}
                     <form action="{{ url()->current() }}" method="GET" class="mb-4">
                         <div class="flex items-center gap-2">
@@ -698,7 +697,7 @@
                 </div>
 
                 {{-- 🔥 TABEL BARU: MAGANG 🔥 --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                                <div id="tabel-magang" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-xl">
                             <i class="fas fa-graduation-cap text-white"></i>
@@ -708,7 +707,6 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
                         </div>
                     </div>
-
                     {{-- Form Pencarian Magang --}}
                     <form action="{{ url()->current() }}" method="GET" class="mb-4">
                         <div class="flex items-center gap-2">
@@ -951,18 +949,26 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // 🔥 AUTO SCROLL KE TABEL YANG DI-SEARCH 🔥
-            const urlParams = new URLSearchParams(window.location.search);
+        // 🔥 AUTO SCROLL KE TABEL YANG DI-SEARCH 🔥
+        const urlParams = new URLSearchParams(window.location.search);
 
-            if (urlParams.has('search_organik') && urlParams.get('search_organik') !== '') {
+        if (urlParams.has('search_organik') && urlParams.get('search_organik') !== '') {
+            setTimeout(() => {
                 document.getElementById('tabel-organik')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else if (urlParams.has('search_freelance') && urlParams.get('search_freelance') !== '') {
+            }, 300);
+        } else if (urlParams.has('search_freelance') && urlParams.get('search_freelance') !== '') {
+            setTimeout(() => {
                 document.getElementById('tabel-freelance')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else if (urlParams.has('search_borongan') && urlParams.get('search_borongan') !== '') {
+            }, 300);
+        } else if (urlParams.has('search_borongan') && urlParams.get('search_borongan') !== '') {
+            setTimeout(() => {
                 document.getElementById('tabel-borongan')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else if (urlParams.has('search_magang') && urlParams.get('search_magang') !== '') {
+            }, 300);
+        } else if (urlParams.has('search_magang') && urlParams.get('search_magang') !== '') {
+            setTimeout(() => {
                 document.getElementById('tabel-magang')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            }, 300);
+        }
 
             const isDark = document.documentElement.classList.contains('dark');
 
