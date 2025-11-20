@@ -253,8 +253,10 @@
             </div>
             <!-- 🆕 END RINGKASAN GAJI -->
 
-           
+           {{-- Tombol Export --}}
+        <div class="flex justify-end mb-4 gap-4">
 
+            
             {{-- Tombol Export Detail (LAMA) --}}
             <a href="{{ route('admin.absensi.user.export', [
                     'id' => $user->id,
