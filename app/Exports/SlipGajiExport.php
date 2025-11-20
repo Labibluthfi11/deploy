@@ -23,7 +23,6 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
         $this->stats = $stats;
         $this->periode = $periode;
 
-        // HITUNG TERBILANG
         $gajiBersih = $stats['total_gaji_bersih'] ?? 0;
         $this->terbilangString = $this->penyebut($gajiBersih) . ' Rupiah';
     }
@@ -58,23 +57,21 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // 🎨 WARNA KAYAK SS LO
-                $blueHeader = 'BDD7EE';   // Biru muda header
-                $yellowTerbilang = 'FFFF00'; // Kuning terbilang
-                $greenBersih = 'C6E0B4';  // Hijau gaji bersih
+                // 🎨 WARNA
+                $blueHeader = 'BDD7EE';
+                $yellowTerbilang = 'FFFF00';
+                $greenBersih = 'C6E0B4';
 
                 // 📊 DATA
-                $jumlahHariKerja = $this->stats['total_hadir'] ?? 0; // 🆕
+                $jumlahHariKerja = $this->stats['total_hadir'] ?? 0;
                 $gajiPokok = $this->stats['total_gaji_pokok'] ?? 0;
                 $gajiLembur = $this->stats['total_gaji_lembur'] ?? 0;
                 $potongan = $this->stats['total_potongan'] ?? 0;
                 $gajiBersih = $this->stats['total_gaji_bersih'] ?? 0;
-
-                // 🆕 HITUNG JAM LEMBUR (asumsi: 1 hari lembur = data dari controller)
-                $totalMenitLembur = $this->stats['total_menit_lembur'] ?? 0; // Perlu kirim dari controller
+                $totalMenitLembur = $this->stats['total_menit_lembur'] ?? 0;
                 $jumlahJamLembur = floor($totalMenitLembur / 60);
 
-                // 📐 SET LEBAR KOLOM MANUAL
+                // 📐 SET LEBAR KOLOM
                 $sheet->getColumnDimension('A')->setWidth(25);
                 $sheet->getColumnDimension('B')->setWidth(18);
                 $sheet->getColumnDimension('C')->setWidth(25);
@@ -83,13 +80,13 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row = 1;
 
                 // ═══════════════════════════════════════
-                // 📌 HEADER PERUSAHAAN
+                // 📌 HEADER
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", 'PT. ANSEL MUDA BERKARYA');
                 $sheet->getStyle("A{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
                 $row++;
 
@@ -97,87 +94,75 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("A{$row}", 'SLIP GAJI KARYAWAN');
                 $sheet->getStyle("A{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 12],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
-                $row += 2; // Spasi
+                $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 DATA KARYAWAN (TABEL BIRU)
+                // 📌 DATA KARYAWAN
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", 'DATA KARYAWAN');
                 $sheet->getStyle("A{$row}")->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 11],
+                    'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row++;
 
-                // Baris 1: Nama & Periode
                 $sheet->setCellValue("A{$row}", 'Nama Karyawan');
                 $sheet->setCellValue("B{$row}", ': ' . $this->user->name);
                 $sheet->setCellValue("C{$row}", 'Periode Penggajian');
                 $sheet->setCellValue("D{$row}", ': ' . $this->periode);
-                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
+                $sheet->getStyle("A{$row}:D{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
-                // Baris 2: NIP & Tipe
                 $sheet->setCellValue("A{$row}", 'Nomor Induk Pegawai');
                 $sheet->setCellValue("B{$row}", ': ' . ($this->user->id_karyawan ?? '-'));
                 $sheet->setCellValue("C{$row}", 'Tipe Karyawan');
                 $sheet->setCellValue("D{$row}", ': ' . ucfirst($this->user->employment_type));
-                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-                $row += 2; // Spasi
+                $sheet->getStyle("A{$row}:D{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TABEL PENGHASILAN & POTONGAN
+                // 📌 TABEL PENGHASILAN (KIRI) & POTONGAN (KANAN) - PISAH!
                 // ═══════════════════════════════════════
 
-                // HEADER TABEL (BIRU)
+                // HEADER
                 $sheet->setCellValue("A{$row}", 'PENGHASILAN');
                 $sheet->setCellValue("C{$row}", 'POTONGAN');
                 $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 ]);
                 $sheet->getStyle("C{$row}:D{$row}")->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 ]);
                 $row++;
 
-                // ISI TABEL
-                // Baris 1: Upah Harian (Total) | Potongan Keterlambatan
+                // Baris 1
                 $sheet->setCellValue("A{$row}", 'Upah Harian (Total)');
                 $sheet->setCellValue("B{$row}", $gajiPokok);
                 $sheet->setCellValue("C{$row}", 'Potongan Keterlambatan');
                 $sheet->setCellValue("D{$row}", $potongan);
-                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("C{$row}:D{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
-                // Baris 2: Upah Lembur (Total) | Kosong
+                // Baris 2
                 $sheet->setCellValue("A{$row}", 'Upah Lembur (Total)');
                 $sheet->setCellValue("B{$row}", $gajiLembur);
-                $sheet->setCellValue("C{$row}", '');
+                $sheet->setCellValue("C{$row}", ''); // Kosong
                 $sheet->setCellValue("D{$row}", '');
-                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-                $row += 2; // Spasi
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("C{$row}:D{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TOTAL PENGHASILAN & TOTAL POTONGAN
+                // 📌 TOTAL
                 // ═══════════════════════════════════════
                 $sheet->setCellValue("A{$row}", 'TOTAL PENGHASILAN');
                 $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur);
@@ -187,24 +172,23 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     'font' => ['bold' => true],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
-                $row += 2; // Spasi
+                $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 GAJI BERSIH (HIJAU)
+                // 📌 GAJI BERSIH
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:C{$row}");
                 $sheet->setCellValue("A{$row}", 'PENGHASILAN BERSIH (TAKE HOME PAY)');
                 $sheet->setCellValue("D{$row}", $gajiBersih);
                 $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 11],
+                    'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $greenBersih]],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 ]);
                 $row++;
 
                 // ═══════════════════════════════════════
-                // 📌 TERBILANG (KUNING)
+                // 📌 TERBILANG
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", 'Terbilang: ' . ucwords($this->terbilangString));
@@ -214,27 +198,26 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
-                $row += 3; // Spasi besar
+                $row += 3;
 
                 // ═══════════════════════════════════════
-                // 🆕 INFORMASI TAMBAHAN (JUMLAH HARI & JAM LEMBUR)
+                // 🆕 JUMLAH HARI & JAM LEMBUR (MASUK TABEL!)
                 // ═══════════════════════════════════════
                 $sheet->setCellValue("A{$row}", 'Jumlah Hari Kerja');
                 $sheet->setCellValue("B{$row}", ': ' . $jumlahHariKerja . ' Hari');
                 $sheet->setCellValue("C{$row}", 'Jumlah Jam Lembur');
                 $sheet->setCellValue("D{$row}", ': ' . $jumlahJamLembur . ' Jam');
-                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
-                    'font' => ['bold' => true],
-                ]);
-                $row += 3; // Spasi
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("C{$row}:D{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $row += 3;
 
                 // ═══════════════════════════════════════
-                // 📌 FOOTER & TTD
+                // 📌 FOOTER
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", '"Keep Up The Good Work"');
                 $sheet->getStyle("A{$row}")->applyFromArray([
-                    'font' => ['italic' => true, 'bold' => true, 'name' => 'Times New Roman'],
+                    'font' => ['italic' => true, 'bold' => true],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
                 $row += 3;
