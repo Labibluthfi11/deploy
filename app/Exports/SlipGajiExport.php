@@ -57,7 +57,7 @@ class SlipGajiExport implements WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // 🔥 UBAH FONT GLOBAL JADI TIMES NEW ROMAN 🔥
+                // --- FONT GLOBAL: TIMES NEW ROMAN ---
                 $sheet->getParent()->getDefaultStyle()->getFont()->setName('Times New Roman');
 
                 // 1. SETUP HALAMAN A4
@@ -73,18 +73,24 @@ class SlipGajiExport implements WithEvents
                 // 2. LEBAR KOLOM
                 $sheet->getColumnDimension('A')->setWidth(25);
                 $sheet->getColumnDimension('B')->setWidth(25);
-                $sheet->getColumnDimension('C')->setWidth(2);
+                $sheet->getColumnDimension('C')->setWidth(2); // Spasi Kecil
                 $sheet->getColumnDimension('D')->setWidth(25);
                 $sheet->getColumnDimension('E')->setWidth(28);
 
-                // 3. STYLE
+                // 3. VARIABEL WARNA & STYLE
                 $bgHeader = 'BDD7EE';
-                $bgTotal = 'D9D9D9';
-                $bgNet = 'C6E0B4';
+                $bgTotal  = 'D9D9D9';
+                $bgNet    = 'C6E0B4';
                 $bgYellow = 'FFFF00';
 
-                $styleBorderFull = [
+                // Style Kotak Full (Grid)
+                $styleGrid = [
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                ];
+
+                // Style Outline Saja (Opsional)
+                $styleOutline = [
+                    'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN]]
                 ];
 
                 // DATA
@@ -131,50 +137,47 @@ class SlipGajiExport implements WithEvents
                 // ================= DATA KARYAWAN =================
                 $rowStartData = $row;
 
-                // --- KIRI (Nama & NIP) ---
+                // --- HEADER KIRI "DATA KARYAWAN" ---
                 $sheet->mergeCells("A{$row}:B{$row}");
                 $sheet->setCellValue("A{$row}", "DATA KARYAWAN");
-                $sheet->getStyle("A{$row}:B{$row}")->applyFromArray($styleBorderFull);
+                $sheet->getStyle("A{$row}:B{$row}")->applyFromArray($styleGrid); // Kotak
                 $sheet->getStyle("A{$row}")->getFont()->setBold(true);
 
+                // 🔥 KANAN KOSONG (D-E) -> JANGAN DI APA-APAIN (NO BORDER) 🔥
+
                 $row++;
 
+                // --- ISI DATA (KIRI & KANAN) ---
+                $dataBodyStart = $row;
+
+                // Baris 1
                 $sheet->setCellValue("A{$row}", "Nama Karyawan");
                 $sheet->setCellValue("B{$row}", ": " . $this->user->name);
+                $sheet->setCellValue("D{$row}", "Periode Penggajian");
+                $sheet->setCellValue("E{$row}", ": " . $this->periode);
                 $row++;
 
+                // Baris 2
                 $sheet->setCellValue("A{$row}", "Nomor Induk Pegawai");
                 $sheet->setCellValue("B{$row}", ": " . ($this->user->id_karyawan ?? '-'));
+                $sheet->setCellValue("D{$row}", "Tipe Karyawan");
+                $sheet->setCellValue("E{$row}", ": " . ucfirst($this->user->employment_type));
+                $dataBodyEnd = $row;
 
-                // Style Kotak Kiri & Bold
-                $sheet->getStyle("A{$rowStartData}:B{$row}")->applyFromArray($styleBorderFull);
-                $sheet->getStyle("A{$rowStartData}:B{$row}")->getFont()->setBold(true);
+                // STYLE: BOLD SEMUA & KOTAK TERPISAH
+                $sheet->getStyle("A{$dataBodyStart}:B{$dataBodyEnd}")->getFont()->setBold(true);
+                $sheet->getStyle("D{$dataBodyStart}:E{$dataBodyEnd}")->getFont()->setBold(true);
 
-                // --- KANAN (Periode & Tipe) ---
-                $rowKanan = $rowStartData;
-
-                // Header Kanan Kosong (Biar kotak atasnya ketutup tapi kosong)
-                // Kita KASIH BORDER tapi teks kosong, biar kotaknya kebentuk
-                $sheet->mergeCells("D{$rowKanan}:E{$rowKanan}");
-                $sheet->getStyle("D{$rowKanan}:E{$rowKanan}")->applyFromArray($styleBorderFull);
-                $rowKanan++;
-
-                $sheet->setCellValue("D{$rowKanan}", "Periode Penggajian");
-                $sheet->setCellValue("E{$rowKanan}", ": " . $this->periode);
-                $rowKanan++;
-
-                $sheet->setCellValue("D{$rowKanan}", "Tipe Karyawan");
-                $sheet->setCellValue("E{$rowKanan}", ": " . ucfirst($this->user->employment_type));
-
-                // Style Kotak Kanan & Bold
-                $sheet->getStyle("D{$rowStartData}:E{$rowKanan}")->applyFromArray($styleBorderFull);
-                $sheet->getStyle("D{$rowStartData}:E{$rowKanan}")->getFont()->setBold(true);
+                // Kotak Kiri
+                $sheet->getStyle("A{$dataBodyStart}:B{$dataBodyEnd}")->applyFromArray($styleGrid);
+                // Kotak Kanan
+                $sheet->getStyle("D{$dataBodyStart}:E{$dataBodyEnd}")->applyFromArray($styleGrid);
 
                 $row++;
                 $row++; // Spasi
 
-                // ================= TABEL PENGHASILAN =================
-                $rowTabelStart = $row;
+                // ================= TABEL PENGHASILAN (FULL GRID) =================
+                $tableStart = $row;
 
                 // HEADER
                 $sheet->setCellValue("A{$row}", "PENGHASILAN");
@@ -211,13 +214,13 @@ class SlipGajiExport implements WithEvents
                 $sheet->setCellValue("D{$row}", "");
                 $sheet->setCellValue("E{$row}", "");
 
-                // Terapkan Full Border
-                $sheet->getStyle("A{$rowIsi}:B{$row}")->applyFromArray($styleBorderFull);
-                $sheet->getStyle("D{$rowIsi}:E{$row}")->applyFromArray($styleBorderFull);
+                // 🔥 FULL GRID (GARIS-GARIS DI DALAM) 🔥
+                $sheet->getStyle("A{$rowIsi}:B{$row}")->applyFromArray($styleGrid);
+                $sheet->getStyle("D{$rowIsi}:E{$row}")->applyFromArray($styleGrid);
 
                 $row++;
 
-                // ================= TOTAL =================
+                // ================= TOTAL (ABU-ABU & GRID) =================
                 $sheet->setCellValue("A{$row}", "TOTAL PENGHASILAN");
                 $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur);
                 $sheet->setCellValue("D{$row}", "TOTAL POTONGAN");
@@ -233,7 +236,7 @@ class SlipGajiExport implements WithEvents
 
                 $row += 2;
 
-                // ================= GAJI BERSIH =================
+                // ================= GAJI BERSIH (HIJAU) =================
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", "PENGHASILAN BERSIH (TAKE HOME PAY)");
                 $sheet->setCellValue("E{$row}", $gajiBersih);
@@ -246,7 +249,7 @@ class SlipGajiExport implements WithEvents
                 ]);
                 $row++;
 
-                // ================= TERBILANG =================
+                // ================= TERBILANG (KUNING) =================
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", "Terbilang: " . ucwords($this->terbilangString));
                 $sheet->getStyle("A{$row}:E{$row}")->applyFromArray([
@@ -258,11 +261,13 @@ class SlipGajiExport implements WithEvents
 
                 $row += 3;
 
-                // ================= FOOTER =================
+                // ================= FOOTER (CENTER TOTAL A-E) =================
+                // 🔥 CENTER: Merge A sampe E biar persis di tengah 🔥
+
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", '"Keep Up The Good Work"');
                 $sheet->getStyle("A{$row}")->applyFromArray([
-                    'font' => ['bold' => true, 'italic' => true],
+                    'font' => ['bold' => true, 'italic' => true, 'name' => 'Times New Roman'],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
                 ]);
                 $row += 2;
