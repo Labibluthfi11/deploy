@@ -72,12 +72,12 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $totalMenitLembur = $this->stats['total_menit_lembur'] ?? 0;
                 $jumlahJamLembur = floor($totalMenitLembur / 60);
 
-                // 📐 SET LEBAR KOLOM (LEBIH KECIL BIAR PAS DI 100%)
-                $sheet->getColumnDimension('A')->setWidth(22);
-                $sheet->getColumnDimension('B')->setWidth(16);
-                $sheet->getColumnDimension('C')->setWidth(2);  // SPACE
-                $sheet->getColumnDimension('D')->setWidth(22);
-                $sheet->getColumnDimension('E')->setWidth(16);
+                // 📐 SET LEBAR KOLOM
+                $sheet->getColumnDimension('A')->setWidth(25);
+                $sheet->getColumnDimension('B')->setWidth(20);
+                $sheet->getColumnDimension('C')->setWidth(2);  // SPACE (NO BORDER!)
+                $sheet->getColumnDimension('D')->setWidth(25);
+                $sheet->getColumnDimension('E')->setWidth(20);
 
                 $row = 1;
 
@@ -103,11 +103,15 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 DATA KARYAWAN (PUTIH + ALL BORDERS!)
+                // 📌 DATA KARYAWAN (PUTIH + ALL BORDERS KECUALI KOLOM C!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'DATA KARYAWAN');
-                $sheet->getStyle("A{$row}")->applyFromArray([
+                $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
+                    'font' => ['bold' => true],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                ]);
+                $sheet->getStyle("D{$row}:E{$row}")->applyFromArray([
                     'font' => ['bold' => true],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
@@ -120,7 +124,8 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("E{$row}", ': ' . $this->periode);
                 $sheet->getStyle("A{$row}")->getFont()->setBold(true);
                 $sheet->getStyle("D{$row}")->getFont()->setBold(true);
-                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
                 // Baris 2: NIP & Tipe (BOLD LABEL)
@@ -130,11 +135,12 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("E{$row}", ': ' . ucfirst($this->user->employment_type));
                 $sheet->getStyle("A{$row}")->getFont()->setBold(true);
                 $sheet->getStyle("D{$row}")->getFont()->setBold(true);
-                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TABEL PENGHASILAN & POTONGAN (ALL BORDERS!)
+                // 📌 TABEL PENGHASILAN & POTONGAN (ALL BORDERS KECUALI KOLOM C!)
                 // ═══════════════════════════════════════
 
                 // HEADER (BIRU)
@@ -157,7 +163,8 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", $gajiPokok);
                 $sheet->setCellValue("D{$row}", 'Potongan Keterlambatan');
                 $sheet->setCellValue("E{$row}", $potongan);
-                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
                 // Baris 2: Upah Lembur | Kosong
@@ -165,7 +172,8 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", $gajiLembur);
                 $sheet->setCellValue("D{$row}", '');
                 $sheet->setCellValue("E{$row}", '');
-                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
                 // Baris 3: Jumlah Hari Kerja | Jumlah Jam Lembur
@@ -173,11 +181,12 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", ': ' . $jumlahHariKerja . ' Hari');
                 $sheet->setCellValue("D{$row}", 'Jumlah Jam Lembur');
                 $sheet->setCellValue("E{$row}", ': ' . $jumlahJamLembur . ' Jam');
-                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TOTAL (ABU-ABU + ALL BORDERS!)
+                // 📌 TOTAL (ABU-ABU + ALL BORDERS KECUALI KOLOM C!)
                 // ═══════════════════════════════════════
                 $sheet->setCellValue("A{$row}", 'TOTAL PENGHASILAN');
                 $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur);
@@ -261,7 +270,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
                 $sheet->getPageSetup()->setFitToPage(true);
                 $sheet->getPageSetup()->setFitToWidth(1);
-                $sheet->getPageSetup()->setFitToHeight(0); // auto height
+                $sheet->getPageSetup()->setFitToHeight(0);
 
                 // Set margin biar lebih pas
                 $sheet->getPageMargins()->setTop(0.5);
