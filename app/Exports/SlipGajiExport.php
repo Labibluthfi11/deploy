@@ -90,10 +90,10 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     $drawing->setName('Logo Ansel');
                     $drawing->setDescription('Logo PT Ansel Muda Berkarya');
                     $drawing->setPath($logoPath);
-                    $drawing->setHeight(100); // Tinggi logo (pixel)
+                    $drawing->setHeight(80); // Tinggi logo (pixel)
                     $drawing->setCoordinates('A1'); // Posisi logo
                     $drawing->setOffsetX(10); // Geser ke kanan 10px
-                    $drawing->setOffsetY(10); // Geser ke bawah 5px
+                    $drawing->setOffsetY(8); // Geser ke bawah 8px
                     $drawing->setWorksheet($sheet);
                 }
 
