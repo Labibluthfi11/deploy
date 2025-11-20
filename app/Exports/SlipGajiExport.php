@@ -72,17 +72,17 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $totalMenitLembur = $this->stats['total_menit_lembur'] ?? 0;
                 $jumlahJamLembur = floor($totalMenitLembur / 60);
 
-                // 📐 SET LEBAR KOLOM
-                $sheet->getColumnDimension('A')->setWidth(25);
-                $sheet->getColumnDimension('B')->setWidth(18);
-                $sheet->getColumnDimension('C')->setWidth(3);  // SPACE
-                $sheet->getColumnDimension('D')->setWidth(25);
-                $sheet->getColumnDimension('E')->setWidth(18);
+                // 📐 SET LEBAR KOLOM (LEBIH KECIL BIAR PAS DI 100%)
+                $sheet->getColumnDimension('A')->setWidth(22);
+                $sheet->getColumnDimension('B')->setWidth(16);
+                $sheet->getColumnDimension('C')->setWidth(2);  // SPACE
+                $sheet->getColumnDimension('D')->setWidth(22);
+                $sheet->getColumnDimension('E')->setWidth(16);
 
                 $row = 1;
 
                 // ═══════════════════════════════════════
-                // 📌 HEADER (BIRU + MERGE + CENTER)
+                // 📌 HEADER (BIRU + MERGE + CENTER + NO BORDER!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'PT. ANSEL MUDA BERKARYA');
@@ -90,7 +90,6 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     'font' => ['bold' => true, 'size' => 14],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row++;
 
@@ -100,12 +99,11 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     'font' => ['bold' => true, 'size' => 12],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 DATA KARYAWAN (PUTIH, GAK BIRU!)
+                // 📌 DATA KARYAWAN (PUTIH + ALL BORDERS!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'DATA KARYAWAN');
@@ -120,10 +118,9 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", ': ' . $this->user->name);
                 $sheet->setCellValue("D{$row}", 'Periode Penggajian');
                 $sheet->setCellValue("E{$row}", ': ' . $this->periode);
-                $sheet->getStyle("A{$row}")->getFont()->setBold(true); // BOLD
-                $sheet->getStyle("D{$row}")->getFont()->setBold(true); // BOLD
-                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
                 // Baris 2: NIP & Tipe (BOLD LABEL)
@@ -131,14 +128,13 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", ': ' . ($this->user->id_karyawan ?? '-'));
                 $sheet->setCellValue("D{$row}", 'Tipe Karyawan');
                 $sheet->setCellValue("E{$row}", ': ' . ucfirst($this->user->employment_type));
-                $sheet->getStyle("A{$row}")->getFont()->setBold(true); // BOLD
-                $sheet->getStyle("D{$row}")->getFont()->setBold(true); // BOLD
-                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TABEL PENGHASILAN & POTONGAN
+                // 📌 TABEL PENGHASILAN & POTONGAN (ALL BORDERS!)
                 // ═══════════════════════════════════════
 
                 // HEADER (BIRU)
@@ -161,8 +157,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", $gajiPokok);
                 $sheet->setCellValue("D{$row}", 'Potongan Keterlambatan');
                 $sheet->setCellValue("E{$row}", $potongan);
-                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
                 // Baris 2: Upah Lembur | Kosong
@@ -170,21 +165,19 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("B{$row}", $gajiLembur);
                 $sheet->setCellValue("D{$row}", '');
                 $sheet->setCellValue("E{$row}", '');
-                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
-                // Baris 3: Jumlah Hari Kerja | Jumlah Jam Lembur (MASUK PENGHASILAN!)
+                // Baris 3: Jumlah Hari Kerja | Jumlah Jam Lembur
                 $sheet->setCellValue("A{$row}", 'Jumlah Hari Kerja');
                 $sheet->setCellValue("B{$row}", ': ' . $jumlahHariKerja . ' Hari');
                 $sheet->setCellValue("D{$row}", 'Jumlah Jam Lembur');
                 $sheet->setCellValue("E{$row}", ': ' . $jumlahJamLembur . ' Jam');
-                $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle("A{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 TOTAL (ABU-ABU)
+                // 📌 TOTAL (ABU-ABU + ALL BORDERS!)
                 // ═══════════════════════════════════════
                 $sheet->setCellValue("A{$row}", 'TOTAL PENGHASILAN');
                 $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur);
@@ -203,7 +196,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 GAJI BERSIH (HIJAU)
+                // 📌 GAJI BERSIH (HIJAU + ALL BORDERS!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:D{$row}");
                 $sheet->setCellValue("A{$row}", 'PENGHASILAN BERSIH (TAKE HOME PAY)');
@@ -216,7 +209,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row++;
 
                 // ═══════════════════════════════════════
-                // 📌 TERBILANG (KUNING)
+                // 📌 TERBILANG (KUNING + ALL BORDERS!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'Terbilang: ' . ucwords($this->terbilangString));
@@ -229,7 +222,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row += 3;
 
                 // ═══════════════════════════════════════
-                // 📌 FOOTER (KETENGAH SEMUA!)
+                // 📌 FOOTER (NO BORDER!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", '"Keep Up The Good Work"');
@@ -260,6 +253,21 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $rupiahFormat = '"Rp "#,##0';
                 $sheet->getStyle('B1:B100')->getNumberFormat()->setFormatCode($rupiahFormat);
                 $sheet->getStyle('E1:E100')->getNumberFormat()->setFormatCode($rupiahFormat);
+
+                // ═══════════════════════════════════════
+                // 📄 SET PAGE SETUP BIAR PAS DI 100%!
+                // ═══════════════════════════════════════
+                $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
+                $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+                $sheet->getPageSetup()->setFitToPage(true);
+                $sheet->getPageSetup()->setFitToWidth(1);
+                $sheet->getPageSetup()->setFitToHeight(0); // auto height
+
+                // Set margin biar lebih pas
+                $sheet->getPageMargins()->setTop(0.5);
+                $sheet->getPageMargins()->setBottom(0.5);
+                $sheet->getPageMargins()->setLeft(0.5);
+                $sheet->getPageMargins()->setRight(0.5);
             },
         ];
     }
