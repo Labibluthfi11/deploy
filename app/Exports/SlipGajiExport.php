@@ -93,7 +93,7 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                     $drawing->setHeight(100); // Tinggi logo (pixel)
                     $drawing->setCoordinates('A1'); // Posisi logo
                     $drawing->setOffsetX(10); // Geser ke kanan 10px
-                    $drawing->setOffsetY(-10); // Geser ke bawah 10px
+                    $drawing->setOffsetY(-20); // Geser ke bawah 10px
                     $drawing->setWorksheet($sheet);
                 }
 
