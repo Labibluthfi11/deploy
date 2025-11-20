@@ -284,7 +284,7 @@ class AbsensiAdminController extends Controller
         usort($dailyStatusesBorongan, fn($a, $b) => $a['user']->name <=> $b['user']->name); // 🆕
         usort($dailyStatusesMagang, fn($a, $b) => $a['user']->name <=> $b['user']->name);   // 🆕
 
-        
+
 
         return view('admin.absensi.index', compact(
             'users',
@@ -586,58 +586,58 @@ class AbsensiAdminController extends Controller
     }
 
     public function exportSlipGaji(Request $request, User $user)
-    {
-        $filterType = $request->input('filter_type', 'all');
+{
+    $filterType = $request->input('filter_type', 'all');
 
-        // Query dasar
-        $query = Absensi::where('user_id', $user->id);
-        $periodeLabel = "Semua Data";
+    // Query dasar
+    $query = Absensi::where('user_id', $user->id);
+    $periodeLabel = "Semua Data";
 
-        // Logic Filter
-        if ($filterType === 'monthly') {
-            $year = $request->input('year', now()->year);
-            $month = $request->input('month', now()->month);
+    // Logic Filter
+    if ($filterType === 'monthly') {
+        $year = $request->input('year', now()->year);
+        $month = $request->input('month', now()->month);
 
-            $query->whereYear('check_in_at', $year)
-                  ->whereMonth('check_in_at', $month);
+        $query->whereYear('check_in_at', $year)
+              ->whereMonth('check_in_at', $month);
 
-            $periodeLabel = "Bulan " . \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}";
+        $periodeLabel = \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('d M Y') . " {$year}";
 
-        } elseif ($filterType === 'custom') { // ⬅️ LOGIKA BARU
-            $startDate = $request->input('start_date');
-            $endDate = $request->input('end_date');
+    } elseif ($filterType === 'custom') {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-            if ($startDate && $endDate) {
-                // Tambahin jam biar seharian keambil (00:00:00 sampe 23:59:59)
-                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
-                $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+        if ($startDate && $endDate) {
+            $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+            $end = \Carbon\Carbon::parse($endDate)->endOfDay();
 
-                $query->whereBetween('check_in_at', [$start, $end]);
+            $query->whereBetween('check_in_at', [$start, $end]);
 
-                $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
-            }
+            $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
         }
-
-        // Ambil data yang DI-APPROVE AJA
-        $approvedAbsensi = $query->where('status_approval', 'approved')->get();
-
-        // Hitung Statistik
-        $absensiStats = [
-            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-        ];
-
-        // Nama File
-        $fileName = "Slip_Gaji_{$user->name}_{$filterType}.xlsx";
-
-        return Excel::download(
-            new SlipGajiExport($user, $absensiStats, $periodeLabel),
-            $fileName
-        );
     }
+
+    // Ambil data yang DI-APPROVE AJA
+    $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+
+    // Hitung Statistik
+    $absensiStats = [
+        'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(), // 🆕 Jumlah Hari Kerja
+        'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+        'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+        'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+        'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'), // 🆕 Total Menit Lembur
+    ];
+
+    // Nama File
+    $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".xlsx";
+
+    return Excel::download(
+        new SlipGajiExport($user, $absensiStats, $periodeLabel),
+        $fileName
+    );
+}
 
     // INI FUNGSI BARU BUAT NANGANIN CHECKBOX
     public function bulkExportDetail(Request $request)
