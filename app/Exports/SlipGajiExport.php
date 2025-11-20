@@ -82,6 +82,22 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row = 1;
 
                 // ═══════════════════════════════════════
+                // 🖼️ INSERT LOGO (KIRI ATAS)
+                // ═══════════════════════════════════════
+                $logoPath = public_path('images/logo.png');
+                if (file_exists($logoPath)) {
+                    $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+                    $drawing->setName('Logo Ansel');
+                    $drawing->setDescription('Logo PT Ansel Muda Berkarya');
+                    $drawing->setPath($logoPath);
+                    $drawing->setHeight(60); // Tinggi logo (pixel)
+                    $drawing->setCoordinates('A1'); // Posisi logo
+                    $drawing->setOffsetX(10); // Geser ke kanan 10px
+                    $drawing->setOffsetY(5); // Geser ke bawah 5px
+                    $drawing->setWorksheet($sheet);
+                }
+
+                // ═══════════════════════════════════════
                 // 📌 HEADER (BIRU + MERGE + CENTER + NO BORDER!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
