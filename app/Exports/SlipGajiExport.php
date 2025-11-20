@@ -82,13 +82,15 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $row = 1;
 
                 // ═══════════════════════════════════════
-                // 📌 HEADER
+                // 📌 HEADER (BIRU + MERGE + CENTER)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'PT. ANSEL MUDA BERKARYA');
                 $sheet->getStyle("A{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row++;
 
@@ -96,34 +98,41 @@ class SlipGajiExport implements WithEvents, ShouldAutoSize
                 $sheet->setCellValue("A{$row}", 'SLIP GAJI KARYAWAN');
                 $sheet->getStyle("A{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 12],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row += 2;
 
                 // ═══════════════════════════════════════
-                // 📌 DATA KARYAWAN
+                // 📌 DATA KARYAWAN (PUTIH, GAK BIRU!)
                 // ═══════════════════════════════════════
                 $sheet->mergeCells("A{$row}:E{$row}");
                 $sheet->setCellValue("A{$row}", 'DATA KARYAWAN');
                 $sheet->getStyle("A{$row}")->applyFromArray([
                     'font' => ['bold' => true],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $blueHeader]],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $row++;
 
+                // Baris 1: Nama & Periode (BOLD LABEL)
                 $sheet->setCellValue("A{$row}", 'Nama Karyawan');
                 $sheet->setCellValue("B{$row}", ': ' . $this->user->name);
                 $sheet->setCellValue("D{$row}", 'Periode Penggajian');
                 $sheet->setCellValue("E{$row}", ': ' . $this->periode);
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true); // BOLD
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true); // BOLD
                 $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row++;
 
+                // Baris 2: NIP & Tipe (BOLD LABEL)
                 $sheet->setCellValue("A{$row}", 'Nomor Induk Pegawai');
                 $sheet->setCellValue("B{$row}", ': ' . ($this->user->id_karyawan ?? '-'));
                 $sheet->setCellValue("D{$row}", 'Tipe Karyawan');
                 $sheet->setCellValue("E{$row}", ': ' . ucfirst($this->user->employment_type));
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true); // BOLD
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true); // BOLD
                 $sheet->getStyle("A{$row}:B{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $sheet->getStyle("D{$row}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
