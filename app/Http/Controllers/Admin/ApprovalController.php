@@ -1,6 +1,6 @@
 <?php
 // ========================================================================
-// === APPROVAL CONTROLLER (FINAL - SEARCH & SORT A-Z) ===
+// === APPROVAL CONTROLLER (FINAL FIX - LEMBUR & GAJI BERSIH AMAN) ===
 // ========================================================================
 
 namespace App\Http\Controllers\Admin;
@@ -10,7 +10,7 @@ use App\Models\Absensi;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB; // ⬅️ TAMBAHIN INI
+use Illuminate\Support\Facades\DB; // ⬅️ PENTING: TRANSACTION
 
 class ApprovalController extends Controller
 {
@@ -37,7 +37,7 @@ class ApprovalController extends Controller
     ];
 
     // =============================================================
-    // 🔥 HELPER QUERY (SEARCH & SORT)
+    // 🔥 HELPER QUERY (SEARCH & SORT A-Z)
     // =============================================================
     private function getSubmissions(Request $request, $type, $level, $status = 'pending')
     {
@@ -78,7 +78,7 @@ class ApprovalController extends Controller
 
         return view('admin.absensi.approval.supervisor', [
             'freelanceYuli' => $freelanceYuli,
-            'submissions' => $freelanceYuli, // Untuk view yang pake variabel umum
+            'submissions' => $freelanceYuli, // Variabel umum buat view
             'approverName' => 'Supervisor',
             'approverRole' => 'Level 1 (Freelance)',
         ]);
@@ -166,7 +166,7 @@ class ApprovalController extends Controller
             $resubmitLevel = $this->determineResubmitLevel($rejectedBy, $workflowStatus);
             $resetWorkflow = $this->resetWorkflowFromLevel($workflowStatus, $resubmitLevel, $userTipe);
 
-            // Saat reject, reset gaji lembur
+            // Saat reject, reset gaji lembur & kembalikan gaji ke normal
             $absensi->update([
                 'status_approval' => 'rejected',
                 'catatan_admin' => $request->catatan_admin,
@@ -176,7 +176,7 @@ class ApprovalController extends Controller
                 'current_approval_level' => $resubmitLevel,
                 'overtime_minutes' => 0,
                 'overtime_pay'     => 0,
-                'final_salary'     => $absensi->base_salary - $absensi->late_penalty,
+                'final_salary'     => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0), // Reset ke Pokok - Denda
             ]);
 
             Notification::create([
@@ -201,22 +201,20 @@ class ApprovalController extends Controller
             if ($currentLevel >= $maxLevel) {
                 // ✅ FINAL APPROVAL (HRGA)
 
-                // Pastikan base_salary, late_penalty ada
+                // Pastikan base_salary & late_penalty ada (kalau null, hitung dulu)
                 if ($absensi->base_salary === null) {
                     $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, $absensi->tipe);
                     $absensi->base_salary = $salaryData['base_salary'];
                     $absensi->late_penalty = $salaryData['late_penalty'];
-                    $absensi->final_salary = $salaryData['final_salary'];
+                    // final_salary nanti di-override di bawah
                     $absensi->save();
                     $absensi->refresh();
                 }
 
-                // Inisialisasi nilai default
-                $newFinalSalary = $absensi->final_salary ?? 0;
                 $overtimeMinutes = 0;
                 $overtimePay = 0;
 
-                // 🔥 HITUNG LEMBUR HANYA JIKA TIPE LEMBUR
+                // 🔥 HITUNG LEMBUR (JIKA TIPE LEMBUR)
                 if (strtolower($absensi->tipe ?? '') === 'lembur' && $absensi->lembur_start && $absensi->lembur_end) {
                     try {
                         $overtimeData = Absensi::calculateOvertimeFromInput(
@@ -228,22 +226,26 @@ class ApprovalController extends Controller
                         $overtimeMinutes = $overtimeData['minutes'];
                         $overtimePay = $overtimeData['pay'];
 
-                        // 🔥 CRITICAL: Gaji bersih = (Gaji Pokok - Potongan) + Gaji Lembur
-                        $newFinalSalary = ($absensi->final_salary ?? 0) + $overtimePay;
-
                     } catch (\Exception $e) {
                         Log::error('❌ Gagal kalkulasi lembur saat approval', [
                             'absensi_id' => $absensi->id,
                             'error' => $e->getMessage()
                         ]);
+                        // Kalau error, lembur dianggap 0 biar gak ngerusak data lain
                         $overtimeMinutes = 0;
                         $overtimePay = 0;
-                        $newFinalSalary = $absensi->final_salary ?? 0;
                     }
                 }
 
-                // 🔥 PAKE DB TRANSACTION BIAR DATA KONSISTEN
-                DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary) {
+                // 🔥 HITUNG FINAL SALARY YANG BENAR 🔥
+                // Rumus: (Gaji Pokok - Potongan Telat) + Uang Lembur
+                $gajiPokok = $absensi->base_salary ?? 0;
+                $potongan  = $absensi->late_penalty ?? 0;
+                $newFinalSalary = ($gajiPokok - $potongan) + $overtimePay;
+
+                // 🔥 UPDATE DATABASE DENGAN TRANSACTION 🔥
+                DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary, $currentApprover, $submissionType, $targetPage) {
+
                     $absensi->update([
                         'status_approval' => 'approved',
                         'approved_at' => now(),
@@ -252,25 +254,19 @@ class ApprovalController extends Controller
                         'rejected_at' => null,
                         'overtime_minutes' => $overtimeMinutes,
                         'overtime_pay'     => $overtimePay,
-                        'final_salary'     => $newFinalSalary,
+                        'final_salary'     => $newFinalSalary, // ✅ MASUKIN HASIL HITUNGAN BARU
                     ]);
 
-                    // ⬅️ 🔥 FORCE REFRESH + CLEAR CACHE MODEL
-                    $absensi->refresh();
-                    \Cache::forget('absensi_' . $absensi->id);
+                    // Notifikasi
+                    Notification::create([
+                        'user_id' => $absensi->user_id,
+                        'title' => "Pengajuan " . ucfirst($submissionType) . " Disetujui ✅",
+                        'message' => "Pengajuan kamu telah disetujui penuh oleh $currentApprover.",
+                        'type' => "{$submissionType}_approved",
+                        'target_page' => $targetPage,
+                        'target_id' => $absensi->id,
+                    ]);
                 });
-
-                // ⬅️ 🔥 REFRESH SEKALI LAGI SETELAH TRANSACTION
-                $absensi = Absensi::find($absensi->id);
-
-                Notification::create([
-                    'user_id' => $absensi->user_id,
-                    'title' => "Pengajuan " . ucfirst($submissionType) . " Disetujui ✅",
-                    'message' => "Pengajuan kamu telah disetujui penuh oleh $currentApprover.",
-                    'type' => "{$submissionType}_approved",
-                    'target_page' => $targetPage,
-                    'target_id' => $absensi->id,
-                ]);
 
             } else {
                 // Belum level terakhir → lanjut ke level berikutnya
