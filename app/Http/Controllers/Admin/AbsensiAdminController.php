@@ -59,8 +59,8 @@ class AbsensiAdminController extends Controller
         $dailyStatuses = [];
         $dailyStatusesOrganik = [];
         $dailyStatusesFreelance = [];
-        $dailyStatusesBorongan = []; // 🆕
-        $dailyStatusesMagang = [];   // 🆕
+        $dailyStatusesBorongan = [];
+        $dailyStatusesMagang = [];
 
         foreach ($users as $user) {
             $absensiTodayApproved = Absensi::where('user_id', $user->id)
@@ -125,17 +125,17 @@ class AbsensiAdminController extends Controller
             } elseif ($kategori === 'freelance') {
                 $dailyStatusesFreelance[] = $dailyData;
             } elseif ($kategori === 'borongan') {
-                $dailyStatusesBorongan[] = $dailyData; // 🆕
+                $dailyStatusesBorongan[] = $dailyData;
             } elseif ($kategori === 'magang') {
-                $dailyStatusesMagang[] = $dailyData;   // 🆕
+                $dailyStatusesMagang[] = $dailyData;
             }
         }
 
         // 🔥 FILTER PENCARIAN (4 Kategori)
         $searchOrganik = $request->input('search_organik');
         $searchFreelance = $request->input('search_freelance');
-        $searchBorongan = $request->input('search_borongan');   // 🆕
-        $searchMagang = $request->input('search_magang');       // 🆕
+        $searchBorongan = $request->input('search_borongan');
+        $searchMagang = $request->input('search_magang');
 
         if ($searchOrganik) {
             $dailyStatusesOrganik = array_filter($dailyStatusesOrganik, function($daily) use ($searchOrganik) {
@@ -149,14 +149,12 @@ class AbsensiAdminController extends Controller
             });
         }
 
-        // 🆕 FILTER BORONGAN
         if ($searchBorongan) {
             $dailyStatusesBorongan = array_filter($dailyStatusesBorongan, function($daily) use ($searchBorongan) {
                 return stripos($daily['user']->name, $searchBorongan) !== false;
             });
         }
 
-        // 🆕 FILTER MAGANG
         if ($searchMagang) {
             $dailyStatusesMagang = array_filter($dailyStatusesMagang, function($daily) use ($searchMagang) {
                 return stripos($daily['user']->name, $searchMagang) !== false;
@@ -281,10 +279,8 @@ class AbsensiAdminController extends Controller
         usort($dailyStatuses, fn($a, $b) => $a['user']->name <=> $b['user']->name);
         usort($dailyStatusesOrganik, fn($a, $b) => $a['user']->name <=> $b['user']->name);
         usort($dailyStatusesFreelance, fn($a, $b) => $a['user']->name <=> $b['user']->name);
-        usort($dailyStatusesBorongan, fn($a, $b) => $a['user']->name <=> $b['user']->name); // 🆕
-        usort($dailyStatusesMagang, fn($a, $b) => $a['user']->name <=> $b['user']->name);   // 🆕
-
-
+        usort($dailyStatusesBorongan, fn($a, $b) => $a['user']->name <=> $b['user']->name);
+        usort($dailyStatusesMagang, fn($a, $b) => $a['user']->name <=> $b['user']->name);
 
         return view('admin.absensi.index', compact(
             'users',
@@ -297,8 +293,8 @@ class AbsensiAdminController extends Controller
             'dailyStatuses',
             'dailyStatusesOrganik',
             'dailyStatusesFreelance',
-            'dailyStatusesBorongan',  // 🆕
-            'dailyStatusesMagang',    // 🆕
+            'dailyStatusesBorongan',
+            'dailyStatusesMagang',
             'totalHadir',
             'totalIzin',
             'totalSakit',
@@ -327,7 +323,6 @@ class AbsensiAdminController extends Controller
                   ->whereMonth('check_in_at', $month);
 
         } elseif ($filterType === 'weekly') {
-            // Hitung tanggal awal dan akhir minggu
             $firstMonday = \Carbon\Carbon::create($year, $month, 1)->startOfMonth()->next(\Carbon\Carbon::MONDAY);
             if ($firstMonday->month != $month) {
                 $firstMonday = \Carbon\Carbon::create($year, $month, 1);
@@ -338,7 +333,6 @@ class AbsensiAdminController extends Controller
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
 
         } elseif ($filterType === 'custom') {
-            // 🔥 INI DIA JURUS BARUNYA (RANGE TANGGAL) 🔥
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
 
@@ -350,8 +344,17 @@ class AbsensiAdminController extends Controller
             }
         }
 
-        // Ambil data (urutkan dari yang terbaru)
+        // 🔥 AMBIL DATA BIASA (JANGAN UBAH QUERY)
         $absensi = $query->orderBy('check_in_at', 'desc')->get();
+
+        // 🔥 FORCE REFRESH DATA APPROVED (Re-fetch dari DB)
+        $absensi = $absensi->map(function($item) {
+            if ($item->status_approval === 'approved') {
+                // Force reload dari database (bypass cache)
+                return Absensi::find($item->id);
+            }
+            return $item;
+        });
 
         // Filter data yang approved untuk statistik
         $approvedAbsensi = $absensi->where('status_approval', 'approved');
@@ -368,6 +371,7 @@ class AbsensiAdminController extends Controller
             'total_potongan' => $approvedAbsensi->sum('late_penalty'),
             'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
         ];
 
         // Variabel dummy untuk mingguan (biar view gak error)
@@ -389,115 +393,123 @@ class AbsensiAdminController extends Controller
     }
 
     public function recap(Request $request)
-{
-    $month = $request->input('month', Carbon::now()->month);
-    $year = $request->input('year', Carbon::now()->year);
-    $range = $request->input('range', 'monthly');
-    $week = $request->input('week', null);
-
-    // 🔥 LOGIKA BARU: 3 PILIHAN
-    if ($range === 'custom') {
-        // ⬅️ CUSTOM: Ambil dari input tanggal
-        $startDate = $request->input('start_date')
-            ? Carbon::parse($request->input('start_date'))->startOfDay()
-            : Carbon::now()->startOfMonth();
-
-        $endDate = $request->input('end_date')
-            ? Carbon::parse($request->input('end_date'))->endOfDay()
-            : Carbon::now()->endOfMonth();
-
-    } elseif ($range === 'weekly' && $week) {
-        // ⬅️ MINGGUAN (Logika lama lo)
-        $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-        if ($firstMonday->month != $month) {
-            $firstMonday = Carbon::create($year, $month, 1);
-        }
-        $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-        $endDate = (clone $startDate)->endOfWeek();
-
-    } else {
-        // ⬅️ BULANAN (Default)
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-    }
-
-    // ... (sisanya tetep sama, loop foreach $users dst) ...
-
-    $users = User::all();
-    $recapData = [];
-
-    foreach ($users as $user) {
-        $absensiUser = Absensi::where('user_id', $user->id)
-            ->whereBetween('check_in_at', [$startDate, $endDate])
-            ->where('status_approval', 'approved')
-            ->get();
-
-        $totalGaji = $absensiUser->sum('final_salary') ?? 0;
-        $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
-        $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-        $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-        $kategori = $this->detectKategori($user);
-
-        $recapData[] = [
-            'user' => $user,
-            'kategori' => $kategori,
-            'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-            'total_izin' => $absensiUser->where('status', 'izin')->count(),
-            'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
-            'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
-            'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-            'total_menit_telat' => $absensiUser->sum('late_minutes'),
-            'total_menit_lembur' => $totalMenitLembur,
-            'total_gaji_lembur' => $totalGajiLembur,
-            'total_gaji' => $totalGaji,
-            'total_potongan' => $totalPotongan,
-        ];
-    }
-
-    return view('admin.absensi.recap', compact(
-        'recapData', 'month', 'year', 'range', 'week',
-        'startDate', 'endDate'
-    ))->with('selectedMonth', $month)
-      ->with('selectedYear', $year);
-}
-    public function exportRecap(Request $request)
     {
-    $month = $request->input('month', Carbon::now()->month);
-    $year = $request->input('year', Carbon::now()->year);
-    $type = $request->input('type', 'all');
-    $range = $request->input('range', 'monthly');
-    $week = $request->input('week', null);
+        $month = $request->input('month', Carbon::now()->month);
+        $year = $request->input('year', Carbon::now()->year);
+        $range = $request->input('range', 'monthly');
+        $week = $request->input('week', null);
 
-    // 🔥 LOGIKA BARU (SAMA KAYAK DI recap())
-    if ($range === 'custom') {
-        $startDate = $request->input('start_date')
-            ? Carbon::parse($request->input('start_date'))->startOfDay()
-            : Carbon::now()->startOfMonth();
+        // 🔥 LOGIKA BARU: 3 PILIHAN
+        if ($range === 'custom') {
+            $startDate = $request->input('start_date')
+                ? Carbon::parse($request->input('start_date'))->startOfDay()
+                : Carbon::now()->startOfMonth();
 
-        $endDate = $request->input('end_date')
-            ? Carbon::parse($request->input('end_date'))->endOfDay()
-            : Carbon::now()->endOfMonth();
+            $endDate = $request->input('end_date')
+                ? Carbon::parse($request->input('end_date'))->endOfDay()
+                : Carbon::now()->endOfMonth();
 
-    } elseif ($range === 'weekly' && $week) {
-        $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-        if ($firstMonday->month != $month) {
-            $firstMonday = Carbon::create($year, $month, 1);
+        } elseif ($range === 'weekly' && $week) {
+            $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+            if ($firstMonday->month != $month) {
+                $firstMonday = Carbon::create($year, $month, 1);
+            }
+            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+            $endDate = (clone $startDate)->endOfWeek();
+
+        } else {
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
         }
-        $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-        $endDate = (clone $startDate)->endOfWeek();
-    } else {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-    }
 
         $users = User::all();
         $recapData = [];
 
         foreach ($users as $user) {
+            // 🔥 QUERY BIASA AJA (JANGAN TAMBAHIN orderBy updated_at)
             $absensiUser = Absensi::where('user_id', $user->id)
                 ->whereBetween('check_in_at', [$startDate, $endDate])
                 ->where('status_approval', 'approved')
                 ->get();
+
+            // 🔥 FORCE REFRESH DATA APPROVED (Re-fetch dari DB)
+            $absensiUser = $absensiUser->map(function($item) {
+                return Absensi::find($item->id); // Force reload
+            });
+
+            $totalGaji = $absensiUser->sum('final_salary') ?? 0;
+            $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
+            $totalMenitLembur = $absensiUser->sum('overtime_minutes');
+            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+            $kategori = $this->detectKategori($user);
+
+            $recapData[] = [
+                'user' => $user,
+                'kategori' => $kategori,
+                'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
+                'total_izin' => $absensiUser->where('status', 'izin')->count(),
+                'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
+                'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
+                'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+                'total_menit_telat' => $absensiUser->sum('late_minutes'),
+                'total_menit_lembur' => $totalMenitLembur,
+                'total_gaji_lembur' => $totalGajiLembur,
+                'total_gaji' => $totalGaji,
+                'total_potongan' => $totalPotongan,
+            ];
+        }
+
+        return view('admin.absensi.recap', compact(
+            'recapData', 'month', 'year', 'range', 'week',
+            'startDate', 'endDate'
+        ))->with('selectedMonth', $month)
+          ->with('selectedYear', $year);
+    }
+
+    public function exportRecap(Request $request)
+    {
+        $month = $request->input('month', Carbon::now()->month);
+        $year = $request->input('year', Carbon::now()->year);
+        $type = $request->input('type', 'all');
+        $range = $request->input('range', 'monthly');
+        $week = $request->input('week', null);
+
+        // 🔥 LOGIKA BARU (SAMA KAYAK DI recap())
+        if ($range === 'custom') {
+            $startDate = $request->input('start_date')
+                ? Carbon::parse($request->input('start_date'))->startOfDay()
+                : Carbon::now()->startOfMonth();
+
+            $endDate = $request->input('end_date')
+                ? Carbon::parse($request->input('end_date'))->endOfDay()
+                : Carbon::now()->endOfMonth();
+
+        } elseif ($range === 'weekly' && $week) {
+            $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+            if ($firstMonday->month != $month) {
+                $firstMonday = Carbon::create($year, $month, 1);
+            }
+            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+            $endDate = (clone $startDate)->endOfWeek();
+        } else {
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+        }
+
+        $users = User::all();
+        $recapData = [];
+
+        foreach ($users as $user) {
+            // 🔥 QUERY BIASA
+            $absensiUser = Absensi::where('user_id', $user->id)
+                ->whereBetween('check_in_at', [$startDate, $endDate])
+                ->where('status_approval', 'approved')
+                ->get();
+
+            // 🔥 FORCE REFRESH
+            $absensiUser = $absensiUser->map(function($item) {
+                return Absensi::find($item->id);
+            });
 
             $totalGaji = $absensiUser->sum('final_salary') ?? 0;
             $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
@@ -577,6 +589,15 @@ class AbsensiAdminController extends Controller
         }
 
         $absensi = $query->get();
+
+        // 🔥 FORCE REFRESH DATA APPROVED
+        $absensi = $absensi->map(function($item) {
+            if ($item->status_approval === 'approved') {
+                return Absensi::find($item->id);
+            }
+            return $item;
+        });
+
         $fileName = "Absensi_{$user->name}_" . now()->format('Ymd_His') . ".xlsx";
 
         return Excel::download(
@@ -586,58 +607,63 @@ class AbsensiAdminController extends Controller
     }
 
     public function exportSlipGaji(Request $request, User $user)
-{
-    $filterType = $request->input('filter_type', 'all');
+    {
+        $filterType = $request->input('filter_type', 'all');
 
-    // Query dasar
-    $query = Absensi::where('user_id', $user->id);
-    $periodeLabel = "Semua Data";
+        // Query dasar
+        $query = Absensi::where('user_id', $user->id);
+        $periodeLabel = "Semua Data";
 
-    // Logic Filter
-    if ($filterType === 'monthly') {
-        $year = $request->input('year', now()->year);
-        $month = $request->input('month', now()->month);
+        // Logic Filter
+        if ($filterType === 'monthly') {
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', now()->month);
 
-        $query->whereYear('check_in_at', $year)
-              ->whereMonth('check_in_at', $month);
+            $query->whereYear('check_in_at', $year)
+                  ->whereMonth('check_in_at', $month);
 
-        $periodeLabel = \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('d M Y') . " {$year}";
+            $periodeLabel = \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}";
 
-    } elseif ($filterType === 'custom') {
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        } elseif ($filterType === 'custom') {
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
 
-        if ($startDate && $endDate) {
-            $start = \Carbon\Carbon::parse($startDate)->startOfDay();
-            $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+            if ($startDate && $endDate) {
+                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+                $end = \Carbon\Carbon::parse($endDate)->endOfDay();
 
-            $query->whereBetween('check_in_at', [$start, $end]);
+                $query->whereBetween('check_in_at', [$start, $end]);
 
-            $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
+                $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
+            }
         }
+
+        // Ambil data yang DI-APPROVE AJA
+        $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+
+        // 🔥 FORCE REFRESH DATA
+        $approvedAbsensi = $approvedAbsensi->map(function($item) {
+            return Absensi::find($item->id);
+        });
+
+        // Hitung Statistik
+        $absensiStats = [
+            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+        ];
+
+        // Nama File
+        $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".xlsx";
+
+        return Excel::download(
+            new SlipGajiExport($user, $absensiStats, $periodeLabel),
+            $fileName
+        );
     }
-
-    // Ambil data yang DI-APPROVE AJA
-    $approvedAbsensi = $query->where('status_approval', 'approved')->get();
-
-    // Hitung Statistik
-    $absensiStats = [
-        'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(), // 🆕 Jumlah Hari Kerja
-        'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-        'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-        'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-        'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'), // 🆕 Total Menit Lembur
-    ];
-
-    // Nama File
-    $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".xlsx";
-
-    return Excel::download(
-        new SlipGajiExport($user, $absensiStats, $periodeLabel),
-        $fileName
-    );
-}
 
     // INI FUNGSI BARU BUAT NANGANIN CHECKBOX
     public function bulkExportDetail(Request $request)
@@ -645,8 +671,8 @@ class AbsensiAdminController extends Controller
         $request->validate([
             'user_ids'   => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
-            'start_date' => 'required|date_format:Y-m-d H:i:s', // ⬅️ Kita ambil dari hidden input
-            'end_date'   => 'required|date_format:Y-m-d H:i:s', // ⬅️ Kita ambil dari hidden input
+            'start_date' => 'required|date_format:Y-m-d H:i:s',
+            'end_date'   => 'required|date_format:Y-m-d H:i:s',
         ]);
 
         $userIds = $request->input('user_ids');
@@ -655,7 +681,6 @@ class AbsensiAdminController extends Controller
 
         $fileName = "Rekap_Detail_Massal_" . date('Ymd_His') . ".xlsx";
 
-        // Panggil "Resep" Excel baru
         return Excel::download(
             new BulkDetailExport($userIds, $startDate, $endDate),
             $fileName

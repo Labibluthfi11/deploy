@@ -10,6 +10,7 @@ use App\Models\Absensi;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB; // ⬅️ TAMBAHIN INI
 
 class ApprovalController extends Controller
 {
@@ -241,19 +242,26 @@ class ApprovalController extends Controller
                     }
                 }
 
-                // 🔥 INI DIA YANG PALING PENTING - UPDATE SEMUA DATA!
-                $updateData = [
-                    'status_approval' => 'approved',
-                    'approved_at' => now(),
-                    'workflow_status' => $workflowStatus,
-                    'rejected_by' => null,
-                    'rejected_at' => null,
-                    'overtime_minutes' => $overtimeMinutes,
-                    'overtime_pay'     => $overtimePay,
-                    'final_salary'     => $newFinalSalary, // ⬅️ INI YANG TADI ILANG!
-                ];
+                // 🔥 PAKE DB TRANSACTION BIAR DATA KONSISTEN
+                DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary) {
+                    $absensi->update([
+                        'status_approval' => 'approved',
+                        'approved_at' => now(),
+                        'workflow_status' => $workflowStatus,
+                        'rejected_by' => null,
+                        'rejected_at' => null,
+                        'overtime_minutes' => $overtimeMinutes,
+                        'overtime_pay'     => $overtimePay,
+                        'final_salary'     => $newFinalSalary,
+                    ]);
 
-                $absensi->update($updateData);
+                    // ⬅️ 🔥 FORCE REFRESH + CLEAR CACHE MODEL
+                    $absensi->refresh();
+                    \Cache::forget('absensi_' . $absensi->id);
+                });
+
+                // ⬅️ 🔥 REFRESH SEKALI LAGI SETELAH TRANSACTION
+                $absensi = Absensi::find($absensi->id);
 
                 Notification::create([
                     'user_id' => $absensi->user_id,
