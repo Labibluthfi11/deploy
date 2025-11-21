@@ -1,6 +1,6 @@
 <?php
 // ========================================================================
-// === APPROVAL CONTROLLER (FIXED - GAJI LEMBUR COMPLETE) ===
+// === APPROVAL CONTROLLER (FINAL - SEARCH & SORT A-Z) ===
 // ========================================================================
 
 namespace App\Http\Controllers\Admin;
@@ -35,40 +35,62 @@ class ApprovalController extends Controller
         ],
     ];
 
-    // ================== APPROVAL SUPERVISOR ==================
-    public function supervisor()
+    // =============================================================
+    // 🔥 HELPER QUERY (SEARCH & SORT)
+    // =============================================================
+    private function getSubmissions(Request $request, $type, $level, $status = 'pending')
     {
-        $freelanceYuli = Absensi::with('user')
-            ->whereHas('user', fn($q) => $q->where('employment_type', 'freelance'))
-            ->whereIn('status_approval', ['pending', 'rejected'])
-            ->where('current_approval_level', 1)
-            ->orderBy('check_in_at', 'desc')
+        $search = $request->input('search');
+
+        $query = Absensi::with('user')
+            ->whereHas('user', fn($q) => $q->where('employment_type', $type))
+            ->where('current_approval_level', $level);
+
+        // Filter status (bisa array atau string)
+        if (is_array($status)) {
+            $query->whereIn('status_approval', $status);
+        } else {
+            $query->where('status_approval', $status);
+        }
+
+        // 🔥 LOGIKA PENCARIAN 🔥
+        if ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('id_karyawan', 'like', "%{$search}%");
+            });
+        }
+
+        // 🔥 URUTKAN A-Z (Sesuai Request) 🔥
+        return $query->join('users', 'absensis.user_id', '=', 'users.id')
+            ->select('absensis.*') // Ambil kolom absensi aja biar id gak bentrok
+            ->orderBy('users.name', 'asc') // A-Z
+            ->orderBy('absensis.check_in_at', 'desc') // Tanggal terbaru
             ->get();
+    }
+
+    // ================== APPROVAL SUPERVISOR ==================
+    public function supervisor(Request $request)
+    {
+        // Level 1 Freelance (Pending/Rejected)
+        $freelanceYuli = $this->getSubmissions($request, 'freelance', 1, ['pending', 'rejected']);
 
         return view('admin.absensi.approval.supervisor', [
             'freelanceYuli' => $freelanceYuli,
-            'submissions' => $freelanceYuli,
+            'submissions' => $freelanceYuli, // Untuk view yang pake variabel umum
             'approverName' => 'Supervisor',
             'approverRole' => 'Level 1 (Freelance)',
         ]);
     }
 
     // ================== APPROVAL MANAGER ==================
-    public function manager()
+    public function manager(Request $request)
     {
-        $freelanceManager = Absensi::with('user')
-            ->whereHas('user', fn($u) => $u->where('employment_type', 'freelance'))
-            ->where('status_approval', 'pending')
-            ->where('current_approval_level', 2)
-            ->orderBy('check_in_at', 'desc')
-            ->get();
+        // Level 2 Freelance
+        $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
 
-        $organikManager = Absensi::with('user')
-            ->whereHas('user', fn($u) => $u->where('employment_type', 'organik'))
-            ->where('status_approval', 'pending')
-            ->where('current_approval_level', 1)
-            ->orderBy('check_in_at', 'desc')
-            ->get();
+        // Level 1 Organik
+        $organikManager = $this->getSubmissions($request, 'organik', 1);
 
         return view('admin.absensi.approval.manager', [
             'freelanceManager' => $freelanceManager,
@@ -78,21 +100,14 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function hrga()
+    // ================== APPROVAL HRGA ==================
+    public function hrga(Request $request)
     {
-        $freelanceHRGA = Absensi::with('user')
-            ->whereHas('user', fn($u) => $u->where('employment_type', 'freelance'))
-            ->where('status_approval', 'pending')
-            ->where('current_approval_level', 3)
-            ->orderBy('check_in_at', 'desc')
-            ->get();
+        // Level 3 Freelance
+        $freelanceHRGA = $this->getSubmissions($request, 'freelance', 3);
 
-        $organikHRGA = Absensi::with('user')
-            ->whereHas('user', fn($u) => $u->where('employment_type', 'organik'))
-            ->where('status_approval', 'pending')
-            ->where('current_approval_level', 2)
-            ->orderBy('check_in_at', 'desc')
-            ->get();
+        // Level 2 Organik
+        $organikHRGA = $this->getSubmissions($request, 'organik', 2);
 
         return view('admin.absensi.approval.hrga', [
             'freelanceHRGA' => $freelanceHRGA,
@@ -115,20 +130,18 @@ class ApprovalController extends Controller
         $workflowMap = $this->workflowMap[$userTipe] ?? $this->workflowMap['organik'];
         $currentApprover = $workflowMap[$currentLevel] ?? 'Unknown';
 
-        // 🧩 Mapping nama approver
+        // Mapping nama approver
         $approverToKey = [
-            'Supervisor' => 'supervisor', // ❗️ Ganti 'mas_yuli'
-            'Manager'    => 'manager',    // ❗️ Ganti 'mas_nu'
-            'HRGA'       => 'hrga',       // ❗️ Ganti 'mba_nadya'
+            'Supervisor' => 'supervisor',
+            'Manager'    => 'manager',
+            'HRGA'       => 'hrga',
         ];
         $workflowKey = $approverToKey[$currentApprover] ?? strtolower(str_replace(' ', '_', $currentApprover));
-
 
         $workflowStatus = is_array($absensi->workflow_status)
             ? $absensi->workflow_status
             : (json_decode($absensi->workflow_status ?? '[]', true) ?: []);
 
-        // ❗️ Pastikan template-nya konsisten
         if(empty($workflowStatus)) {
              $workflowStatus = $this->workflowTemplates[$userTipe] ?? $this->workflowTemplates['organik'];
         }
@@ -152,7 +165,7 @@ class ApprovalController extends Controller
             $resubmitLevel = $this->determineResubmitLevel($rejectedBy, $workflowStatus);
             $resetWorkflow = $this->resetWorkflowFromLevel($workflowStatus, $resubmitLevel, $userTipe);
 
-            // ❗️ Saat reject, kita reset gaji lemburnya juga
+            // Saat reject, reset gaji lembur
             $absensi->update([
                 'status_approval' => 'rejected',
                 'catatan_admin' => $request->catatan_admin,
@@ -160,9 +173,9 @@ class ApprovalController extends Controller
                 'rejected_at' => now(),
                 'workflow_status' => $resetWorkflow,
                 'current_approval_level' => $resubmitLevel,
-                'overtime_minutes' => 0, // Reset
-                'overtime_pay'     => 0, // Reset
-                'final_salary'     => $absensi->base_salary - $absensi->late_penalty, // Kembalikan ke gaji pokok - telat
+                'overtime_minutes' => 0,
+                'overtime_pay'     => 0,
+                'final_salary'     => $absensi->base_salary - $absensi->late_penalty,
             ]);
 
             Notification::create([
@@ -187,15 +200,14 @@ class ApprovalController extends Controller
             if ($currentLevel >= $maxLevel) {
                 // ✅ FINAL APPROVAL (HRGA)
 
-                // 🔥 CRITICAL FIX: Pastikan base_salary, late_penalty, final_salary sudah ada
-                // Kita panggil ini untuk mastiin data gaji pokok (sebelum lembur) ada
+                // Pastikan base_salary, late_penalty ada
                 if ($absensi->base_salary === null) {
                     $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, $absensi->tipe);
                     $absensi->base_salary = $salaryData['base_salary'];
                     $absensi->late_penalty = $salaryData['late_penalty'];
                     $absensi->final_salary = $salaryData['final_salary'];
-                    $absensi->save(); // Simpen dulu
-                    $absensi->refresh(); // Ambil data baru
+                    $absensi->save();
+                    $absensi->refresh();
                 }
 
                 // Inisialisasi nilai default
@@ -203,7 +215,7 @@ class ApprovalController extends Controller
                 $overtimeMinutes = 0;
                 $overtimePay = 0;
 
-                // 🆕 HITUNG LEMBUR HANYA JIKA TIPE LEMBUR
+                // 🔥 HITUNG LEMBUR HANYA JIKA TIPE LEMBUR
                 if (strtolower($absensi->tipe ?? '') === 'lembur' && $absensi->lembur_start && $absensi->lembur_end) {
                     try {
                         $overtimeData = Absensi::calculateOvertimeFromInput(
@@ -215,7 +227,7 @@ class ApprovalController extends Controller
                         $overtimeMinutes = $overtimeData['minutes'];
                         $overtimePay = $overtimeData['pay'];
 
-                        // Gaji bersih akhir = (Gaji Pokok - Potongan Telat) + Gaji Lembur
+                        // 🔥 CRITICAL: Gaji bersih = (Gaji Pokok - Potongan) + Gaji Lembur
                         $newFinalSalary = ($absensi->final_salary ?? 0) + $overtimePay;
 
                     } catch (\Exception $e) {
@@ -225,11 +237,11 @@ class ApprovalController extends Controller
                         ]);
                         $overtimeMinutes = 0;
                         $overtimePay = 0;
-                        $newFinalSalary = $absensi->final_salary ?? 0; // Gagal = Gaji bersih tetep
+                        $newFinalSalary = $absensi->final_salary ?? 0;
                     }
                 }
 
-                // 🔥 INI DIA PERBAIKANNYA (BARIS 284)
+                // 🔥 INI DIA YANG PALING PENTING - UPDATE SEMUA DATA!
                 $updateData = [
                     'status_approval' => 'approved',
                     'approved_at' => now(),
@@ -238,7 +250,7 @@ class ApprovalController extends Controller
                     'rejected_at' => null,
                     'overtime_minutes' => $overtimeMinutes,
                     'overtime_pay'     => $overtimePay,
-                    'final_salary'     => $newFinalSalary, // ⬅️ INI YANG ILANG TADI
+                    'final_salary'     => $newFinalSalary, // ⬅️ INI YANG TADI ILANG!
                 ];
 
                 $absensi->update($updateData);
@@ -263,9 +275,6 @@ class ApprovalController extends Controller
             return back()->with('success', 'Berhasil disetujui.');
         }
 
-        // =====================================================
-        // ❌ INVALID ACTION
-        // =====================================================
         return back()->with('error', 'Aksi tidak valid.');
     }
 
