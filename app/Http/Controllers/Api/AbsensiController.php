@@ -80,13 +80,12 @@ class AbsensiController extends Controller
     }
 
     // 🆕 METHOD: Hitung keterlambatan
-    private function calculateLateMinutes($checkInTime): int
+    private function calculateLateMinutes($checkInTime, bool $isWeekend = false): int
     {
         $checkIn = Carbon::parse($checkInTime);
         $standardTime = $checkIn->copy()->setTime(8, 0, 0);
 
         if ($checkIn->greaterThan($standardTime)) {
-            // ✅ Hitung menit dari jam 8 ke waktu check-in (PASTI POSITIF)
             return (int) abs($checkIn->diffInMinutes($standardTime));
         }
 
@@ -128,14 +127,17 @@ class AbsensiController extends Controller
             $employment = strtolower($user->employment_type ?? 'organik');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            // 🆕 Hitung keterlambatan
+            // 🆕 CEK APAKAH HARI INI WEEKEND
+            $isWeekend = Absensi::isWeekend($checkInTime);
+
+            // Hitung keterlambatan
             $lateMinutes = 0;
             if ($request->status === 'hadir') {
-                $lateMinutes = $this->calculateLateMinutes($checkInTime);
+                $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
             }
 
-            // 🆕 Hitung gaji
-            $salaryData = Absensi::calculateSalary($lateMinutes, $request->status);
+            // 🆕 Hitung gaji dengan parameter weekend
+            $salaryData = Absensi::calculateSalary($lateMinutes, $request->status, null, $isWeekend);
 
             $absensi = Absensi::create([
                 'user_id' => $user->id,
@@ -152,13 +154,14 @@ class AbsensiController extends Controller
                 'base_salary' => $salaryData['base_salary'],
                 'late_penalty' => $salaryData['late_penalty'],
                 'final_salary' => $salaryData['final_salary'],
+                'is_weekend_overtime' => false, // Normal absen masuk bukan weekend overtime
             ]);
 
             $absensi->load('user');
             $absensi->foto_masuk_url = Storage::url($absensi->foto_masuk);
 
             return response()->json([
-                'message' => 'Absensi masuk berhasil',
+                'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
                 'data' => $absensi
             ], 201);
         } catch (ValidationException $e) {
@@ -167,7 +170,6 @@ class AbsensiController extends Controller
             return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
         }
     }
-
     // Method lain tetap sama (absenPulang, absenLembur, dll.)
     public function absenPulang(Request $request)
     {
@@ -436,6 +438,7 @@ class AbsensiController extends Controller
                 'foto'          => 'required|image|max:2048',
                 'lat'           => 'required|numeric',
                 'lng'           => 'required|numeric',
+                'is_weekend'    => 'nullable|boolean', // 🆕 Parameter baru dari Flutter
             ]);
 
             $user = Auth::user();
@@ -467,16 +470,20 @@ class AbsensiController extends Controller
             $lemburStart = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_mulai);
             $lemburEnd = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_selesai);
 
-            // 🆕 HITUNG LEMBUR MENGGUNAKAN METHOD MODEL
+            // 🆕 CEK WEEKEND (Dari request atau auto-detect)
+            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+
+            // 🆕 HITUNG LEMBUR DENGAN MULTIPLIER WEEKEND
             $overtimeData = Absensi::calculateOvertimeFromInput(
                 $lemburStart,
                 $lemburEnd,
-                $request->istirahat
+                $request->istirahat,
+                $isWeekendOvertime // 🔥 Pass parameter weekend
             );
 
-            // 🆕 HITUNG GAJI POKOK (karena lembur tetap dapat gaji harian + bonus lembur)
+            // 🆕 HITUNG GAJI POKOK (dengan weekend multiplier)
             $lateMinutes = $absensi->late_minutes ?? 0;
-            $salaryData = Absensi::calculateSalary($lateMinutes, $absensi->status, 'lembur');
+            $salaryData = Absensi::calculateSalary($lateMinutes, $absensi->status, 'lembur', $isWeekendOvertime);
 
             $employment = strtolower($user->employment_type ?? 'organik');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
@@ -493,15 +500,12 @@ class AbsensiController extends Controller
                 'lembur_end'            => $lemburEnd,
                 'lembur_rest'           => $request->istirahat,
                 'lembur_keterangan'     => $request->keterangan,
-
-                // 🆕 TAMBAHKAN DATA LEMBUR
                 'overtime_minutes'      => $overtimeData['minutes'],
                 'overtime_pay'          => $overtimeData['pay'],
-
-                // 🆕 UPDATE GAJI POKOK (jika belum ada)
                 'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
                 'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
                 'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
+                'is_weekend_overtime'   => $isWeekendOvertime, // 🆕 Simpan flag weekend
             ]);
 
             $absensi->load('user');
@@ -509,12 +513,13 @@ class AbsensiController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Absensi lembur berhasil diajukan',
+                'message' => 'Absensi lembur berhasil diajukan' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
                 'data' => $absensi,
                 'overtime_info' => [
                     'minutes' => $overtimeData['minutes'],
                     'pay' => 'Rp ' . number_format($overtimeData['pay'], 0, ',', '.'),
-                    'formatted_duration' => floor($overtimeData['minutes'] / 60) . ' jam ' . ($overtimeData['minutes'] % 60) . ' menit'
+                    'formatted_duration' => floor($overtimeData['minutes'] / 60) . ' jam ' . ($overtimeData['minutes'] % 60) . ' menit',
+                    'is_weekend' => $isWeekendOvertime // 🆕 Info ke client
                 ]
             ], 201);
 
@@ -656,161 +661,121 @@ class AbsensiController extends Controller
 // TAMBAHKAN LOGGING UNTUK DEBUG
 
     public function resubmitLembur(Request $request, $id)
-{
-    try {
-        \Log::info('🔍 [DEBUG RESUBMIT] User ID yang login: ' . Auth::id());
-        \Log::info('🔍 [DEBUG RESUBMIT] Absensi ID yang diminta: ' . $id);
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'foto'        => 'required|image|max:2048',
+                'lat'         => 'required|numeric',
+                'lng'         => 'required|numeric',
+                'jam_mulai'   => 'required|date_format:H:i',
+                'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+                'istirahat'   => 'required|boolean',
+                'keterangan'  => 'required|string|max:500',
+                'is_weekend'  => 'nullable|boolean', // 🆕
+            ]);
 
-        $validator = Validator::make($request->all(), [
-            'foto'        => 'required|image|max:2048',
-            'lat'         => 'required|numeric',
-            'lng'         => 'required|numeric',
-            'jam_mulai'   => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-            'istirahat'   => 'required|boolean',
-            'keterangan'  => 'required|string|max:500',
-        ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
 
-        if ($validator->fails()) {
-            \Log::error('❌ [DEBUG RESUBMIT] Validasi gagal: ' . json_encode($validator->errors()));
+            $absensi = Absensi::find($id);
+            if (!$absensi) {
+                return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
+            }
+
+            if ($absensi->user_id != Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+            }
+
+            if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
+                return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+            }
+
+            // Hapus foto lama
+            if ($absensi->foto_pulang && Storage::disk('public')->exists($absensi->foto_pulang)) {
+                Storage::disk('public')->delete($absensi->foto_pulang);
+            }
+
+            $filePath = $request->file('foto')->store('absensi_foto', 'public');
+            $lokasiPulang = $request->lat . ',' . $request->lng;
+
+            $baseDate = $absensi->check_in_at
+                ? Carbon::parse($absensi->check_in_at)->format('Y-m-d')
+                : Carbon::today()->format('Y-m-d');
+
+            $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
+            $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
+
+            // 🆕 CEK WEEKEND
+            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+
+            // Workflow
+            $employment = strtolower($absensi->user->employment_type ?? 'organik');
+            $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
+            $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+            $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+            // 🆕 Kalkulasi dengan weekend multiplier
+            $overtimeData = Absensi::calculateOvertimeFromInput(
+                $lemburStart,
+                $lemburEnd,
+                $request->istirahat,
+                $isWeekendOvertime
+            );
+            $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, 'lembur', $isWeekendOvertime);
+
+            // Update
+            $absensi->update([
+                'foto_pulang'           => $filePath,
+                'lokasi_pulang'         => $lokasiPulang,
+                'lembur_start'          => $lemburStart,
+                'lembur_end'            => $lemburEnd,
+                'lembur_rest'           => $request->istirahat,
+                'lembur_keterangan'     => $request->keterangan,
+                'tipe'                  => 'lembur',
+                'status_approval'       => 'pending',
+                'workflow_status'       => $workflow,
+                'current_approval_level'=> $startLevel,
+                'rejected_by'           => null,
+                'rejected_at'           => null,
+                'catatan_admin'         => null,
+                'check_out_at'          => now(),
+                'updated_at'            => now(),
+                'overtime_minutes'      => $overtimeData['minutes'],
+                'overtime_pay'          => $overtimeData['pay'],
+                'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
+                'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
+                'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
+                'is_weekend_overtime'   => $isWeekendOvertime, // 🆕
+            ]);
+
+            $absensi->load('user');
+            $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
+
+            Notification::create([
+                'user_id'     => $absensi->user_id,
+                'title'       => "Pengajuan Lembur Diajukan Ulang",
+                'message'     => "Pengajuan lembur kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
+                'type'        => "lembur_resubmitted",
+                'target_page' => '/lembur_detail',
+                'target_id'   => $absensi->id,
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first()
-            ], 422);
+                'success' => true,
+                'message' => 'Pengajuan lembur berhasil diajukan ulang.' . ($isWeekendOvertime ? ' (Weekend Rate)' : ''),
+                'data'    => $absensi
+            ], 200);
+
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
         }
-
-        $absensi = Absensi::find($id);
-        if (!$absensi) {
-            \Log::error('❌ [DEBUG RESUBMIT] Absensi ID tidak ditemukan');
-            return response()->json([
-                'success' => false,
-                'message' => 'Record tidak ditemukan.'
-            ], 404);
-        }
-
-        \Log::info('🔍 [DEBUG RESUBMIT] User ID di absensi: ' . $absensi->user_id);
-        \Log::info('🔍 [DEBUG RESUBMIT] Auth ID: ' . Auth::id());
-        \Log::info('🔍 [DEBUG RESUBMIT] Match? ' . ($absensi->user_id == Auth::id() ? 'YES' : 'NO')); // ⬅️ FIX: GANTI === JADI ==
-
-        // ⬇️ ⬇️ ⬇️ FIX: GANTI !== JADI != ⬇️ ⬇️ ⬇️
-        if ($absensi->user_id != Auth::id()) {
-            \Log::error('❌ [DEBUG RESUBMIT] Akses ditolak - User tidak cocok');
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak. User ID tidak cocok.'
-            ], 403);
-        }
-        // ⬆️ ⬆️ ⬆️ SELESAI FIX ⬆️ ⬆️ ⬆️
-
-        if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
-            \Log::error('❌ [DEBUG RESUBMIT] Status approval tidak valid: ' . $absensi->status_approval);
-            return response()->json([
-                'success' => false,
-                'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'
-            ], 409);
-        }
-
-        if ($absensi->tipe !== 'lembur') {
-            \Log::error('❌ [DEBUG RESUBMIT] Tipe bukan lembur: ' . $absensi->tipe);
-            return response()->json([
-                'success' => false,
-                'message' => 'Record ini bukan pengajuan lembur.'
-            ], 400);
-        }
-
-
-        // Hapus foto lama
-        if ($absensi->foto_pulang && Storage::disk('public')->exists($absensi->foto_pulang)) {
-            Storage::disk('public')->delete($absensi->foto_pulang);
-        }
-
-        // Simpan foto baru
-        $filePath = $request->file('foto')->store('absensi_foto', 'public');
-        $lokasiPulang = $request->lat . ',' . $request->lng;
-
-        // Parse jam
-        $baseDate = $absensi->check_in_at
-            ? Carbon::parse($absensi->check_in_at)->format('Y-m-d')
-            : Carbon::today()->format('Y-m-d');
-
-        $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
-        $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
-
-        // Hitung ulang workflow
-        $employment = strtolower($absensi->user->employment_type ?? 'organik');
-        $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
-        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
-
-        // Hitung ulang lembur & gaji
-        $overtimeData = Absensi::calculateOvertimeFromInput(
-            $lemburStart,
-            $lemburEnd,
-            $request->istirahat
-        );
-        $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, 'lembur');
-
-        // Update record
-        $absensi->update([
-            'foto_pulang'           => $filePath,
-            'lokasi_pulang'         => $lokasiPulang,
-            'lembur_start'          => $lemburStart,
-            'lembur_end'            => $lemburEnd,
-            'lembur_rest'           => $request->istirahat,
-            'lembur_keterangan'     => $request->keterangan,
-            'tipe'                  => 'lembur',
-            'status_approval'       => 'pending',
-            'workflow_status'       => $workflow,
-            'current_approval_level'=> $startLevel,
-            'rejected_by'           => null,
-            'rejected_at'           => null,
-            'catatan_admin'         => null,
-            'check_out_at'          => now(),
-            'updated_at'            => now(),
-            'overtime_minutes'      => $overtimeData['minutes'],
-            'overtime_pay'          => $overtimeData['pay'],
-            'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
-            'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
-            'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
-        ]);
-
-        $absensi->load('user');
-        $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
-
-        // Buat notifikasi
-        Notification::create([
-            'user_id'     => $absensi->user_id,
-            'title'       => "Pengajuan Lembur Diajukan Ulang",
-            'message'     => "Pengajuan lembur kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
-            'type'        => "lembur_resubmitted",
-            'target_page' => '/lembur_detail',
-            'target_id'   => $absensi->id,
-        ]);
-
-        \Log::info('✅ [DEBUG RESUBMIT] Resubmit berhasil untuk ID: ' . $id);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengajuan lembur berhasil diajukan ulang. Menunggu approval.',
-            'data'    => $absensi
-        ], 200);
-
-    } catch (ValidationException $e) {
-        \Log::error('❌ [DEBUG RESUBMIT] Validation Exception: ' . json_encode($e->errors()));
-        return response()->json([
-            'success' => false,
-            'message' => 'Validation error',
-            'errors'  => $e->errors()
-        ], 422);
-    } catch (\Exception $e) {
-        \Log::error('❌ [DEBUG RESUBMIT] Exception: ' . $e->getMessage());
-        \Log::error('❌ [DEBUG RESUBMIT] Stack trace: ' . $e->getTraceAsString());
-        return response()->json([
-            'success' => false,
-            'message' => 'Server error: ' . $e->getMessage()
-        ], 500);
     }
-}
 
 
 

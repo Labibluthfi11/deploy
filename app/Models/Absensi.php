@@ -11,12 +11,14 @@ class Absensi extends Model
     use HasFactory;
 
     // Konstanta Gaji
-    const DAILY_SALARY = 150000;      // Gaji per hari
-    const HOURLY_SALARY = 18750;      // Gaji per jam (150000 / 8)
-    const SALARY_PER_MINUTE = 312.5;  // Gaji per menit (18750 / 60)
+    const DAILY_SALARY = 150000;           // Gaji normal
+    const WEEKEND_DAILY_SALARY = 300000;   // 🆕 Gaji weekend (2x lipat)
+    const HOURLY_SALARY = 18750;           // Gaji per jam normal
+    const WEEKEND_HOURLY_SALARY = 37500;   // 🆕 Gaji per jam weekend (2x)
+    const SALARY_PER_MINUTE = 312.5;
+    const WEEKEND_SALARY_PER_MINUTE = 625; // 🆕 Per menit weekend
 
-    // 🆕 Konstanta Potongan Lembur
-    const OVERTIME_REST_DEDUCTION_MINUTES = 30; // Potongan 30 menit
+    const OVERTIME_REST_DEDUCTION_MINUTES = 30;
 
     protected $fillable = [
         'user_id',
@@ -45,9 +47,9 @@ class Absensi extends Model
         'base_salary',
         'late_penalty',
         'final_salary',
-        // 🆕 Tambahan
         'overtime_minutes',
         'overtime_pay',
+        'is_weekend_overtime', // 🆕 Kolom baru
     ];
 
     protected $casts = [
@@ -56,12 +58,12 @@ class Absensi extends Model
         'lembur_start' => 'datetime',
         'lembur_end' => 'datetime',
         'lembur_rest' => 'boolean',
+        'is_weekend_overtime' => 'boolean', // 🆕
         'workflow_status' => 'array',
         'rejected_at' => 'datetime',
         'base_salary' => 'decimal:2',
         'late_penalty' => 'decimal:2',
         'final_salary' => 'decimal:2',
-        // 🆕 Tambahan
         'overtime_minutes' => 'integer',
         'overtime_pay' => 'decimal:2',
     ];
@@ -72,9 +74,18 @@ class Absensi extends Model
         'formatted_base_salary',
         'formatted_late_penalty',
         'formatted_final_salary',
-        // 🆕 Tambahan
         'formatted_overtime_pay'
     ];
+
+    // ===================================================================
+    // 🆕 HELPER: Cek apakah tanggal adalah weekend
+    // ===================================================================
+    public static function isWeekend($date): bool
+    {
+        $carbonDate = Carbon::parse($date);
+        // dayOfWeek: 0=Sunday, 6=Saturday
+        return in_array($carbonDate->dayOfWeek, [Carbon::SATURDAY, Carbon::SUNDAY]);
+    }
 
     // ===================================================================
     // HELPER: Pembulatan keterlambatan ke kelipatan 15 menit
@@ -86,21 +97,23 @@ class Absensi extends Model
     }
 
     // ===================================================================
-    // HELPER: Hitung gaji berdasarkan keterlambatan
+    // 🆕 HELPER: Hitung gaji (Support Weekend)
     // ===================================================================
-    // ❗️ INI YANG DIBENERIN: Tambah parameter $tipe
-    public static function calculateSalary(int $actualLateMinutes, string $status, ?string $tipe = null): array
+    public static function calculateSalary(int $actualLateMinutes, string $status, ?string $tipe = null, bool $isWeekend = false): array
     {
         $baseSalary = 0;
         $latePenalty = 0;
         $finalSalary = 0;
         $roundedLateMinutes = 0;
 
-        // ❗️ Perbaikan: Hitung gaji pokok JIKA status 'hadir' ATAU tipe 'lembur'
+        // Hitung gaji hanya untuk status 'hadir' atau tipe 'lembur'
         if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
-            $baseSalary = self::DAILY_SALARY;
+            // 🆕 Tentukan gaji berdasarkan weekend atau tidak
+            $baseSalary = $isWeekend ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
+            $salaryPerMinute = $isWeekend ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
+
             $roundedLateMinutes = self::roundLateMinutes($actualLateMinutes);
-            $latePenalty = $roundedLateMinutes * self::SALARY_PER_MINUTE;
+            $latePenalty = $roundedLateMinutes * $salaryPerMinute;
             $finalSalary = max(0, $baseSalary - $latePenalty);
         }
 
@@ -113,28 +126,15 @@ class Absensi extends Model
     }
 
     // ===================================================================
-    // 🆕 HELPER: Hitung lembur (YANG DIPANGGIL APPROVAL CONTROLLER)
+    // 🆕 HELPER: Hitung lembur (Support Weekend Multiplier)
     // ===================================================================
-    /**
-     * Hitung lembur berdasarkan input jam
-     *
-     * @param string|Carbon $startTime
-     * @param string|Carbon $endTime
-     * @param bool $hasRest
-     * @return array ['minutes' => (int) menit_lembur, 'pay' => (float) gaji_lembur]
-     */
-    public static function calculateOvertimeFromInput($startTime, $endTime, bool $hasRest): array
+    public static function calculateOvertimeFromInput($startTime, $endTime, bool $hasRest, bool $isWeekend = false): array
     {
         try {
             $start = Carbon::parse($startTime);
             $end = Carbon::parse($endTime);
 
-            // ❗️❗️ INI YANG DIBENERIN ❗️❗️
-            // Kita pake abs() (absolut) biar hasilnya PASTI positif
-            // Parameter 'false' penting biar dia ga buletin ke hari
             $totalOvertimeMinutes = abs($end->diffInMinutes($start, false));
-            // ❗️❗️ ------------------- ❗️❗️
-
             $deduction = $hasRest ? self::OVERTIME_REST_DEDUCTION_MINUTES : 0;
             $finalOvertimeMinutes = $totalOvertimeMinutes - $deduction;
 
@@ -142,8 +142,8 @@ class Absensi extends Model
                 $finalOvertimeMinutes = 0;
             }
 
-            // Pake konstanta HOURLY_SALARY
-            $hourlyRate = self::HOURLY_SALARY;
+            // 🆕 Pake rate sesuai weekend atau bukan
+            $hourlyRate = $isWeekend ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
             $overtimePay = ($finalOvertimeMinutes / 60) * $hourlyRate;
 
             return [
@@ -152,21 +152,19 @@ class Absensi extends Model
             ];
 
         } catch (\Exception $e) {
-            // Kalo ada error di kalkulasi, catet di log dan balikin 0
-            \Illuminate\Support\Facades\Log::error('--- [CRITICAL] ERROR DI DALEM KALKULASI LEMBUR ---', [
+            \Illuminate\Support\Facades\Log::error('--- [CRITICAL] ERROR DI KALKULASI LEMBUR ---', [
                 'error' => $e->getMessage()
             ]);
-            return ['minutes' => 0, 'pay' => 0.0]; // Kalo error, balikin 0
+            return ['minutes' => 0, 'pay' => 0.0];
         }
     }
 
     // ===================================================================
-    // ACCESSORS
+    // ACCESSORS (Tetap sama, cuma sekarang support weekend)
     // ===================================================================
     public function getLateDurationTextAttribute(): ?string
     {
         $lateMinutes = $this->late_minutes ?? 0;
-        // ❗️ Perbaikan: Tampilkan telat walau tipe 'lembur'
         if ($lateMinutes <= 0 || strtolower($this->status ?? '') !== 'hadir') {
              if(strtolower($this->tipe ?? '') !== 'lembur') {
                 return null;
@@ -182,7 +180,6 @@ class Absensi extends Model
 
     public function getIsLateAttribute(): bool
     {
-         // ❗️ Perbaikan: Dianggap telat walau tipe 'lembur'
         $isHadirAtauLembur = strtolower($this->status ?? '') === 'hadir' || strtolower($this->tipe ?? '') === 'lembur';
         return ($this->late_minutes ?? 0) > 0 && $isHadirAtauLembur;
     }
@@ -202,7 +199,6 @@ class Absensi extends Model
         return $this->final_salary ? 'Rp ' . number_format($this->final_salary, 0, ',', '.') : null;
     }
 
-    // 🆕 ACCESSOR BARU (OPSIONAL)
     public function getFormattedOvertimePayAttribute(): ?string
     {
         return $this->overtime_pay ? 'Rp ' . number_format($this->overtime_pay, 0, ',', '.') : null;
