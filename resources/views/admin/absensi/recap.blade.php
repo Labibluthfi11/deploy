@@ -9,7 +9,6 @@
                     class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
                     <i class="fas fa-arrow-left mr-2"></i> Kembali ke Dashboard
                 </a>
-
             </div>
         </div>
     </x-slot>
@@ -17,7 +16,7 @@
     <div class="py-10 bg-blue-50 dark:bg-gray-950 min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
 
-            {{-- Filter --}}
+            {{-- 🟢 FILTER SECTION --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg border border-blue-100 dark:border-indigo-800">
                 <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-5">Pilih Periode Rekap</h3>
 
@@ -45,68 +44,70 @@
                 @endphp
 
                 <form method="GET" action="{{ route('admin.absensi.recap') }}" class="grid grid-cols-1 md:grid-cols-6 gap-4" id="filterForm">
-    <select name="month" id="monthSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-        @for ($m = 1; $m <= 12; $m++)
-            <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
-                {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
-            </option>
-        @endfor
-    </select>
+                    <select name="month" id="monthSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+                        @for ($m = 1; $m <= 12; $m++)
+                            <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
+                                {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
+                            </option>
+                        @endfor
+                    </select>
 
-    <select name="year" id="yearSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-        @for ($y = date('Y'); $y >= 2020; $y--)
-            <option value="{{ $y }}" {{ $selectedYear == $y ? 'selected' : '' }}>{{ $y }}</option>
-        @endfor
-    </select>
+                    <select name="year" id="yearSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+                        @for ($y = date('Y'); $y >= 2020; $y--)
+                            <option value="{{ $y }}" {{ $selectedYear == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
 
-    <select name="range" id="rangeSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-        <option value="monthly" {{ request('range') == 'monthly' ? 'selected' : '' }}>Bulanan</option>
-        <option value="weekly" {{ request('range') == 'weekly' ? 'selected' : '' }}>Mingguan</option>
-        <option value="custom" {{ request('range') == 'custom' ? 'selected' : '' }}>🆕 Custom (Pilih Tanggal)</option>
-    </select>
+                    <select name="range" id="rangeSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+                        <option value="monthly" {{ request('range') == 'monthly' ? 'selected' : '' }}>Bulanan</option>
+                        <option value="weekly" {{ request('range') == 'weekly' ? 'selected' : '' }}>Mingguan</option>
+                        <option value="custom" {{ request('range') == 'custom' ? 'selected' : '' }}>🆕 Custom (Pilih Tanggal)</option>
+                    </select>
 
-    {{-- 🔥 MINGGUAN (Muncul kalo pilih "Mingguan") --}}
-    <select name="week" id="weekSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-        <option value="">Semua Minggu</option>
-        @for ($i = 1; $i <= $weeks; $i++)
-            <option value="{{ $i }}" {{ request('week') == $i ? 'selected' : '' }}>Minggu ke-{{ $i }}</option>
-        @endfor
-    </select>
+                    <select name="week" id="weekSelect" class="form-select block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg" style="display:none;">
+                        <option value="">Semua Minggu</option>
+                        @for ($i = 1; $i <= $weeks; $i++)
+                            <option value="{{ $i }}" {{ request('week') == $i ? 'selected' : '' }}>Minggu ke-{{ $i }}</option>
+                        @endfor
+                    </select>
 
-    {{-- 🔥 CUSTOM DATE (Muncul kalo pilih "Custom") --}}
-    <div id="customDateStart" class="hidden">
-        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Dari Tanggal</label>
-        <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-    </div>
+                    <div id="customDateStart" class="hidden">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Dari Tanggal</label>
+                        <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+                    </div>
 
-    <div id="customDateEnd" class="hidden">
-        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sampai Tanggal</label>
-        <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
-    </div>
+                    <div id="customDateEnd" class="hidden">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sampai Tanggal</label>
+                        <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-input block w-full px-4 py-2 text-base bg-blue-50 dark:bg-indigo-800 border border-blue-200 dark:border-indigo-700 rounded-lg">
+                    </div>
 
-    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:scale-105">
-        <i class="fas fa-search mr-2"></i> Tampilkan Rekap
-    </button>
-</form>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:scale-105">
+                        <i class="fas fa-search mr-2"></i> Tampilkan Rekap
+                    </button>
+                </form>
             </div>
 
-            {{-- 🔥 TABEL 1: ORGANIK (DENGAN FORM + CHECKBOX) --}}
+            {{-- 🔥 TABEL 1: ORGANIK --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
-                {{-- ⬇️ ⬇️ ⬇️ MULAI FORM DI SINI ⬇️ ⬇️ ⬇️ --}}
-                <form action="{{ route('admin.absensi.bulk-export-detail') }}" method="POST">
+                <form method="POST"> {{-- ⚠️ Action dihandle oleh tombol di bawah --}}
                     @csrf
-                    {{-- Ini input rahasia buat ngirim tanggal --}}
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
 
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <i class="fas fa-calendar-alt mr-3 text-green-500"></i> Rekap Karyawan Organik
                         </h3>
-                        {{-- Tombol Submit-nya nempel di sini --}}
-                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
-                            <i class="fas fa-download mr-2"></i> Download (Ceklis)
-                        </button>
+                        <div class="flex space-x-2">
+                             {{-- 🟢 TOMBOL 1: EXCEL (Detail) --}}
+                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-excel mr-2"></i> Excel (Detail)
+                            </button>
+                            {{-- 🔴 TOMBOL 2: PDF (Slip Gaji) --}}
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> PDF (Slip)
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto custom-scrollbar">
@@ -118,10 +119,7 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
                             <thead class="bg-blue-50 dark:bg-indigo-800">
                                 <tr>
-                                    {{-- ⬅️ HEADER BARU (Checkbox "Pilih Semua") --}}
-                                    <th class="py-3 px-4">
-                                        <input type="checkbox" onclick="toggleTable(this, 'organik')" class="w-4 h-4 text-blue-600 rounded">
-                                    </th>
+                                    <th class="py-3 px-4"><input type="checkbox" onclick="toggleTable(this, 'organik')" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
@@ -129,8 +127,8 @@
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Menit Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Gaji Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
                                 </tr>
@@ -138,70 +136,59 @@
                             <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
                                 @forelse ($organikData as $data)
                                     <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
-                                        {{-- ⬅️ DATA BARU (Checkbox per baris) --}}
-                                        <td class="py-3 px-4">
-                                            <input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-organik w-4 h-4 text-blue-600 rounded">
-                                        </td>
+                                        <td class="py-3 px-4"><input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-organik w-4 h-4 text-blue-600 rounded cursor-pointer"></td>
                                         <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
                                         <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
                                         <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
                                         <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                         <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                         <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-                                        <td class="py-3 px-4 text-red-700 font-semibold">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700">
-                                            {{ $data['total_menit_lembur'] ?? 0 }} Menit
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700 font-semibold">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-green-700 font-bold">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-red-700 font-semibold">Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-purple-700">{{ $data['total_menit_lembur'] ?? 0 }}</td>
+                                        <td class="py-3 px-4 text-purple-700 font-semibold">Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-green-700 font-bold">Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}</td>
                                         <td class="py-3 px-4">
-                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-                                                <i class="fas fa-eye mr-2"></i>Detail
-                                            </a>
+                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold"><i class="fas fa-eye mr-2"></i>Detail</a>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td>
-                                    </tr>
+                                    <tr><td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td></tr>
                                 @endforelse
                                 @if(count($organikData) > 0)
                                     <tr class="bg-green-50 dark:bg-green-900/20 font-bold">
                                         <td></td>
                                         <td class="py-3 px-4" colspan="9">TOTAL GAJI ORGANIK</td>
-                                        <td class="py-3 px-4 text-green-700 text-lg">
-                                            Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-green-700 text-lg">Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}</td>
                                         <td></td>
                                     </tr>
                                 @endif
                             </tbody>
                         </table>
                     </div>
-                </form> {{-- ⬅️ ⬇️ ⬇️ TUTUP FORM DI SINI ⬇️ ⬇️ ⬇️ --}}
+                </form>
             </div>
 
-            {{-- 🔥 TABEL 2: FREELANCE (DENGAN FORM + CHECKBOX) --}}
+            {{-- 🔥 TABEL 2: FREELANCE --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
-                {{-- ⬇️ ⬇️ ⬇️ MULAI FORM DI SINI ⬇️ ⬇️ ⬇️ --}}
-                <form action="{{ route('admin.absensi.bulk-export-detail') }}" method="POST">
+                <form method="POST">
                     @csrf
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
 
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <i class="fas fa-calendar-alt mr-3 text-orange-500"></i> Rekap Karyawan Freelance
                         </h3>
-                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
-                            <i class="fas fa-download mr-2"></i> Download (Ceklis)
-                        </button>
+                        <div class="flex space-x-2">
+                             {{-- 🟢 TOMBOL 1: EXCEL (Detail) --}}
+                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-excel mr-2"></i> Excel (Detail)
+                            </button>
+                            {{-- 🔴 TOMBOL 2: PDF (Slip Gaji) --}}
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> PDF (Slip)
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto custom-scrollbar">
@@ -213,9 +200,7 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
                             <thead class="bg-blue-50 dark:bg-indigo-800">
                                 <tr>
-                                    <th class="py-3 px-4">
-                                        <input type="checkbox" onclick="toggleTable(this, 'freelance')" class="w-4 h-4 text-blue-600 rounded">
-                                    </th>
+                                    <th class="py-3 px-4"><input type="checkbox" onclick="toggleTable(this, 'freelance')" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
@@ -223,8 +208,8 @@
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Menit Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Gaji Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
                                 </tr>
@@ -232,45 +217,29 @@
                             <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
                                 @forelse ($freelanceData as $data)
                                     <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
-                                        <td class="py-3 px-4">
-                                            <input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-freelance w-4 h-4 text-blue-600 rounded">
-                                        </td>
+                                        <td class="py-3 px-4"><input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-freelance w-4 h-4 text-blue-600 rounded cursor-pointer"></td>
                                         <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
                                         <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
                                         <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
                                         <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                         <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                         <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-                                        <td class="py-3 px-4 text-red-700 font-semibold">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700">
-                                            {{ $data['total_menit_lembur'] ?? 0 }} Menit
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700 font-semibold">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-green-700 font-bold">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-red-700 font-semibold">Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-purple-700">{{ $data['total_menit_lembur'] ?? 0 }}</td>
+                                        <td class="py-3 px-4 text-purple-700 font-semibold">Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-green-700 font-bold">Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}</td>
                                         <td class="py-3 px-4">
-                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-                                                <i class="fas fa-eye mr-2"></i>Detail
-                                            </a>
+                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold"><i class="fas fa-eye mr-2"></i>Detail</a>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td>
-                                    </tr>
+                                    <tr><td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td></tr>
                                 @endforelse
                                 @if(count($freelanceData) > 0)
                                     <tr class="bg-orange-50 dark:bg-orange-900/20 font-bold">
                                         <td></td>
                                         <td class="py-3 px-4" colspan="9">TOTAL GAJI FREELANCE</td>
-                                        <td class="py-3 px-4 text-orange-700 text-lg">
-                                            Rp {{ number_format($totalGajiFreelance, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-orange-700 text-lg">Rp {{ number_format($totalGajiFreelance, 0, ',', '.') }}</td>
                                         <td></td>
                                     </tr>
                                 @endif
@@ -280,20 +249,27 @@
                 </form>
             </div>
 
-            {{-- 🔥 TABEL 3: BORONGAN (DENGAN FORM + CHECKBOX) --}}
+            {{-- 🔥 TABEL 3: BORONGAN --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
-                <form action="{{ route('admin.absensi.bulk-export-detail') }}" method="POST">
+                <form method="POST">
                     @csrf
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
 
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <i class="fas fa-hammer mr-3 text-purple-500"></i> Rekap Karyawan Borongan
                         </h3>
-                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
-                            <i class="fas fa-download mr-2"></i> Download (Ceklis)
-                        </button>
+                        <div class="flex space-x-2">
+                             {{-- 🟢 TOMBOL 1: EXCEL (Detail) --}}
+                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-excel mr-2"></i> Excel (Detail)
+                            </button>
+                            {{-- 🔴 TOMBOL 2: PDF (Slip Gaji) --}}
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> PDF (Slip)
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto custom-scrollbar">
@@ -305,9 +281,7 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
                             <thead class="bg-blue-50 dark:bg-indigo-800">
                                 <tr>
-                                    <th class="py-3 px-4">
-                                        <input type="checkbox" onclick="toggleTable(this, 'borongan')" class="w-4 h-4 text-blue-600 rounded">
-                                    </th>
+                                    <th class="py-3 px-4"><input type="checkbox" onclick="toggleTable(this, 'borongan')" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
@@ -315,8 +289,8 @@
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Menit Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Gaji Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
                                 </tr>
@@ -324,45 +298,29 @@
                             <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
                                 @forelse ($boronganData as $data)
                                     <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
-                                        <td class="py-3 px-4">
-                                            <input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-borongan w-4 h-4 text-blue-600 rounded">
-                                        </td>
+                                        <td class="py-3 px-4"><input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-borongan w-4 h-4 text-blue-600 rounded cursor-pointer"></td>
                                         <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
                                         <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
                                         <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
                                         <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                         <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                         <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-                                        <td class="py-3 px-4 text-red-700 font-semibold">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700">
-                                            {{ $data['total_menit_lembur'] ?? 0 }} Menit
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700 font-semibold">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-green-700 font-bold">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-red-700 font-semibold">Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-purple-700">{{ $data['total_menit_lembur'] ?? 0 }}</td>
+                                        <td class="py-3 px-4 text-purple-700 font-semibold">Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-green-700 font-bold">Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}</td>
                                         <td class="py-3 px-4">
-                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-                                                <i class="fas fa-eye mr-2"></i>Detail
-                                            </a>
+                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold"><i class="fas fa-eye mr-2"></i>Detail</a>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td>
-                                    </tr>
+                                    <tr><td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td></tr>
                                 @endforelse
                                 @if(count($boronganData) > 0)
                                     <tr class="bg-purple-50 dark:bg-purple-900/20 font-bold">
                                         <td></td>
                                         <td class="py-3 px-4" colspan="9">TOTAL GAJI BORONGAN</td>
-                                        <td class="py-3 px-4 text-purple-700 text-lg">
-                                            Rp {{ number_format($totalGajiBorongan, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-purple-700 text-lg">Rp {{ number_format($totalGajiBorongan, 0, ',', '.') }}</td>
                                         <td></td>
                                     </tr>
                                 @endif
@@ -372,19 +330,27 @@
                 </form>
             </div>
 
-            {{-- 🔥 TABEL 4: MAGANG (DENGAN FORM + CHECKBOX) --}}
+            {{-- 🔥 TABEL 4: MAGANG --}}
             <div class="bg-white dark:bg-indigo-900 p-6 rounded-xl shadow-lg overflow-hidden border border-blue-100 dark:border-indigo-800">
-                <form action="{{ route('admin.absensi.bulk-export-detail') }}" method="POST">
+                <form method="POST">
                     @csrf
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
-                    <div class="flex justify-between items-center mb-4">
+
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <i class="fas fa-graduation-cap mr-3 text-blue-500"></i> Rekap Karyawan Magang
                         </h3>
-                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center">
-                            <i class="fas fa-download mr-2"></i> Download (Ceklis)
-                        </button>
+                        <div class="flex space-x-2">
+                             {{-- 🟢 TOMBOL 1: EXCEL (Detail) --}}
+                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-excel mr-2"></i> Excel (Detail)
+                            </button>
+                            {{-- 🔴 TOMBOL 2: PDF (Slip Gaji) --}}
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> PDF (Slip)
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto custom-scrollbar">
@@ -396,9 +362,7 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-indigo-700">
                             <thead class="bg-blue-50 dark:bg-indigo-800">
                                 <tr>
-                                    <th class="py-3 px-4">
-                                        <input type="checkbox" onclick="toggleTable(this, 'magang')" class="w-4 h-4 text-blue-600 rounded">
-                                    </th>
+                                    <th class="py-3 px-4"><input type="checkbox" onclick="toggleTable(this, 'magang')" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Nama</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Hadir</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Izin</th>
@@ -406,8 +370,8 @@
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-orange-700 uppercase">Telat (x)</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-red-700 uppercase">Total Potongan</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Menit Lembur</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Total Gaji Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Menit Lembur</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-purple-700 uppercase">Gaji Lembur</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-green-700 uppercase">Total Gaji</th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-blue-700 uppercase">Aksi</th>
                                 </tr>
@@ -415,45 +379,29 @@
                             <tbody class="divide-y divide-blue-100 dark:divide-indigo-700">
                                 @forelse ($magangData as $data)
                                     <tr class="hover:bg-blue-50 dark:hover:bg-indigo-800 transition">
-                                        <td class="py-3 px-4">
-                                            <input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-magang w-4 h-4 text-blue-600 rounded">
-                                        </td>
+                                        <td class="py-3 px-4"><input type="checkbox" name="user_ids[]" value="{{ $data['user']->id }}" class="user-checkbox-magang w-4 h-4 text-blue-600 rounded cursor-pointer"></td>
                                         <td class="py-3 px-4 font-semibold">{{ $data['user']->name }}</td>
                                         <td class="py-3 px-4 text-green-700 font-semibold">{{ $data['total_hadir'] }}</td>
                                         <td class="py-3 px-4 text-yellow-700">{{ $data['total_izin'] }}</td>
                                         <td class="py-3 px-4 text-red-700">{{ $data['total_sakit'] }}</td>
                                         <td class="py-3 px-4 text-purple-700">{{ $data['total_lembur'] }}</td>
                                         <td class="py-3 px-4 text-orange-700 font-semibold">{{ $data['total_telat'] ?? 0 }}</td>
-                                        <td class="py-3 px-4 text-red-700 font-semibold">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700">
-                                            {{ $data['total_menit_lembur'] ?? 0 }} Menit
-                                        </td>
-                                        <td class="py-3 px-4 text-purple-700 font-semibold">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-green-700 font-bold">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-red-700 font-semibold">Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-purple-700">{{ $data['total_menit_lembur'] ?? 0 }}</td>
+                                        <td class="py-3 px-4 text-purple-700 font-semibold">Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-4 text-green-700 font-bold">Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}</td>
                                         <td class="py-3 px-4">
-                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-                                                <i class="fas fa-eye mr-2"></i>Detail
-                                            </a>
+                                            <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold"><i class="fas fa-eye mr-2"></i>Detail</a>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td>
-                                    </tr>
+                                    <tr><td colspan="12" class="text-center py-6 text-gray-500">Tidak ada data.</td></tr>
                                 @endforelse
                                 @if(count($magangData) > 0)
                                     <tr class="bg-blue-50 dark:bg-blue-900/20 font-bold">
                                         <td></td>
                                         <td class="py-3 px-4" colspan="9">TOTAL GAJI MAGANG</td>
-                                        <td class="py-3 px-4 text-blue-700 text-lg">
-                                            Rp {{ number_format($totalGajiMagang, 0, ',', '.') }}
-                                        </td>
+                                        <td class="py-3 px-4 text-blue-700 text-lg">Rp {{ number_format($totalGajiMagang, 0, ',', '.') }}</td>
                                         <td></td>
                                     </tr>
                                 @endif
@@ -463,7 +411,7 @@
                 </form>
             </div>
 
-            {{-- 🔥 GRAND TOTAL (4 KATEGORI) --}}
+            {{-- 🔥 GRAND TOTAL --}}
             @php
                 $grandTotal = $totalGajiOrganik + $totalGajiFreelance + $totalGajiBorongan + $totalGajiMagang;
             @endphp
@@ -498,68 +446,59 @@
         </div>
     </div>
 
-    {{-- 🔥 MODAL UNTUK TOMBOL "Export Detail Massal" (PLACEHOLDER) --}}
-    <div id="bulkModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-                <i class="fas fa-info-circle text-indigo-600 mr-2"></i>
-                Export Detail Massal
-            </h3>
-            <p class="text-gray-600 dark:text-gray-300 mb-6">
-                Fitur ini sedang dalam pengembangan. Silakan gunakan checkbox di setiap tabel untuk export per kategori.
-            </p>
-            <button onclick="closeBulkModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                Tutup
-            </button>
-        </div>
-    </div>
-
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    {{-- 🔥 JAVASCRIPT: Toggle Checkbox "Pilih Semua" --}}
-
+    {{-- 🔥 JAVASCRIPT: Logic Checkbox & Filter --}}
     <script>
-    // Toggle Mingguan / Custom Date
-    document.addEventListener('DOMContentLoaded', function() {
-        const rangeSelect = document.getElementById('rangeSelect');
-        const weekSelect = document.getElementById('weekSelect');
-        const customDateStart = document.getElementById('customDateStart');
-        const customDateEnd = document.getElementById('customDateEnd');
-        const monthSelect = document.getElementById('monthSelect');
-        const yearSelect = document.getElementById('yearSelect');
-
-        function toggleFields() {
-            const selectedRange = rangeSelect.value;
-
-            if (selectedRange === 'weekly') {
-                // Kalo mingguan: tampilin minggu, sembunyiin custom
-                weekSelect.classList.remove('hidden');
-                customDateStart.classList.add('hidden');
-                customDateEnd.classList.add('hidden');
-                monthSelect.disabled = false;
-                yearSelect.disabled = false;
-            } else if (selectedRange === 'custom') {
-                // Kalo custom: sembunyiin minggu, tampilin custom date
-                weekSelect.classList.add('hidden');
-                customDateStart.classList.remove('hidden');
-                customDateEnd.classList.remove('hidden');
-                monthSelect.disabled = true; // Disable month/year (gak dipake)
-                yearSelect.disabled = true;
-            } else {
-                // Bulanan: sembunyiin semuanya
-                weekSelect.classList.add('hidden');
-                customDateStart.classList.add('hidden');
-                customDateEnd.classList.add('hidden');
-                monthSelect.disabled = false;
-                yearSelect.disabled = false;
+        // Logic 1: Select All Checkbox
+        function toggleTable(source, category) {
+            const className = 'user-checkbox-' + category;
+            const checkboxes = document.getElementsByClassName(className);
+            for(let i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = source.checked;
             }
         }
 
-        rangeSelect.addEventListener('change', toggleFields);
-        toggleFields(); // Jalanin pas pertama kali load
-    });
-</script>
+        // Logic 2: Filter Toggle (Mingguan vs Custom)
+        document.addEventListener('DOMContentLoaded', function() {
+            const rangeSelect = document.getElementById('rangeSelect');
+            const weekSelect = document.getElementById('weekSelect');
+            const customDateStart = document.getElementById('customDateStart');
+            const customDateEnd = document.getElementById('customDateEnd');
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+
+            function toggleFields() {
+                const selectedRange = rangeSelect.value;
+
+                if (selectedRange === 'weekly') {
+                    weekSelect.classList.remove('hidden');
+                    weekSelect.style.display = 'block';
+                    customDateStart.classList.add('hidden');
+                    customDateEnd.classList.add('hidden');
+                    monthSelect.disabled = false;
+                    yearSelect.disabled = false;
+                } else if (selectedRange === 'custom') {
+                    weekSelect.classList.add('hidden');
+                    weekSelect.style.display = 'none';
+                    customDateStart.classList.remove('hidden');
+                    customDateEnd.classList.remove('hidden');
+                    monthSelect.disabled = true;
+                    yearSelect.disabled = true;
+                } else {
+                    weekSelect.classList.add('hidden');
+                    weekSelect.style.display = 'none';
+                    customDateStart.classList.add('hidden');
+                    customDateEnd.classList.add('hidden');
+                    monthSelect.disabled = false;
+                    yearSelect.disabled = false;
+                }
+            }
+
+            if(rangeSelect) {
+                rangeSelect.addEventListener('change', toggleFields);
+                toggleFields();
+            }
+        });
+    </script>
 
     <style>
         .custom-scrollbar::-webkit-scrollbar { height: 8px; }
