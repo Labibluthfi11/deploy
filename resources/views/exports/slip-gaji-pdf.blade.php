@@ -110,7 +110,7 @@
             <table style="width: 100%; border-collapse: collapse; border: none;">
                 <tr>
                     <td style="width: 15%; text-align: left; vertical-align: middle; border: none; padding: 0;">
-                        <img src="{{ public_path('images/logo.png') }}" alt="Logo" style="width: 80px; height: auto;">
+                        <img src="{{ public_path('images/logo.png') }}" alt="Logo" style="width: 120px; height: auto;">
                     </td>
 
                     <td style="width: 85%; text-align: center; vertical-align: middle; border: none; padding: 0;" class="header-title">
