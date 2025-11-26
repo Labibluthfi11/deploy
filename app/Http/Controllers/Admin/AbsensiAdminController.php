@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
 use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
+use App\Exports\SlipGajiPdfExport;
 use App\Exports\BulkDetailExport;
 
 class AbsensiAdminController extends Controller
@@ -685,5 +686,66 @@ class AbsensiAdminController extends Controller
             new BulkDetailExport($userIds, $startDate, $endDate),
             $fileName
         );
+    }
+
+     public function exportSlipGajiPdf(Request $request, User $user)
+    {
+        $filterType = $request->input('filter_type', 'all');
+
+        // Query dasar
+        $query = Absensi::where('user_id', $user->id);
+        $periodeLabel = "Semua Data";
+
+        // Logic Filter (SAMA DENGAN exportSlipGaji)
+        if ($filterType === 'monthly') {
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', now()->month);
+
+            $query->whereYear('check_in_at', $year)
+                  ->whereMonth('check_in_at', $month);
+
+            $periodeLabel = \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}";
+
+        } elseif ($filterType === 'custom') {
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+
+            if ($startDate && $endDate) {
+                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+                $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+
+                $query->whereBetween('check_in_at', [$start, $end]);
+
+                $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
+            }
+        }
+
+        // Ambil data yang DI-APPROVE AJA
+        $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+
+        // 🔥 FORCE REFRESH DATA
+        $approvedAbsensi = $approvedAbsensi->map(function($item) {
+            return Absensi::find($item->id);
+        });
+
+        // Hitung Statistik
+        $absensiStats = [
+            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+        ];
+
+        // 🔥 GENERATE PDF
+        $exporter = new SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
+        $pdf = $exporter->generate();
+
+        // Nama File
+        $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".pdf";
+
+        // 🔥 DOWNLOAD PDF
+        return $pdf->download($fileName);
     }
 }

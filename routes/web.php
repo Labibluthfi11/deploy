@@ -61,7 +61,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
             Route::post('/absensi/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
             ->name('admin.absensi.bulk-export-detail');
-    });
+
+            // Route untuk export slip gaji PDF
+        Route::get('/admin/absensi/{user}/export-slip-pdf', [AbsensiAdminController::class, 'exportSlipGajiPdf'])
+            ->name('admin.absensi.user.export-slip-pdf');
+            
+            });
 
     // --------------------------------------------------------
     // B. APPROVAL ABSENSI (Multi-level Workflow)
