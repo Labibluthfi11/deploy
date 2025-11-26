@@ -179,6 +179,24 @@ class ApprovalController extends Controller
                 'final_salary'     => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0), // Reset ke Pokok - Denda
             ]);
 
+            // 🔥 AUTO-REJECT SEMUA CHILD RECORDS
+            if ($absensi->children()->exists()) {
+                $absensi->children()->update([
+                    'status_approval' => 'rejected',
+                    'workflow_status' => $resetWorkflow,
+                    'current_approval_level' => $resubmitLevel,
+                    'rejected_by' => $rejectedBy,
+                    'rejected_at' => now(),
+                    'catatan_admin' => $request->catatan_admin,
+                    'approved_at' => null,
+                    'overtime_minutes' => 0,
+                    'overtime_pay' => 0,
+                    'final_salary' => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
+                ]);
+
+                Log::info("✅ Synced REJECT status to " . $absensi->children()->count() . " child records");
+            }
+
             Notification::create([
                 'user_id' => $absensi->user_id,
                 'title' => "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
@@ -257,6 +275,23 @@ class ApprovalController extends Controller
                         'final_salary'     => $newFinalSalary, // ✅ MASUKIN HASIL HITUNGAN BARU
                     ]);
 
+                    // 🔥 AUTO-APPROVE SEMUA CHILD RECORDS
+                    if ($absensi->children()->exists()) {
+                        $absensi->children()->update([
+                            'status_approval' => 'approved',
+                            'workflow_status' => $workflowStatus,
+                            'current_approval_level' => $absensi->current_approval_level,
+                            'rejected_by' => null,
+                            'rejected_at' => null,
+                            'approved_at' => now(),
+                            'overtime_minutes' => 0, // Child records biasanya gak ada lembur
+                            'overtime_pay' => 0,
+                            'final_salary' => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
+                        ]);
+
+                        Log::info("✅ Synced APPROVE status to " . $absensi->children()->count() . " child records");
+                    }
+
                     // Notifikasi
                     Notification::create([
                         'user_id' => $absensi->user_id,
@@ -274,6 +309,16 @@ class ApprovalController extends Controller
                     'current_approval_level' => $currentLevel + 1,
                     'workflow_status' => $workflowStatus,
                 ]);
+
+                // 🔥 SYNC KE CHILD RECORDS (LEVEL NAIK)
+                if ($absensi->children()->exists()) {
+                    $absensi->children()->update([
+                        'current_approval_level' => $currentLevel + 1,
+                        'workflow_status' => $workflowStatus,
+                    ]);
+
+                    Log::info("✅ Synced approval level to " . $absensi->children()->count() . " child records");
+                }
             }
 
             return back()->with('success', 'Berhasil disetujui.');

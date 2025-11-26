@@ -21,52 +21,56 @@ class Absensi extends Model
     const OVERTIME_REST_DEDUCTION_MINUTES = 30;
 
     protected $fillable = [
-        'user_id',
-        'status',
-        'tipe',
-        'file_bukti',
-        'keterangan_izin_sakit',
-        'check_in_at',
-        'check_out_at',
-        'lokasi_masuk',
-        'lokasi_pulang',
-        'foto_masuk',
-        'foto_pulang',
-        'status_approval',
-        'catatan_admin',
-        'lembur_start',
-        'lembur_end',
-        'lembur_rest',
-        'lembur_keterangan',
-        'workflow_status',
-        'current_approval_level',
-        'rejected_by',
-        'rejected_at',
-        'late_minutes',
-        'rounded_late_minutes',
-        'base_salary',
-        'late_penalty',
-        'final_salary',
-        'overtime_minutes',
-        'overtime_pay',
-        'is_weekend_overtime', // 🆕 Kolom baru
-    ];
+    'user_id',
+    'status',
+    'tipe',
+    'file_bukti',
+    'keterangan_izin_sakit',
+    'check_in_at',
+    'check_out_at',
+    'end_date',
+    'total_days',
+    'parent_id',
+    'lokasi_masuk',
+    'lokasi_pulang',
+    'foto_masuk',
+    'foto_pulang',
+    'status_approval',
+    'catatan_admin',
+    'lembur_start',
+    'lembur_end',
+    'lembur_rest',
+    'lembur_keterangan',
+    'workflow_status',
+    'current_approval_level',
+    'rejected_by',
+    'rejected_at',
+    'late_minutes',
+    'rounded_late_minutes',
+    'base_salary',
+    'late_penalty',
+    'final_salary',
+    'overtime_minutes',
+    'overtime_pay',
+    'is_weekend_overtime',
+];
 
     protected $casts = [
-        'check_in_at' => 'datetime',
-        'check_out_at' => 'datetime',
-        'lembur_start' => 'datetime',
-        'lembur_end' => 'datetime',
-        'lembur_rest' => 'boolean',
-        'is_weekend_overtime' => 'boolean', // 🆕
-        'workflow_status' => 'array',
-        'rejected_at' => 'datetime',
-        'base_salary' => 'decimal:2',
-        'late_penalty' => 'decimal:2',
-        'final_salary' => 'decimal:2',
-        'overtime_minutes' => 'integer',
-        'overtime_pay' => 'decimal:2',
-    ];
+    'check_in_at' => 'datetime',
+    'check_out_at' => 'datetime',
+    'end_date' => 'date',
+    'lembur_start' => 'datetime',
+    'lembur_end' => 'datetime',
+    'lembur_rest' => 'boolean',
+    'is_weekend_overtime' => 'boolean',
+    'workflow_status' => 'array',
+    'rejected_at' => 'datetime',
+    'base_salary' => 'decimal:2',
+    'late_penalty' => 'decimal:2',
+    'final_salary' => 'decimal:2',
+    'overtime_minutes' => 'integer',
+    'overtime_pay' => 'decimal:2',
+];
 
     protected $appends = [
         'late_duration_text',
@@ -204,6 +208,7 @@ class Absensi extends Model
         return $this->overtime_pay ? 'Rp ' . number_format($this->overtime_pay, 0, ',', '.') : null;
     }
 
+
     // ===================================================================
     // RELATIONSHIPS
     // ===================================================================
@@ -211,4 +216,14 @@ class Absensi extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function parent()
+{
+    return $this->belongsTo(Absensi::class, 'parent_id');
+}
+
+public function children()
+{
+    return $this->hasMany(Absensi::class, 'parent_id');
+}
+
 }
