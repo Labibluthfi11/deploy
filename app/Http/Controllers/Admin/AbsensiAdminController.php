@@ -689,7 +689,7 @@ class AbsensiAdminController extends Controller
     }
 
 
-public function exportSlipGajiPdf(Request $request, $id)  
+public function exportSlipGajiPdf(Request $request, $id)
 {
     // ✅ Manual query user
     $user = User::findOrFail($id);
@@ -744,5 +744,70 @@ public function exportSlipGajiPdf(Request $request, $id)
     return $pdf->download($fileName);
 }
 
+public function bulkExportPdf(Request $request)
+{
+    $request->validate([
+        'user_ids'   => 'required|array|min:1',
+        'user_ids.*' => 'exists:users,id',
+        'start_date' => 'required|date_format:Y-m-d H:i:s',
+        'end_date'   => 'required|date_format:Y-m-d H:i:s',
+    ]);
+
+    $userIds = $request->input('user_ids');
+    $startDate = Carbon::parse($request->input('start_date'));
+    $endDate = Carbon::parse($request->input('end_date'));
+
+    // Bikin ZIP temporary
+    $zipName = 'Slip_Gaji_Bulk_' . date('Ymd_His') . '.zip';
+    $zipPath = storage_path('app/' . $zipName);
+    $zip = new \ZipArchive();
+
+    if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+        return back()->with('error', 'Gagal membuat file ZIP!');
+    }
+
+    foreach ($userIds as $userId) {
+        $user = User::find($userId);
+        if (!$user) continue;
+
+        // Query absensi approved per user
+        $approvedAbsensi = Absensi::where('user_id', $user->id)
+            ->whereBetween('check_in_at', [$startDate, $endDate])
+            ->where('status_approval', 'approved')
+            ->get();
+
+        // Force refresh
+        $approvedAbsensi = $approvedAbsensi->map(fn($item) => Absensi::find($item->id));
+
+        // Hitung stats
+        $absensiStats = [
+            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+        ];
+
+        // Bikin label periode
+        $periodeLabel = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
+
+        // Generate PDF
+        $exporter = new \App\Exports\SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
+        $pdf = $exporter->generate();
+
+        // Simpan PDF ke memory
+        $pdfContent = $pdf->output();
+        $fileName = "Slip_Gaji_{$user->name}.pdf";
+
+        // Masukin ke ZIP
+        $zip->addFromString($fileName, $pdfContent);
+    }
+
+    $zip->close();
+
+    // Download ZIP & delete setelahnya
+    return response()->download($zipPath)->deleteFileAfterSend(true);
+}
 
 }
