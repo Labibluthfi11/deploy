@@ -271,8 +271,8 @@
     </a>
 
     {{-- 🆕 Tombol Export Slip Gaji (PDF - GA BISA DIEDIT) --}}
-    <a href="{{ route('admin.absensi.user.export-slip-pdf', [
-            'user' => $user->id,
+   <a href="{{ route('admin.absensi.user.export-slip-pdf', [
+            'id' => $user->id,  {{-- ⚠️ GANTI DARI 'user' JADI 'id' --}}
             'filter_type' => request('filter_type', 'all'),
             'month' => request('month', now()->month),
             'year' => request('year', now()->year),
