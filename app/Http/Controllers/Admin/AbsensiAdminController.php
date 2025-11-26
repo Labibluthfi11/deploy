@@ -765,10 +765,9 @@ public function bulkExportPdf(Request $request)
 
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        return back()->with('error', 'Gagal membuat file ZIP! Cek folder storage.');
+        return back()->with('error', 'Gagal membuat file ZIP!');
     }
 
-    // Setting memori
     ini_set('max_execution_time', 300);
     ini_set('memory_limit', '512M');
 
@@ -785,30 +784,37 @@ public function bulkExportPdf(Request $request)
 
         $periodeStr = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
 
-        // 👇 INI BAGIAN YANG SAYA PERBAIKI BIAR GAK ERROR UNDEFINED VARIABLE 👇
+        // 👇 DATA YANG DIKIRIM KE BLADE (UPDATE LENGKAP) 👇
         $data = [
             'user'             => $user,
             'periode'          => $periodeStr,
             'periodeLabel'     => $periodeStr,
-            'absensi'          => $approvedAbsensi, // List detail absensi
+            'absensi'          => $approvedAbsensi,
 
-            // VARIABEL ECERAN (Sesuai permintaan Blade)
+            // === VARIABEL KEUANGAN ===
             'gajiPokok'        => $approvedAbsensi->sum('base_salary'),
-            'totalHadir'       => $approvedAbsensi->where('status', 'hadir')->count(),
-            'totalPotongan'    => $approvedAbsensi->sum('late_penalty'),
+            'totalGajiPokok'   => $approvedAbsensi->sum('base_salary'), // Alias
 
-            // Saya kasih beberapa variasi nama biar pasti kena salah satunya
-            'totalLembur'      => $approvedAbsensi->sum('overtime_pay'),
-            'gajiLembur'       => $approvedAbsensi->sum('overtime_pay'),
-            'totalGajiLembur'  => $approvedAbsensi->sum('overtime_pay'),
+            'totalPotongan'    => $approvedAbsensi->sum('late_penalty'),
+            'potongan'         => $approvedAbsensi->sum('late_penalty'), // Alias
+
+            'totalLembur'      => $approvedAbsensi->sum('overtime_pay'), // Uang lembur
+            'gajiLembur'       => $approvedAbsensi->sum('overtime_pay'), // Alias
+            'totalGajiLembur'  => $approvedAbsensi->sum('overtime_pay'), // Alias
 
             'totalGaji'        => $approvedAbsensi->sum('final_salary'),
-            'gajiBersih'       => $approvedAbsensi->sum('final_salary'),
-            'totalGajiBersih'  => $approvedAbsensi->sum('final_salary'),
+            'gajiBersih'       => $approvedAbsensi->sum('final_salary'), // Alias
+            'totalGajiBersih'  => $approvedAbsensi->sum('final_salary'), // Alias
+
+            // === VARIABEL KEHADIRAN & WAKTU ===
+            'totalHadir'       => $approvedAbsensi->where('status', 'hadir')->count(),
+            'totalSakit'       => $approvedAbsensi->where('status', 'sakit')->count(),
+            'totalIzin'        => $approvedAbsensi->where('status', 'izin')->count(),
 
             'totalMenitLembur' => $approvedAbsensi->sum('overtime_minutes'),
+            'durasiLembur'     => $approvedAbsensi->sum('overtime_minutes'), // 👈 INI YANG TADI ERROR
 
-            // Cadangan array stats
+            // Stats array (Cadangan)
             'stats'            => [
                 'total_hadir'        => $approvedAbsensi->where('status', 'hadir')->count(),
                 'total_gaji_pokok'   => $approvedAbsensi->sum('base_salary'),
@@ -820,7 +826,6 @@ public function bulkExportPdf(Request $request)
         ];
 
         try {
-            // Load View (Sesuai path kamu: resources/views/exports/slip-gaji-pdf.blade.php)
             $pdf = Pdf::loadView('exports.slip-gaji-pdf', $data);
 
             $content = $pdf->output();
@@ -831,14 +836,13 @@ public function bulkExportPdf(Request $request)
             $zip->addFromString($fileName, $content);
 
         } catch (\Exception $e) {
-            // Error catcher
+            // Kalo error lagi, baca pesannya
             dd("STOP! Error di User: " . $user->name . " | Pesan Error: " . $e->getMessage());
         }
     }
 
     $zip->close();
 
-    // 4. Download
     return response()->download($zipPath)->deleteFileAfterSend(true);
 }
 
