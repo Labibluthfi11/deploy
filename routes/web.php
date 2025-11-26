@@ -9,30 +9,18 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// ====================================================================
-// DASHBOARD DEFAULT
-// ====================================================================
 Route::get('/dashboard', function () {
     return redirect()->route('admin.absensi.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// ====================================================================
-// PROFILE ROUTES
-// ====================================================================
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// ====================================================================
-// ADMIN ROUTES (semua butuh auth + role admin)
-// ====================================================================
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
-    // --------------------------------------------------------
-    // A. ABSENSI ADMIN
-    // --------------------------------------------------------
     Route::prefix('absensi')->group(function () {
 
         // Halaman utama & kategori absensi
@@ -43,34 +31,31 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         // Detail absensi per user
         Route::get('/user/{user}', [AbsensiAdminController::class, 'show'])->name('admin.absensi.user');
 
-        // 🆕 Export absensi per user (tambahan baru)
+        // Export absensi per user
         Route::get('/user/{id}/export', [AbsensiAdminController::class, 'exportUser'])
             ->name('admin.absensi.user.export');
 
-        // ⬇️ 🆕 TAMBAHIN DI SINI ⬇️
-        // Export Slip Gaji per user
+        // ✅ Export Slip Gaji EXCEL
         Route::get('/user/{user}/export-slip', [AbsensiAdminController::class, 'exportSlipGaji'])
             ->name('admin.absensi.user.export-slip');
+
+        // ✅ Export Slip Gaji PDF (PERBAIKAN DI SINI)
+        Route::get('/user/{user}/export-slip-pdf', [AbsensiAdminController::class, 'exportSlipGajiPdf'])
+            ->name('admin.absensi.user.export-slip-pdf');
 
         // Rekap bulanan
         Route::get('/recap', [AbsensiAdminController::class, 'recap'])->name('admin.absensi.recap');
 
         // Export rekap bulanan ke Excel
-        Route::get('/recap/export', [AbsensiAdminController::class, 'exportRecap'])->name('admin.absensi.recap.export');
+        Route::get('/recap/export', [AbsensiAdminController::class, 'exportRecap'])
+            ->name('admin.absensi.recap.export');
 
-
-            Route::post('/absensi/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
+        // Bulk export detail
+        Route::post('/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
             ->name('admin.absensi.bulk-export-detail');
+    });
 
-            // Route untuk export slip gaji PDF
-        Route::get('/admin/absensi/{user}/export-slip-pdf', [AbsensiAdminController::class, 'exportSlipGajiPdf'])
-            ->name('admin.absensi.user.export-slip-pdf');
-            
-            });
-
-    // --------------------------------------------------------
-    // B. APPROVAL ABSENSI (Multi-level Workflow)
-    // --------------------------------------------------------
+    // APPROVAL ABSENSI
     Route::prefix('approval')->group(function () {
         Route::get('/supervisor', [ApprovalController::class, 'supervisor'])->name('admin.absensi.approval.supervisor');
         Route::get('/manager', [ApprovalController::class, 'manager'])->name('admin.absensi.approval.manager');
