@@ -49,12 +49,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         Route::get('/recap/export', [AbsensiAdminController::class, 'exportRecap'])
             ->name('admin.absensi.recap.export');
 
-            Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])
-    ->name('admin.absensi.bulk-export-pdf');
-
         // Bulk export detail
         Route::post('/bulk-export-detail', [AbsensiAdminController::class, 'bulkExportDetail'])
             ->name('admin.absensi.bulk-export-detail');
+
+            Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])
+    ->name('admin.absensi.bulk-export-pdf');
+
     });
 
     // APPROVAL ABSENSI
