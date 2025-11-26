@@ -7,6 +7,8 @@ use App\Models\Absensi;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use ZipArchive;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
@@ -746,6 +748,7 @@ public function exportSlipGajiPdf(Request $request, $id)
 
 public function bulkExportPdf(Request $request)
 {
+    // A. Validasi
     $request->validate([
         'user_ids'   => 'required|array|min:1',
         'user_ids.*' => 'exists:users,id',
@@ -757,56 +760,63 @@ public function bulkExportPdf(Request $request)
     $startDate = Carbon::parse($request->input('start_date'));
     $endDate = Carbon::parse($request->input('end_date'));
 
-    // Bikin ZIP temporary
+    // B. Siapkan ZIP
     $zipName = 'Slip_Gaji_Bulk_' . date('Ymd_His') . '.zip';
     $zipPath = storage_path('app/' . $zipName);
-    $zip = new \ZipArchive();
 
-    if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-        return back()->with('error', 'Gagal membuat file ZIP!');
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        return back()->with('error', 'Gagal membuat file ZIP! Cek permission storage.');
     }
 
+    // Settingan biar gak timeout kalo data banyak
+    ini_set('max_execution_time', 300);
+    ini_set('memory_limit', '512M');
+
+    // C. Loop User & Bikin PDF Manual
     foreach ($userIds as $userId) {
         $user = User::find($userId);
         if (!$user) continue;
 
-        // Query absensi approved per user
+        // Ambil data absensi approved
         $approvedAbsensi = Absensi::where('user_id', $user->id)
             ->whereBetween('check_in_at', [$startDate, $endDate])
             ->where('status_approval', 'approved')
             ->get();
 
-        // Force refresh
-        $approvedAbsensi = $approvedAbsensi->map(fn($item) => Absensi::find($item->id));
-
-        // Hitung stats
-        $absensiStats = [
-            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+        // Data yang mau dikirim ke View PDF (Samain kayak Export satuan lu)
+        $dataUntukView = [
+            'user'         => $user,
+            'periodeLabel' => $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y'),
+            'absensiStats' => [
+                'total_hadir'        => $approvedAbsensi->where('status', 'hadir')->count(),
+                'total_gaji_pokok'   => $approvedAbsensi->sum('base_salary'),
+                'total_potongan'     => $approvedAbsensi->sum('late_penalty'),
+                'total_gaji_lembur'  => $approvedAbsensi->sum('overtime_pay'),
+                'total_gaji_bersih'  => $approvedAbsensi->sum('final_salary'),
+                'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+            ],
+            // Kalo view PDF lu butuh variabel lain, tambahin disini
         ];
 
-        // Bikin label periode
-        $periodeLabel = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
+        // ⚠️ PENTING: Ganti 'admin.absensi.pdf.slip_gaji' dengan NAMA FILE BLADE PDF LU yg bener
+        // Ini kuncinya biar gak 500 error. Kita pake PDF::loadView langsung.
+        $pdf = Pdf::loadView('admin.absensi.pdf.slip_gaji', $dataUntukView);
 
-        // Generate PDF
-        $exporter = new \App\Exports\SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
-        $pdf = $exporter->generate();
+        // Ambil isi PDF mentah (binary string)
+        $content = $pdf->output();
 
-        // Simpan PDF ke memory
-        $pdfContent = $pdf->output();
-        $fileName = "Slip_Gaji_{$user->name}.pdf";
+        // Bersihin nama file biar aman masuk ZIP
+        $cleanName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $user->name);
+        $fileName = "Slip_Gaji_{$cleanName}.pdf";
 
         // Masukin ke ZIP
-        $zip->addFromString($fileName, $pdfContent);
+        $zip->addFromString($fileName, $content);
     }
 
     $zip->close();
 
-    // Download ZIP & delete setelahnya
+    // D. Download
     return response()->download($zipPath)->deleteFileAfterSend(true);
 }
 
