@@ -71,7 +71,6 @@ class SlipGajiPdfExport
             'terbilang' => ucwords($this->terbilangString),
         ];
 
-        // [FIX 4] Hapus setOption margin manual, serahkan semua ke CSS
         $pdf = Pdf::loadView('exports.slip-gaji-pdf', $data)
             ->setPaper('a4', 'portrait');
 

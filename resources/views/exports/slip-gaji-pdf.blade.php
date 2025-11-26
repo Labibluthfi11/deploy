@@ -34,12 +34,13 @@
             text-align: center;
             margin-bottom: 20px;
             background: #BDD7EE;
-            padding: 15px;
+            padding: 10px; /* Padding dikurangi sedikit karena ada tabel di dalam */
             border: 1px solid #333;
         }
 
-        .header h1 { font-size: 16pt; font-weight: bold; margin-bottom: 5px; }
-        .header h2 { font-size: 14pt; font-weight: bold; }
+        /* Perbaikan: Style untuk teks di dalam tabel header */
+        .header-title h1 { font-size: 16pt; font-weight: bold; margin-bottom: 5px; }
+        .header-title h2 { font-size: 14pt; font-weight: bold; }
 
         /* DATA KARYAWAN & UTILS */
         .data-header {
@@ -106,8 +107,18 @@
     <div class="container">
 
         <div class="header">
-            <h1>PT. ANSEL MUDA BERKARYA</h1>
-            <h2>SLIP GAJI KARYAWAN</h2>
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+                <tr>
+                    <td style="width: 15%; text-align: left; vertical-align: middle; border: none; padding: 0;">
+                        <img src="{{ public_path('images/logo.png') }}" alt="Logo" style="width: 80px; height: auto;">
+                    </td>
+
+                    <td style="width: 85%; text-align: center; vertical-align: middle; border: none; padding: 0;" class="header-title">
+                        <h1>PT. ANSEL MUDA BERKARYA</h1>
+                        <h2>SLIP GAJI KARYAWAN</h2>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <table class="flex-table" style="margin-bottom: 20px;">
