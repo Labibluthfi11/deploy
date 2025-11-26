@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <title>Slip Gaji - {{ $user->name }}</title>
     <style>
+        /* [FIX 1] Reset Margin Kertas & Pakai Padding Body */
+        @page {
+            margin: 0px;
+            size: a4 portrait;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,13 +21,12 @@
             font-size: 11pt;
             line-height: 1.4;
             color: #000;
+            padding: 30px; /* Ini margin aman konten kamu */
         }
 
+        /* [FIX 2] Hapus max-width fixed, ganti 100% */
         .container {
             width: 100%;
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 15px;
         }
 
         /* HEADER */
@@ -33,37 +38,10 @@
             border: 1px solid #333;
         }
 
-        .header h1 {
-            font-size: 16pt;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
+        .header h1 { font-size: 16pt; font-weight: bold; margin-bottom: 5px; }
+        .header h2 { font-size: 14pt; font-weight: bold; }
 
-        .header h2 {
-            font-size: 14pt;
-            font-weight: bold;
-        }
-
-        /* DATA KARYAWAN */
-        .data-section {
-            margin-bottom: 20px;
-            display: table;
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .data-row {
-            display: table-row;
-        }
-
-        .data-left, .data-right {
-            display: table-cell;
-            width: 48%;
-            vertical-align: top;
-            padding: 10px;
-            border: 1px solid #333;
-        }
-
+        /* DATA KARYAWAN & UTILS */
         .data-header {
             font-weight: bold;
             background: #E7E6E6;
@@ -72,10 +50,7 @@
             margin-bottom: 5px;
         }
 
-        .data-item {
-            padding: 5px 0;
-            font-weight: bold;
-        }
+        .data-item { padding: 5px 0; font-weight: bold; }
 
         /* TABEL GAJI */
         .salary-table {
@@ -98,44 +73,11 @@
             border: 1px solid #333;
         }
 
-        .salary-table td.label {
-            font-weight: bold;
-        }
+        .salary-table td.label { font-weight: bold; }
+        .salary-table td.value { text-align: right; font-weight: normal; }
 
-        .salary-table td.value {
-            text-align: right;
-            font-weight: normal;
-        }
-
-        /* TOTAL ROW */
-        .total-row {
-            background: #D9D9D9;
-        }
-
-        .total-row td {
-            font-weight: bold;
-        }
-
-        /* NET SALARY */
-        .net-salary {
-            background: #C6E0B4;
-            padding: 12px;
-            border: 1px solid #333;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .net-salary .label {
-            font-weight: bold;
-            font-size: 12pt;
-        }
-
-        .net-salary .value {
-            font-weight: bold;
-            font-size: 12pt;
-        }
+        .total-row { background: #D9D9D9; }
+        .total-row td { font-weight: bold; }
 
         /* TERBILANG */
         .terbilang {
@@ -146,58 +88,30 @@
             font-weight: bold;
             font-style: italic;
             margin-bottom: 20px;
+            margin-top: 15px;
         }
 
         /* FOOTER */
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-        }
+        .footer { text-align: center; margin-top: 30px; }
+        .footer .quote { font-weight: bold; font-style: italic; margin-bottom: 20px; }
+        .footer .signature { font-weight: bold; margin-top: 40px; }
 
-        .footer .quote {
-            font-weight: bold;
-            font-style: italic;
-            margin-bottom: 20px;
-        }
-
-        .footer .signature {
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        /* HELPER */
-        .spacer {
-            width: 4%;
-            border: none;
-        }
-
-        .flex-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .flex-table td {
-            vertical-align: top;
-        }
-
-        .text-right {
-            text-align: right;
-        }
+        /* LAYOUT TABLE HELPER */
+        .flex-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .flex-table td { vertical-align: top; }
+        .spacer { width: 4%; border: none; }
     </style>
 </head>
 <body>
     <div class="container">
 
-        <!-- HEADER -->
         <div class="header">
             <h1>PT. ANSEL MUDA BERKARYA</h1>
             <h2>SLIP GAJI KARYAWAN</h2>
         </div>
 
-        <!-- DATA KARYAWAN (SIDE BY SIDE) -->
         <table class="flex-table" style="margin-bottom: 20px;">
             <tr>
-                <!-- KIRI -->
                 <td style="width: 48%; border: 1px solid #333; padding: 0;">
                     <div class="data-header">DATA KARYAWAN</div>
                     <div style="padding: 10px;">
@@ -214,7 +128,6 @@
 
                 <td class="spacer"></td>
 
-                <!-- KANAN -->
                 <td style="width: 48%; border: 1px solid #333; padding: 10px;">
                     <div class="data-item">
                         Periode Penggajian<br>
@@ -228,16 +141,12 @@
             </tr>
         </table>
 
-        <!-- TABEL PENGHASILAN & POTONGAN (SIDE BY SIDE) -->
         <table class="flex-table">
             <tr>
-                <!-- PENGHASILAN -->
                 <td style="width: 48%;">
                     <table class="salary-table">
                         <thead>
-                            <tr>
-                                <th colspan="2">PENGHASILAN</th>
-                            </tr>
+                            <tr><th colspan="2">PENGHASILAN</th></tr>
                         </thead>
                         <tbody>
                             <tr>
@@ -262,13 +171,10 @@
 
                 <td class="spacer"></td>
 
-                <!-- POTONGAN -->
                 <td style="width: 48%;">
                     <table class="salary-table">
                         <thead>
-                            <tr>
-                                <th colspan="2">POTONGAN</th>
-                            </tr>
+                            <tr><th colspan="2">POTONGAN</th></tr>
                         </thead>
                         <tbody>
                             <tr>
@@ -293,27 +199,24 @@
             </tr>
         </table>
 
-        <!-- GAJI BERSIH -->
         <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
             <tr>
-                <td style="background: #C6E0B4; padding: 12px; border: 1px solid #333; font-weight: bold; font-size: 12pt; width: 75%;">
+                <td style="background: #C6E0B4; padding: 12px; border: 1px solid #333; font-weight: bold; font-size: 12pt; width: 70%;">
                     PENGHASILAN BERSIH (TAKE HOME PAY)
                 </td>
-                <td style="background: #C6E0B4; padding: 12px; border: 1px solid #333; font-weight: bold; font-size: 12pt; text-align: right;">
+                <td style="background: #C6E0B4; padding: 12px; border: 1px solid #333; font-weight: bold; font-size: 12pt; text-align: right; width: 30%;">
                     Rp {{ number_format($gajiBersih, 0, ',', '.') }}
                 </td>
             </tr>
         </table>
 
-        <!-- TERBILANG -->
         <div class="terbilang">
             Terbilang: {{ $terbilang }}
         </div>
 
-        <!-- FOOTER -->
         <div class="footer">
             <div class="quote">"Keep Up The Good Work"</div>
-            <div class="signature" style="margin-top: 40px;">
+            <div class="signature">
                 <div style="font-weight: bold;">HRGA Division</div>
                 <div style="font-weight: bold; margin-top: 5px;">PT. ANSEL MUDA BERKARYA</div>
             </div>

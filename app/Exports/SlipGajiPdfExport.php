@@ -1,5 +1,4 @@
 <?php
-// app/Exports/SlipGajiPdfExport.php
 
 namespace App\Exports;
 
@@ -22,9 +21,6 @@ class SlipGajiPdfExport
         $this->terbilangString = $this->penyebut($gajiBersih) . ' Rupiah';
     }
 
-    /**
-     * Konversi angka ke terbilang (Bahasa Indonesia)
-     */
     private function penyebut($nilai) {
         $nilai = abs($nilai);
         $huruf = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
@@ -55,9 +51,6 @@ class SlipGajiPdfExport
         return $temp;
     }
 
-    /**
-     * Generate PDF
-     */
     public function generate()
     {
         $gajiPokok = $this->stats['total_gaji_pokok'] ?? 0;
@@ -78,13 +71,9 @@ class SlipGajiPdfExport
             'terbilang' => ucwords($this->terbilangString),
         ];
 
-        // Generate PDF dengan custom paper size (A4)
+        // [FIX 4] Hapus setOption margin manual, serahkan semua ke CSS
         $pdf = Pdf::loadView('exports.slip-gaji-pdf', $data)
-            ->setPaper('a4', 'portrait')
-            ->setOption('margin-top', 10)
-            ->setOption('margin-right', 10)
-            ->setOption('margin-bottom', 10)
-            ->setOption('margin-left', 10);
+            ->setPaper('a4', 'portrait');
 
         return $pdf;
     }
