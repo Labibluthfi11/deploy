@@ -768,7 +768,7 @@ public function bulkExportPdf(Request $request)
         return back()->with('error', 'Gagal membuat file ZIP! Cek folder storage.');
     }
 
-    // Setting memori biar kuat generate banyak PDF
+    // Setting memori
     ini_set('max_execution_time', 300);
     ini_set('memory_limit', '512M');
 
@@ -783,54 +783,62 @@ public function bulkExportPdf(Request $request)
             ->where('status_approval', 'approved')
             ->get();
 
-        // Hitung Data (Stats)
-        // Gw itung ulang disini biar akurat
-        $stats = [
-            'total_hadir'        => $approvedAbsensi->where('status', 'hadir')->count(),
-            'total_gaji_pokok'   => $approvedAbsensi->sum('base_salary'),
-            'total_potongan'     => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur'  => $approvedAbsensi->sum('overtime_pay'),
-            'total_gaji_bersih'  => $approvedAbsensi->sum('final_salary'),
-            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
-        ];
-
         $periodeStr = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
 
-        // Siapkan Data untuk Blade
-        // Gw kirim variable double (misal: $stats & $absensiStats) biar aman apapun yg lu pake di blade
+        // 👇 INI BAGIAN YANG SAYA PERBAIKI BIAR GAK ERROR UNDEFINED VARIABLE 👇
         $data = [
-            'user'         => $user,
-            'stats'        => $stats,        // Versi pendek
-            'absensiStats' => $stats,        // Versi panjang (jaga-jaga)
-            'periode'      => $periodeStr,   // Versi pendek
-            'periodeLabel' => $periodeStr,   // Versi panjang (jaga-jaga)
-            'absensi'      => $approvedAbsensi // List detail absensi
+            'user'             => $user,
+            'periode'          => $periodeStr,
+            'periodeLabel'     => $periodeStr,
+            'absensi'          => $approvedAbsensi, // List detail absensi
+
+            // VARIABEL ECERAN (Sesuai permintaan Blade)
+            'gajiPokok'        => $approvedAbsensi->sum('base_salary'),
+            'totalHadir'       => $approvedAbsensi->where('status', 'hadir')->count(),
+            'totalPotongan'    => $approvedAbsensi->sum('late_penalty'),
+
+            // Saya kasih beberapa variasi nama biar pasti kena salah satunya
+            'totalLembur'      => $approvedAbsensi->sum('overtime_pay'),
+            'gajiLembur'       => $approvedAbsensi->sum('overtime_pay'),
+            'totalGajiLembur'  => $approvedAbsensi->sum('overtime_pay'),
+
+            'totalGaji'        => $approvedAbsensi->sum('final_salary'),
+            'gajiBersih'       => $approvedAbsensi->sum('final_salary'),
+            'totalGajiBersih'  => $approvedAbsensi->sum('final_salary'),
+
+            'totalMenitLembur' => $approvedAbsensi->sum('overtime_minutes'),
+
+            // Cadangan array stats
+            'stats'            => [
+                'total_hadir'        => $approvedAbsensi->where('status', 'hadir')->count(),
+                'total_gaji_pokok'   => $approvedAbsensi->sum('base_salary'),
+                'total_potongan'     => $approvedAbsensi->sum('late_penalty'),
+                'total_gaji_lembur'  => $approvedAbsensi->sum('overtime_pay'),
+                'total_gaji_bersih'  => $approvedAbsensi->sum('final_salary'),
+                'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+            ],
         ];
 
         try {
-            // ✅ LOAD VIEW DARI PATH YANG LU KASIH
-            // Path: resources/views/exports/slip-gaji-pdf.blade.php
+            // Load View (Sesuai path kamu: resources/views/exports/slip-gaji-pdf.blade.php)
             $pdf = Pdf::loadView('exports.slip-gaji-pdf', $data);
 
-            // Render jadi string binary
             $content = $pdf->output();
 
-            // Bersihin nama file biar gak error kalo ada simbol aneh
             $cleanName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $user->name);
             $fileName = "Slip_Gaji_{$cleanName}.pdf";
 
-            // Masukin ke ZIP
             $zip->addFromString($fileName, $content);
 
         } catch (\Exception $e) {
-            // Kalo error, bakal muncul di layar. Baca pesannya apa.
+            // Error catcher
             dd("STOP! Error di User: " . $user->name . " | Pesan Error: " . $e->getMessage());
         }
     }
 
     $zip->close();
 
-    // 4. Download & Hapus File Sementara
+    // 4. Download
     return response()->download($zipPath)->deleteFileAfterSend(true);
 }
 
