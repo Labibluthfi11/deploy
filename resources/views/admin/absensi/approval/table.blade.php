@@ -99,7 +99,6 @@
                         $user = $submission->user ?? null;
                         $statusApproval = $submission->status_approval ?? 'pending';
 
-                        // Status Label Styling
                         $statusLabel = match($statusApproval) {
                             'pending' => ['text' => 'Menunggu', 'color' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', 'icon' => '⏱️'],
                             'approved_supervisor' => ['text' => 'Approved SPV', 'color' => 'bg-blue-500/10 text-blue-400 border-blue-500/20', 'icon' => '✓'],
@@ -109,7 +108,6 @@
                             default => ['text' => ucfirst($statusApproval), 'color' => 'bg-gray-700 text-gray-400 border-gray-600', 'icon' => '•']
                         };
 
-                        // Durasi Lembur
                         $duration = '-';
                         $isOvertime = ($submission->tipe === 'lembur');
                         if ($isOvertime && $submission->lembur_start && $submission->lembur_end) {
