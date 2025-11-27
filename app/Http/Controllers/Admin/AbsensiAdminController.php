@@ -630,65 +630,64 @@ class AbsensiAdminController extends Controller
         } elseif ($filterType === 'custom') {
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
-
             if ($startDate && $endDate) {
-                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
-                $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+            $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+            $end = \Carbon\Carbon::parse($endDate)->endOfDay();
 
-                $query->whereBetween('check_in_at', [$start, $end]);
+            $query->whereBetween('check_in_at', [$start, $end]);
 
-                $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
-            }
+            $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
         }
-
-        // Ambil data yang DI-APPROVE AJA
-        $approvedAbsensi = $query->where('status_approval', 'approved')->get();
-
-        // 🔥 FORCE REFRESH DATA
-        $approvedAbsensi = $approvedAbsensi->map(function($item) {
-            return Absensi::find($item->id);
-        });
-
-        // Hitung Statistik
-        $absensiStats = [
-            'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-            'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-            'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-            'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
-        ];
-
-        // Nama File
-        $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".xlsx";
-
-        return Excel::download(
-            new SlipGajiExport($user, $absensiStats, $periodeLabel),
-            $fileName
-        );
     }
 
-    // INI FUNGSI BARU BUAT NANGANIN CHECKBOX
-    public function bulkExportDetail(Request $request)
-    {
-        $request->validate([
-            'user_ids'   => 'required|array|min:1',
-            'user_ids.*' => 'exists:users,id',
-            'start_date' => 'required|date_format:Y-m-d H:i:s',
-            'end_date'   => 'required|date_format:Y-m-d H:i:s',
-        ]);
+    // Ambil data yang DI-APPROVE AJA
+    $approvedAbsensi = $query->where('status_approval', 'approved')->get();
 
-        $userIds = $request->input('user_ids');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+    // 🔥 FORCE REFRESH DATA
+    $approvedAbsensi = $approvedAbsensi->map(function($item) {
+        return Absensi::find($item->id);
+    });
 
-        $fileName = "Rekap_Detail_Massal_" . date('Ymd_His') . ".xlsx";
+    // Hitung Statistik
+    $absensiStats = [
+        'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+        'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+        'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+        'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+        'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+    ];
 
-        return Excel::download(
-            new BulkDetailExport($userIds, $startDate, $endDate),
-            $fileName
-        );
-    }
+    // Nama File
+    $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".xlsx";
+
+    return Excel::download(
+        new SlipGajiExport($user, $absensiStats, $periodeLabel),
+        $fileName
+    );
+}
+
+// INI FUNGSI BARU BUAT NANGANIN CHECKBOX
+public function bulkExportDetail(Request $request)
+{
+    $request->validate([
+        'user_ids'   => 'required|array|min:1',
+        'user_ids.*' => 'exists:users,id',
+        'start_date' => 'required|date_format:Y-m-d H:i:s',
+        'end_date'   => 'required|date_format:Y-m-d H:i:s',
+    ]);
+
+    $userIds = $request->input('user_ids');
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+
+    $fileName = "Rekap_Detail_Massal_" . date('Ymd_His') . ".xlsx";
+
+    return Excel::download(
+        new BulkDetailExport($userIds, $startDate, $endDate),
+        $fileName
+    );
+}
 
 
 public function exportSlipGajiPdf(Request $request, $id)
@@ -784,6 +783,10 @@ public function bulkExportPdf(Request $request)
 
         $periodeStr = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
 
+        // 🔥 HITUNG GAJI BERSIH + TERBILANG
+        $gajiBersih = $approvedAbsensi->sum('final_salary');
+        $terbilangString = $this->penyebut($gajiBersih) . ' Rupiah';
+
         // 👇 DATA YANG DIKIRIM KE BLADE (UPDATE LENGKAP) 👇
         $data = [
             'user'             => $user,
@@ -802,9 +805,9 @@ public function bulkExportPdf(Request $request)
             'gajiLembur'       => $approvedAbsensi->sum('overtime_pay'), // Alias
             'totalGajiLembur'  => $approvedAbsensi->sum('overtime_pay'), // Alias
 
-            'totalGaji'        => $approvedAbsensi->sum('final_salary'),
-            'gajiBersih'       => $approvedAbsensi->sum('final_salary'), // Alias
-            'totalGajiBersih'  => $approvedAbsensi->sum('final_salary'), // Alias
+            'totalGaji'        => $gajiBersih,
+            'gajiBersih'       => $gajiBersih, // Alias
+            'totalGajiBersih'  => $gajiBersih, // Alias
 
             // === VARIABEL KEHADIRAN & WAKTU ===
             'totalHadir'       => $approvedAbsensi->where('status', 'hadir')->count(),
@@ -814,13 +817,16 @@ public function bulkExportPdf(Request $request)
             'totalMenitLembur' => $approvedAbsensi->sum('overtime_minutes'),
             'durasiLembur'     => $approvedAbsensi->sum('overtime_minutes'), // 👈 INI YANG TADI ERROR
 
+            // 🔥 TAMBAH INI - YANG PALING PENTING! 🔥
+            'terbilang'        => ucwords($terbilangString), // 👈 INI YANG KURANG!
+
             // Stats array (Cadangan)
             'stats'            => [
                 'total_hadir'        => $approvedAbsensi->where('status', 'hadir')->count(),
                 'total_gaji_pokok'   => $approvedAbsensi->sum('base_salary'),
                 'total_potongan'     => $approvedAbsensi->sum('late_penalty'),
                 'total_gaji_lembur'  => $approvedAbsensi->sum('overtime_pay'),
-                'total_gaji_bersih'  => $approvedAbsensi->sum('final_salary'),
+                'total_gaji_bersih'  => $gajiBersih,
                 'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
             ],
         ];
@@ -837,13 +843,48 @@ public function bulkExportPdf(Request $request)
 
         } catch (\Exception $e) {
             // Kalo error lagi, baca pesannya
-            dd("STOP! Error di User: " . $user->name . " | Pesan Error: " . $e->getMessage());
+            \Log::error("Error generating PDF for user {$user->name}: " . $e->getMessage());
+            continue; // Skip user ini, lanjut ke user berikutnya
         }
     }
 
     $zip->close();
 
     return response()->download($zipPath)->deleteFileAfterSend(true);
+}
+
+/**
+ * 🔥 HELPER: Convert angka ke terbilang 🔥
+ */
+private function penyebut($nilai)
+{
+    $nilai = abs($nilai);
+    $huruf = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
+    $temp = "";
+
+    if ($nilai < 12) {
+        $temp = " ". $huruf[$nilai];
+    } else if ($nilai < 20) {
+        $temp = $this->penyebut($nilai - 10). " belas";
+    } else if ($nilai < 100) {
+        $temp = $this->penyebut($nilai/10)." puluh". $this->penyebut($nilai % 10);
+    } else if ($nilai < 200) {
+        $temp = " seratus" . $this->penyebut($nilai - 100);
+    } else if ($nilai < 1000) {
+        $temp = $this->penyebut($nilai/100) . " ratus" . $this->penyebut($nilai % 100);
+    } else if ($nilai < 2000) {
+        $temp = " seribu" . $this->penyebut($nilai - 1000);
+    } else if ($nilai < 1000000) {
+        $temp = $this->penyebut($nilai/1000) . " ribu" . $this->penyebut($nilai % 1000);
+    } else if ($nilai < 1000000000) {
+        $temp = $this->penyebut($nilai/1000000) . " juta" . $this->penyebut($nilai % 1000000);
+    } else if ($nilai < 1000000000000) {
+        $temp = $this->penyebut($nilai/1000000000) . " milyar" . $this->penyebut(fmod($nilai,1000000000));
+    } else if ($nilai < 1000000000000000) {
+        $temp = $this->penyebut($nilai/1000000000000) . " trilyun" . $this->penyebut(fmod($nilai,1000000000000));
+    }
+
+    return $temp;
 }
 
 }
