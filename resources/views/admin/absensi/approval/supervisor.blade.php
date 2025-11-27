@@ -2,15 +2,15 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="font-bold text-2xl text-white leading-tight">
+                <h2 class="font-bold text-2xl text-gray-900 dark:text-white leading-tight">
                     Supervisor Approval Dashboard
                 </h2>
-                <p class="mt-1 text-sm text-gray-400">Review dan approve pengajuan lembur karyawan freelance</p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Review dan approve pengajuan lembur karyawan freelance</p>
             </div>
             <div class="flex items-center gap-3">
                 <div class="text-right">
-                    <p class="text-xs text-gray-400">Hari ini</p>
-                    <p class="text-sm font-semibold text-white">{{ \Carbon\Carbon::now()->isoFormat('DD MMMM YYYY') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Hari ini</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ \Carbon\Carbon::now()->isoFormat('DD MMMM YYYY') }}</p>
                 </div>
                 <div class="h-10 w-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
                     {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
@@ -19,12 +19,12 @@
         </div>
     </x-slot>
 
-    <div class="py-8 bg-gray-900 min-h-screen">
+    <div class="py-8 bg-gray-50 dark:bg-gray-900 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {{-- ALERT NOTIFICATIONS --}}
             @if (session('success'))
-                <div class="mb-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
+                <div class="mb-6 bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
                     <div class="flex-shrink-0">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -42,7 +42,7 @@
             @endif
 
             @if (session('error'))
-                <div class="mb-6 bg-gradient-to-r from-red-500 to-pink-600 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
+                <div class="mb-6 bg-gradient-to-r from-red-500 to-pink-600 dark:from-red-600 dark:to-pink-700 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
                     <div class="flex-shrink-0">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -62,11 +62,11 @@
             {{-- OVERVIEW STATS --}}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {{-- Total Pending --}}
-                <div class="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 p-6 hover:shadow-xl hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-400 mb-1">Total Pending</p>
-                            <p class="text-3xl font-bold text-white">{{ $freelanceYuli->count() }}</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Total Pending</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $freelanceYuli->count() }}</p>
                             <p class="text-xs text-gray-500 mt-1">Menunggu approval</p>
                         </div>
                         <div class="p-4 bg-orange-500/10 rounded-xl">
@@ -78,11 +78,11 @@
                 </div>
 
                 {{-- Freelance Workers --}}
-                <div class="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 p-6 hover:shadow-xl hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-400 mb-1">Freelance Team</p>
-                            <p class="text-3xl font-bold text-white">{{ $freelanceYuli->unique('user_id')->count() }}</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Freelance Team</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $freelanceYuli->unique('user_id')->count() }}</p>
                             <p class="text-xs text-gray-500 mt-1">Karyawan aktif</p>
                         </div>
                         <div class="p-4 bg-blue-500/10 rounded-xl">
@@ -94,11 +94,11 @@
                 </div>
 
                 {{-- Today's Submissions --}}
-                <div class="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 p-6 hover:shadow-xl hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-400 mb-1">Hari Ini</p>
-                            <p class="text-3xl font-bold text-white">{{ $freelanceYuli->where('created_at', '>=', \Carbon\Carbon::today())->count() }}</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Hari Ini</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $freelanceYuli->where('created_at', '>=', \Carbon\Carbon::today())->count() }}</p>
                             <p class="text-xs text-gray-500 mt-1">Pengajuan baru</p>
                         </div>
                         <div class="p-4 bg-purple-500/10 rounded-xl">
@@ -124,8 +124,8 @@
             </div>
 
             {{-- MAIN CONTENT --}}
-            <div class="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden">
-                <div class="bg-gradient-to-r from-orange-600 to-red-600 px-6 py-5 border-b border-gray-700">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
@@ -143,15 +143,15 @@
 
                 @if ($freelanceYuli->isEmpty())
                     <div class="px-6 py-16 text-center">
-                        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-orange-500/10 mb-4">
-                            <svg class="w-10 h-10 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-orange-100 dark:bg-orange-500/10 mb-4">
+                            <svg class="w-10 h-10 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-semibold text-white mb-2">Semua Sudah Clear! 🎉</h3>
-                        <p class="text-gray-400">Tidak ada pengajuan freelance yang menunggu approval supervisor.</p>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Semua Sudah Clear! 🎉</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Tidak ada pengajuan freelance yang menunggu approval supervisor.</p>
                         <div class="mt-6">
-                            <button class="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-all shadow-sm">
+                            <button class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-lg transition-all shadow-sm">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
@@ -168,28 +168,28 @@
 
             {{-- TIPS SECTION --}}
             @if($freelanceYuli->count() > 0)
-                <div class="mt-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl p-6 border border-blue-500/20">
+                <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-2xl p-6 border border-blue-200 dark:border-blue-500/20">
                     <div class="flex items-start gap-4">
                         <div class="flex-shrink-0">
-                            <div class="p-2 bg-blue-500/10 rounded-lg">
-                                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg">
+                                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                             </div>
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-sm font-semibold text-white mb-2">💡 Tips untuk Supervisor</h3>
-                            <ul class="text-sm text-gray-300 space-y-1">
+                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">💡 Tips untuk Supervisor</h3>
+                            <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                                 <li class="flex items-start gap-2">
-                                    <span class="text-blue-400 font-bold">•</span>
+                                    <span class="text-blue-600 dark:text-blue-400 font-bold">•</span>
                                     <span>Review keterangan lembur dengan detail sebelum approve</span>
                                 </li>
                                 <li class="flex items-start gap-2">
-                                    <span class="text-blue-400 font-bold">•</span>
+                                    <span class="text-blue-600 dark:text-blue-400 font-bold">•</span>
                                     <span>Pastikan durasi lembur sesuai dengan pekerjaan yang dilakukan</span>
                                 </li>
                                 <li class="flex items-start gap-2">
-                                    <span class="text-blue-400 font-bold">•</span>
+                                    <span class="text-blue-600 dark:text-blue-400 font-bold">•</span>
                                     <span>Berikan alasan yang jelas saat reject pengajuan</span>
                                 </li>
                             </ul>
