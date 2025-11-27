@@ -407,7 +407,7 @@ class ApprovalController extends Controller
             if ($level >= $startLevel) {
                 $resetWorkflow[$role] = 'pending';
             } else {
-                $resetWorkflow[$role] = $workflow[$role] ?? 'approved';
+                $resetWorkflow[$role] = $workflow[$role] ?? 'approvekd';
             }
         }
         return $resetWorkflow;

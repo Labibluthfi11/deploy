@@ -36,6 +36,7 @@ class Absensi extends Model
     'foto_masuk',
     'foto_pulang',
     'status_approval',
+    'approved_at', // 👈 TAMBAHIN INI
     'catatan_admin',
     'lembur_start',
     'lembur_end',
@@ -55,10 +56,11 @@ class Absensi extends Model
     'is_weekend_overtime',
 ];
 
-    protected $casts = [
+protected $casts = [
     'check_in_at' => 'datetime',
     'check_out_at' => 'datetime',
     'end_date' => 'date',
+    'approved_at' => 'datetime', // 👈 TAMBAHIN INI
     'lembur_start' => 'datetime',
     'lembur_end' => 'datetime',
     'lembur_rest' => 'boolean',
