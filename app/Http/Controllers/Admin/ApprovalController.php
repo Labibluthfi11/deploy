@@ -1,7 +1,4 @@
 <?php
-// ========================================================================
-// === APPROVAL CONTROLLER (FINAL FIX - LEMBUR & GAJI BERSIH AMAN) ===
-// ========================================================================
 
 namespace App\Http\Controllers\Admin;
 
@@ -10,7 +7,7 @@ use App\Models\Absensi;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB; // ⬅️ PENTING: TRANSACTION
+use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
@@ -36,9 +33,6 @@ class ApprovalController extends Controller
         ],
     ];
 
-    // =============================================================
-    // 🔥 HELPER QUERY (SEARCH & SORT A-Z)
-    // =============================================================
     private function getSubmissions(Request $request, $type, $level, $status = 'pending')
     {
         $search = $request->input('search');
@@ -47,14 +41,12 @@ class ApprovalController extends Controller
             ->whereHas('user', fn($q) => $q->where('employment_type', $type))
             ->where('current_approval_level', $level);
 
-        // Filter status (bisa array atau string)
         if (is_array($status)) {
             $query->whereIn('status_approval', $status);
         } else {
             $query->where('status_approval', $status);
         }
 
-        // 🔥 LOGIKA PENCARIAN 🔥
         if ($search) {
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -62,35 +54,27 @@ class ApprovalController extends Controller
             });
         }
 
-        // 🔥 URUTKAN A-Z (Sesuai Request) 🔥
         return $query->join('users', 'absensis.user_id', '=', 'users.id')
-            ->select('absensis.*') // Ambil kolom absensi aja biar id gak bentrok
-            ->orderBy('users.name', 'asc') // A-Z
-            ->orderBy('absensis.check_in_at', 'desc') // Tanggal terbaru
+            ->select('absensis.*')
+            ->orderBy('users.name', 'asc')
+            ->orderBy('absensis.check_in_at', 'desc')
             ->get();
     }
 
-    // ================== APPROVAL SUPERVISOR ==================
     public function supervisor(Request $request)
     {
-        // Level 1 Freelance (Pending/Rejected)
         $freelanceYuli = $this->getSubmissions($request, 'freelance', 1, ['pending', 'rejected']);
-
         return view('admin.absensi.approval.supervisor', [
             'freelanceYuli' => $freelanceYuli,
-            'submissions' => $freelanceYuli, // Variabel umum buat view
+            'submissions' => $freelanceYuli,
             'approverName' => 'Supervisor',
             'approverRole' => 'Level 1 (Freelance)',
         ]);
     }
 
-    // ================== APPROVAL MANAGER ==================
     public function manager(Request $request)
     {
-        // Level 2 Freelance
         $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
-
-        // Level 1 Organik
         $organikManager = $this->getSubmissions($request, 'organik', 1);
 
         return view('admin.absensi.approval.manager', [
@@ -101,13 +85,9 @@ class ApprovalController extends Controller
         ]);
     }
 
-    // ================== APPROVAL HRGA ==================
     public function hrga(Request $request)
     {
-        // Level 3 Freelance
         $freelanceHRGA = $this->getSubmissions($request, 'freelance', 3);
-
-        // Level 2 Organik
         $organikHRGA = $this->getSubmissions($request, 'organik', 2);
 
         return view('admin.absensi.approval.hrga', [
@@ -118,10 +98,8 @@ class ApprovalController extends Controller
         ]);
     }
 
-    // ================== HANDLE ACTION APPROVE/REJECT ==================
     public function handleAction(Request $request, Absensi $absensi, string $action)
     {
-        // Cegah double proses
         if ($absensi->status_approval !== 'pending') {
             return back()->with('error', 'Pengajuan sudah diproses sebelumnya.');
         }
@@ -131,7 +109,6 @@ class ApprovalController extends Controller
         $workflowMap = $this->workflowMap[$userTipe] ?? $this->workflowMap['organik'];
         $currentApprover = $workflowMap[$currentLevel] ?? 'Unknown';
 
-        // Mapping nama approver
         $approverToKey = [
             'Supervisor' => 'supervisor',
             'Manager'    => 'manager',
@@ -166,7 +143,6 @@ class ApprovalController extends Controller
             $resubmitLevel = $this->determineResubmitLevel($rejectedBy, $workflowStatus);
             $resetWorkflow = $this->resetWorkflowFromLevel($workflowStatus, $resubmitLevel, $userTipe);
 
-            // Saat reject, reset gaji lembur & kembalikan gaji ke normal
             $absensi->update([
                 'status_approval' => 'rejected',
                 'catatan_admin' => $request->catatan_admin,
@@ -176,10 +152,9 @@ class ApprovalController extends Controller
                 'current_approval_level' => $resubmitLevel,
                 'overtime_minutes' => 0,
                 'overtime_pay'     => 0,
-                'final_salary'     => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0), // Reset ke Pokok - Denda
+                'final_salary'     => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
             ]);
 
-            // 🔥 AUTO-REJECT SEMUA CHILD RECORDS
             if ($absensi->children()->exists()) {
                 $absensi->children()->update([
                     'status_approval' => 'rejected',
@@ -219,12 +194,21 @@ class ApprovalController extends Controller
             if ($currentLevel >= $maxLevel) {
                 // ✅ FINAL APPROVAL (HRGA)
 
-                // Pastikan base_salary & late_penalty ada (kalau null, hitung dulu)
+                // 🔥 FIX: CEK APAKAH INI RECORD IZIN/SAKIT MULTI-DAY (PARENT)
+                $isMultiDayParent = ($absensi->end_date !== null && $absensi->total_days > 1);
+
+                Log::info('🔍 [APPROVAL] Processing approval', [
+                    'id' => $absensi->id,
+                    'tipe' => $absensi->tipe,
+                    'is_multi_day_parent' => $isMultiDayParent,
+                    'has_lembur_data' => ($absensi->lembur_start && $absensi->lembur_end)
+                ]);
+
+                // Pastikan base_salary & late_penalty ada
                 if ($absensi->base_salary === null) {
                     $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, $absensi->tipe);
                     $absensi->base_salary = $salaryData['base_salary'];
                     $absensi->late_penalty = $salaryData['late_penalty'];
-                    // final_salary nanti di-override di bawah
                     $absensi->save();
                     $absensi->refresh();
                 }
@@ -232,8 +216,8 @@ class ApprovalController extends Controller
                 $overtimeMinutes = 0;
                 $overtimePay = 0;
 
-                // 🔥 HITUNG LEMBUR (JIKA TIPE LEMBUR)
-                if (strtolower($absensi->tipe ?? '') === 'lembur' && $absensi->lembur_start && $absensi->lembur_end) {
+                // 🔥 FIX: HANYA HITUNG LEMBUR JIKA BUKAN PARENT MULTI-DAY
+                if (!$isMultiDayParent && strtolower($absensi->tipe ?? '') === 'lembur' && $absensi->lembur_start && $absensi->lembur_end) {
                     try {
                         $overtimeData = Absensi::calculateOvertimeFromInput(
                             $absensi->lembur_start,
@@ -244,25 +228,37 @@ class ApprovalController extends Controller
                         $overtimeMinutes = $overtimeData['minutes'];
                         $overtimePay = $overtimeData['pay'];
 
+                        Log::info('✅ [OVERTIME] Calculated', [
+                            'minutes' => $overtimeMinutes,
+                            'pay' => $overtimePay
+                        ]);
+
                     } catch (\Exception $e) {
                         Log::error('❌ Gagal kalkulasi lembur saat approval', [
                             'absensi_id' => $absensi->id,
                             'error' => $e->getMessage()
                         ]);
-                        // Kalau error, lembur dianggap 0 biar gak ngerusak data lain
                         $overtimeMinutes = 0;
                         $overtimePay = 0;
                     }
+                } elseif ($isMultiDayParent) {
+                    Log::info('⏭️ [SKIP] Parent multi-day record - no overtime calculation needed');
                 }
 
-                // 🔥 HITUNG FINAL SALARY YANG BENAR 🔥
-                // Rumus: (Gaji Pokok - Potongan Telat) + Uang Lembur
+                // 🔥 HITUNG FINAL SALARY
                 $gajiPokok = $absensi->base_salary ?? 0;
                 $potongan  = $absensi->late_penalty ?? 0;
                 $newFinalSalary = ($gajiPokok - $potongan) + $overtimePay;
 
-                // 🔥 UPDATE DATABASE DENGAN TRANSACTION 🔥
-                DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary, $currentApprover, $submissionType, $targetPage) {
+                Log::info('💰 [SALARY] Calculation', [
+                    'base' => $gajiPokok,
+                    'penalty' => $potongan,
+                    'overtime' => $overtimePay,
+                    'final' => $newFinalSalary
+                ]);
+
+                // 🔥 UPDATE DATABASE DENGAN TRANSACTION
+                DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary, $currentApprover, $submissionType, $targetPage, $isMultiDayParent) {
 
                     $absensi->update([
                         'status_approval' => 'approved',
@@ -272,11 +268,18 @@ class ApprovalController extends Controller
                         'rejected_at' => null,
                         'overtime_minutes' => $overtimeMinutes,
                         'overtime_pay'     => $overtimePay,
-                        'final_salary'     => $newFinalSalary, // ✅ MASUKIN HASIL HITUNGAN BARU
+                        'final_salary'     => $newFinalSalary,
+                    ]);
+
+                    Log::info('✅ [APPROVED] Parent record updated', [
+                        'id' => $absensi->id,
+                        'final_salary' => $newFinalSalary
                     ]);
 
                     // 🔥 AUTO-APPROVE SEMUA CHILD RECORDS
                     if ($absensi->children()->exists()) {
+                        $childCount = $absensi->children()->count();
+
                         $absensi->children()->update([
                             'status_approval' => 'approved',
                             'workflow_status' => $workflowStatus,
@@ -284,12 +287,13 @@ class ApprovalController extends Controller
                             'rejected_by' => null,
                             'rejected_at' => null,
                             'approved_at' => now(),
-                            'overtime_minutes' => 0, // Child records biasanya gak ada lembur
+                            'overtime_minutes' => 0,
                             'overtime_pay' => 0,
+                            // 🔥 FIX: Pastikan child juga punya gaji yang valid
                             'final_salary' => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
                         ]);
 
-                        Log::info("✅ Synced APPROVE status to " . $absensi->children()->count() . " child records");
+                        Log::info("✅ Synced APPROVE status to {$childCount} child records");
                     }
 
                     // Notifikasi
@@ -310,7 +314,6 @@ class ApprovalController extends Controller
                     'workflow_status' => $workflowStatus,
                 ]);
 
-                // 🔥 SYNC KE CHILD RECORDS (LEVEL NAIK)
                 if ($absensi->children()->exists()) {
                     $absensi->children()->update([
                         'current_approval_level' => $currentLevel + 1,
@@ -327,7 +330,6 @@ class ApprovalController extends Controller
         return back()->with('error', 'Aksi tidak valid.');
     }
 
-    // ===================== SUPPORT FUNCTION =====================
     private function determineResubmitLevel($rejectedBy, $workflowStatus)
     {
         if (!$rejectedBy || !$workflowStatus) return 1;
