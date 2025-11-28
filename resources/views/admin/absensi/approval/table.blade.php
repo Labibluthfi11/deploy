@@ -2,18 +2,18 @@
 <div class="mb-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-white tracking-tight">Persetujuan Lembur / Izin</h1>
-            <p class="mt-1 text-sm text-gray-400">Kelola dan review pengajuan absensi yang memerlukan persetujuan</p>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Persetujuan Lembur / Izin</h1>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Kelola dan review pengajuan absensi yang memerlukan persetujuan</p>
         </div>
     </div>
 
     {{-- STATS CARDS --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:shadow-lg hover:border-gray-600 transition-all">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-400">Pending</p>
-                    <p class="text-2xl font-bold text-white mt-1">{{ $submissions->where('status_approval', 'pending')->count() }}</p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'pending')->count() }}</p>
                 </div>
                 <div class="p-3 bg-yellow-500/10 rounded-lg">
                     <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,11 +22,11 @@
                 </div>
             </div>
         </div>
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:shadow-lg hover:border-gray-600 transition-all">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-400">Approved (Final)</p>
-                    <p class="text-2xl font-bold text-white mt-1">{{ $submissions->where('status_approval', 'approved_hrga')->count() }}</p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Approved (Final)</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'approved_hrga')->count() }}</p>
                 </div>
                 <div class="p-3 bg-green-500/10 rounded-lg">
                     <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,11 +35,11 @@
                 </div>
             </div>
         </div>
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:shadow-lg hover:border-gray-600 transition-all">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-400">Rejected</p>
-                    <p class="text-2xl font-bold text-white mt-1">{{ $submissions->where('status_approval', 'rejected')->count() }}</p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Rejected</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'rejected')->count() }}</p>
                 </div>
                 <div class="p-3 bg-red-500/10 rounded-lg">
                     <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,11 +48,11 @@
                 </div>
             </div>
         </div>
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:shadow-lg hover:border-gray-600 transition-all">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-400">Total</p>
-                    <p class="text-2xl font-bold text-white mt-1">{{ $submissions->count() }}</p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->count() }}</p>
                 </div>
                 <div class="p-3 bg-indigo-500/10 rounded-lg">
                     <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +338,7 @@
     <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
         <div class="flex items-center justify-between">
             <div class="text-sm text-gray-600 dark:text-gray-400">
-                Showing <span class="font-medium text-gray-900 dark:text-white">1</span> to <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> of <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> results
+                 Showing <span class="font-medium text-gray-900 dark:text-white">1</span> to <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> of <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> results
             </div>
             <div class="flex items-center gap-2">
                 <button class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
@@ -359,3 +359,5 @@
 </div>
 
 @include('admin.absensi.approval.partials.reject-modal')
+
+
