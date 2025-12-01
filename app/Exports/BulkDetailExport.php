@@ -35,6 +35,31 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             ->orderBy('check_in_at', 'asc')
             ->get();
 
+        // 🔥 DETEKSI KATEGORI USER YANG DIPILIH 🔥
+        $categories = [];
+        foreach ($users as $user) {
+            $kategori = $this->detectKategori($user);
+            $categories[] = $kategori;
+        }
+
+        // Cek apakah semua kategori sama
+        $uniqueCategories = array_unique($categories);
+
+        if (count($uniqueCategories) === 1) {
+            // Semua user punya kategori yang sama
+            $singleCategory = $uniqueCategories[0];
+            $categoryLabel = match($singleCategory) {
+                'organik' => 'KARYAWAN ORGANIK',
+                'freelance' => 'KARYAWAN FREELANCE',
+                'borongan' => 'KARYAWAN BORONGAN',
+                'magang' => 'KARYAWAN MAGANG',
+                default => 'SEMUA KARYAWAN'
+            };
+        } else {
+            // Campur-campur kategori
+            $categoryLabel = 'SEMUA KARYAWAN';
+        }
+
         // 🔥 HITUNG TOTAL KESELURUHAN (3 AJA) 🔥
         $grandTotalGajiPokok = 0;
         $grandTotalGajiLembur = 0;
@@ -57,11 +82,30 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'absensiData' => $absensiData,
             'periodeStr' => $periodeStr,
 
-            // 🔥 KIRIM DATA TOTAL KE VIEW (3 AJA) 🔥
+            // 🔥 KIRIM DATA TOTAL KE VIEW 🔥
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
+            'categoryLabel' => $categoryLabel, // 🔥 LABEL KATEGORI DINAMIS
         ]);
+    }
+
+    /**
+     * 🔥 HELPER: DETEKSI KATEGORI BERDASARKAN PREFIX ID 🔥
+     */
+    private function detectKategori(User $user): string
+    {
+        $idKaryawan = $user->id_karyawan ?? '';
+
+        if (str_starts_with($idKaryawan, 'CS-AMB')) {
+            return 'borongan';
+        }
+
+        if (str_starts_with($idKaryawan, 'MG-AMB')) {
+            return 'magang';
+        }
+
+        return $user->employment_type ?? 'organik';
     }
 
     public function title(): string

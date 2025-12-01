@@ -96,7 +96,7 @@
         {{-- Header Grand Total --}}
         <tr>
             <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #4F46E5; color: #FFFFFF; border: 2px solid #000000;">
-                TOTAL KESELURUHAN SEMUA KARYAWAN
+                TOTAL KESELURUHAN {{ $categoryLabel }}
             </td>
         </tr>
 
