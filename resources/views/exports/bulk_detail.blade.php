@@ -116,9 +116,9 @@
             </td>
         </tr>
 
-        {{-- Baris Total Gaji Bersih (FINAL) --}}
+        {{-- Baris Total Gaji (FINAL) --}}
         <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">TOTAL GAJI BERSIH:</td>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">TOTAL GAJI:</td>
             <td colspan="6" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 16px;">
                 Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
             </td>
