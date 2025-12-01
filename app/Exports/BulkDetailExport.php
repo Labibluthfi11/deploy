@@ -57,10 +57,9 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'absensiData' => $absensiData,
             'periodeStr' => $periodeStr,
 
-            // 🔥 KIRIM DATA TOTAL KE VIEW 🔥
+            // 🔥 KIRIM DATA TOTAL KE VIEW (3 AJA) 🔥
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
-            'grandTotalPotongan' => $grandTotalPotongan,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
         ]);
     }
