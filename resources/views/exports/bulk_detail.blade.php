@@ -74,7 +74,7 @@
                 <tr><td colspan="14" style="text-align: center; border: 1px solid #000000;">Tidak ada data absensi.</td></tr>
             @endforelse
 
-            {{-- Baris Total --}}
+            {{-- Baris Total per Karyawan --}}
             <tr>
                 <td colspan="11" style="text-align: right; font-weight: bold; border: 1px solid #000000;">TOTAL DITERIMA:</td>
                 <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; font-size: 12px;">
@@ -88,4 +88,40 @@
             <tr><td colspan="14"></td></tr>
         </tbody>
     @endforeach
+
+    {{-- 🔥 GRAND TOTAL SELURUH KARYAWAN (3 BARIS AJA) 🔥 --}}
+    <tbody>
+        <tr><td colspan="14"></td></tr> {{-- Spasi ekstra --}}
+
+        {{-- Header Grand Total --}}
+        <tr>
+            <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #4F46E5; color: #FFFFFF; border: 2px solid #000000;">
+                TOTAL KESELURUHAN SEMUA KARYAWAN
+            </td>
+        </tr>
+
+        {{-- Baris Total Gaji Lembur --}}
+        <tr>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC;">TOTAL GAJI LEMBUR:</td>
+            <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC; font-size: 14px;">
+                Rp {{ number_format($grandTotalGajiLembur, 0, ',', '.') }}
+            </td>
+        </tr>
+
+        {{-- Baris Total Gaji Pokok --}}
+        <tr>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA;">TOTAL GAJI POKOK:</td>
+            <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA; font-size: 14px;">
+                Rp {{ number_format($grandTotalGajiPokok, 0, ',', '.') }}
+            </td>
+        </tr>
+
+        {{-- Baris Total Gaji Bersih (FINAL) --}}
+        <tr>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">TOTAL GAJI BERSIH:</td>
+            <td colspan="6" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 16px;">
+                Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
+            </td>
+        </tr>
+    </tbody>
 </table>
