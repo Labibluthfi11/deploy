@@ -145,37 +145,61 @@
         </tbody>
     @endforeach
 
-    {{-- 🔥 GRAND TOTAL - 2 BARIS (Header+Label, terus Angka) --}}
+    {{-- 🔥 GRAND TOTAL - KOLOM NYAMBUNG SAMA TABEL USER! --}}
     <tbody>
         <tr><td colspan="14"></td></tr>
 
-        {{-- BARIS 1: Header Biru + 3 Label --}}
+        {{-- BARIS 1: Header Biru + 3 Label (KOLOM SEJAJAR!) --}}
         <tr>
-            <td colspan="8" rowspan="2" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #00B0F0; color: #FFFFFF; border: 2px solid #000000; vertical-align: middle;">
+            {{-- Header Biru: Kolom 1-8 --}}
+            <td colspan="8" rowspan="2" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #00B0F0; color: #FFFFFF; border: 1px solid #000000; vertical-align: middle;">
                 TOTAL KESELURUHAN {{ $categoryLabel }}
             </td>
-            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #FFF2CC;">
+
+            {{-- Total Gaji Lembur: Kolom 9 (sejajar "Gaji Lembur") --}}
+            <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #FFF2CC;">
                 Total Gaji Lembur
             </td>
-            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #E2EFDA;">
+
+            {{-- Total Gaji Pokok: Kolom 10 (sejajar "Gaji Pokok") --}}
+            <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #E2EFDA;">
                 Total Gaji Pokok
             </td>
+
+            {{-- Kolom 11: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
+
+            {{-- Total Gaji: Kolom 12-13 (sejajar "Gaji Bersih" + "TOTAL GAJI") --}}
             <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #C6E0B4;">
                 Total Gaji
             </td>
+
+            {{-- Kolom 14: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
         </tr>
 
-        {{-- BARIS 2: Angka --}}
+        {{-- BARIS 2: Angka (KOLOM SEJAJAR!) --}}
         <tr>
-            <td colspan="2" style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #FFF2CC; padding-right: 10px;">
+            {{-- Angka Gaji Lembur: Kolom 9 --}}
+            <td style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #FFF2CC; padding-right: 5px;">
                 Rp {{ number_format($grandTotalGajiLembur, 0, ',', '.') }}
             </td>
-            <td colspan="2" style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #E2EFDA; padding-right: 10px;">
+
+            {{-- Angka Gaji Pokok: Kolom 10 --}}
+            <td style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #E2EFDA; padding-right: 5px;">
                 Rp {{ number_format($grandTotalGajiPokok, 0, ',', '.') }}
             </td>
-            <td colspan="2" style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #C6E0B4; padding-right: 10px; font-size: 14px;">
+
+            {{-- Kolom 11: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
+
+            {{-- Angka Total Gaji: Kolom 12-13 --}}
+            <td colspan="2" style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #C6E0B4; padding-right: 5px; font-size: 14px;">
                 Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
             </td>
+
+            {{-- Kolom 14: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
         </tr>
     </tbody>
 </table>
