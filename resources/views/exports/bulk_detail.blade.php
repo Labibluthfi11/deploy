@@ -166,13 +166,16 @@
                 Total Gaji Pokok
             </td>
 
-            {{-- Kolom 11: Kosong --}}
-            <td style="border: 1px solid #000000;"></td>
-
-            {{-- Total Gaji: Kolom 12-13 (sejajar "Gaji Bersih" + "TOTAL GAJI") --}}
-            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #C6E0B4;">
+            {{-- Total Gaji: Kolom 11 (sejajar "Potongan") --}}
+            <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #C6E0B4;">
                 Total Gaji
             </td>
+
+            {{-- Kolom 12: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
+
+            {{-- Kolom 13: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
 
             {{-- Kolom 14: Kosong --}}
             <td style="border: 1px solid #000000;"></td>
@@ -190,13 +193,16 @@
                 Rp {{ number_format($grandTotalGajiPokok, 0, ',', '.') }}
             </td>
 
-            {{-- Kolom 11: Kosong --}}
-            <td style="border: 1px solid #000000;"></td>
-
-            {{-- Angka Total Gaji: Kolom 12-13 --}}
-            <td colspan="2" style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #C6E0B4; padding-right: 5px; font-size: 14px;">
+            {{-- Angka Total Gaji: Kolom 11 (FONT SIZE 11px) --}}
+            <td style="font-weight: bold; text-align: right; border: 1px solid #000000; background-color: #C6E0B4; padding-right: 5px; font-size: 11px;">
                 Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
             </td>
+
+            {{-- Kolom 12: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
+
+            {{-- Kolom 13: Kosong --}}
+            <td style="border: 1px solid #000000;"></td>
 
             {{-- Kolom 14: Kosong --}}
             <td style="border: 1px solid #000000;"></td>
