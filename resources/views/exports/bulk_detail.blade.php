@@ -145,37 +145,30 @@
         </tbody>
     @endforeach
 
-    {{-- 🔥 GRAND TOTAL KAYAK GAMBAR REFERENSI --}}
+    {{-- 🔥 GRAND TOTAL DI PALING BAWAH SETELAH SEMUA USER --}}
     <tbody>
         <tr><td colspan="14"></td></tr>
 
         {{-- Header Grand Total --}}
         <tr>
-            <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #00B0F0; color: #FFFFFF; border: 2px solid #000000;">
+            <td colspan="8" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #00B0F0; color: #FFFFFF; border: 2px solid #000000; height: 40px;">
                 TOTAL KESELURUHAN {{ $categoryLabel }}
             </td>
+            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #FFF2CC;">Total Gaji Lembur</td>
+            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #E2EFDA;">Total Gaji Pokok</td>
+            <td colspan="2" style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #C6E0B4;">Total Gaji</td>
         </tr>
 
-        {{-- Baris Total Gaji Lembur (Kuning) --}}
+        {{-- Baris Angka Total --}}
         <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC;">Total Gaji Lembur</td>
-            <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC; font-size: 14px;">
+            <td colspan="8" style="border: 1px solid #000000;"></td>
+            <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC; padding-right: 10px;">
                 Rp {{ number_format($grandTotalGajiLembur, 0, ',', '.') }}
             </td>
-        </tr>
-
-        {{-- Baris Total Gaji Pokok (Hijau Muda) --}}
-        <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA;">Total Gaji Pokok</td>
-            <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA; font-size: 14px;">
+            <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA; padding-right: 10px;">
                 Rp {{ number_format($grandTotalGajiPokok, 0, ',', '.') }}
             </td>
-        </tr>
-
-        {{-- Baris Total Gaji (Hijau Tua + Bold) --}}
-        <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">Total Gaji</td>
-            <td colspan="6" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 16px;">
+            <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; padding-right: 10px; font-size: 14px;">
                 Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
             </td>
         </tr>
