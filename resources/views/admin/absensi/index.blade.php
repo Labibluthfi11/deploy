@@ -669,11 +669,17 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                                 @forelse ($dailyStatusesBorongan as $daily)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    @php
+                                        $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
+                                    @endphp
+                                    <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                                                <div class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
+                                                <div class="font-semibold {{ $belumAbsen ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} group-hover:text-indigo-600">
                                                     {{ $daily['user']->name }}
+                                                    @if($belumAbsen)
+                                                        <i class="fas fa-exclamation-triangle text-red-600 ml-2 animate-pulse"></i>
+                                                    @endif
                                                 </div>
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 mt-1">
                                                     Borongan
@@ -681,7 +687,14 @@
                                             </a>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
+                                            @if($belumAbsen)
+                                                <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-2 border-red-300 dark:border-red-700">
+                                                    <i class="fas fa-times-circle animate-pulse"></i>
+                                                    Belum Absen
+                                                </span>
+                                            @else
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
+                                            @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @if($daily['check_in_time'])
@@ -692,13 +705,24 @@
                                                     </span>
                                                 </div>
                                             @else
-                                                <span class="text-gray-400 text-sm">-</span>
+                                                <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
+                                                    @if($belumAbsen)
+                                                        <i class="fas fa-ban"></i> Tidak ada
+                                                    @else
+                                                        -
+                                                    @endif
+                                                </span>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @php
                                                 $lateMinutes = $daily['late_minutes'] ?? 0;
                                             @endphp
+                                            @if($belumAbsen)
+                                                <span class="text-red-600 dark:text-red-400 text-sm font-bold">
+                                                    <i class="fas fa-exclamation-circle"></i> -
+                                                </span>
+                                            @elseif($lateMinutes > 0)
                                             @if($lateMinutes > 0)
                                                 <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                                                     <i class="fas fa-clock"></i>
@@ -724,12 +748,18 @@
                                                         {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
                                                     </span>
                                                 </div>
-                                            @else
-                                                <span class="text-gray-400 text-sm">-</span>
+                                             @else
+                                                <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
+                                                    @if($belumAbsen)
+                                                        <i class="fas fa-ban"></i> Tidak ada
+                                                    @else
+                                                        -
+                                                    @endif
+                                                </span>
                                             @endif
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
+                                       <td class="px-6 py-4 whitespace-nowrap">
+                                                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 {{ $belumAbsen ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' }} rounded-lg text-sm font-medium transition-all">
                                                 <i class="fas fa-eye"></i>
                                                 <span>Detail</span>
                                             </a>
