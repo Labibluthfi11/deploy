@@ -25,28 +25,23 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
     public function view(): View
     {
-        // Ambil user yang dipilih, urutin namanya
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // Ambil SEMUA data absensi yang relevan sekaligus
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->where('status_approval', 'approved')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // 🔥 DETEKSI KATEGORI USER YANG DIPILIH 🔥
         $categories = [];
         foreach ($users as $user) {
             $kategori = $this->detectKategori($user);
             $categories[] = $kategori;
         }
 
-        // Cek apakah semua kategori sama
         $uniqueCategories = array_unique($categories);
 
         if (count($uniqueCategories) === 1) {
-            // Semua user punya kategori yang sama
             $singleCategory = $uniqueCategories[0];
             $categoryLabel = match($singleCategory) {
                 'organik' => 'KARYAWAN ORGANIK',
@@ -56,11 +51,19 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
                 default => 'SEMUA KARYAWAN'
             };
         } else {
-            // Campur-campur kategori
             $categoryLabel = 'SEMUA KARYAWAN';
         }
 
-        // 🔥 HITUNG TOTAL KESELURUHAN (3 AJA) 🔥
+        // 🔥 GENERATE SEMUA TANGGAL DI RANGE
+        $allDates = [];
+        $current = Carbon::parse($this->startDate);
+        $end = Carbon::parse($this->endDate);
+
+        while ($current <= $end) {
+            $allDates[] = $current->copy();
+            $current->addDay();
+        }
+
         $grandTotalGajiPokok = 0;
         $grandTotalGajiLembur = 0;
         $grandTotalGajiBersih = 0;
@@ -73,26 +76,20 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             $grandTotalGajiBersih += $userAbsensi->sum('final_salary');
         }
 
-        // Bikin label periode
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
-        // Lempar semua data ke Blade (termasuk GRAND TOTAL)
         return view('exports.bulk_detail', [
             'users' => $users,
             'absensiData' => $absensiData,
             'periodeStr' => $periodeStr,
-
-            // 🔥 KIRIM DATA TOTAL KE VIEW 🔥
+            'allDates' => $allDates, // 🔥 KIRIM LIST TANGGAL
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
-            'categoryLabel' => $categoryLabel, // 🔥 LABEL KATEGORI DINAMIS
+            'categoryLabel' => $categoryLabel,
         ]);
     }
 
-    /**
-     * 🔥 HELPER: DETEKSI KATEGORI BERDASARKAN PREFIX ID 🔥
-     */
     private function detectKategori(User $user): string
     {
         $idKaryawan = $user->id_karyawan ?? '';

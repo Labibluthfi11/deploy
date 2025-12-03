@@ -2,6 +2,28 @@
 <table>
     {{-- Loop per Karyawan --}}
     @foreach($users as $user)
+        @php
+            // Ambil data absensi si user ini
+            $userAbsensi = $absensiData->where('user_id', $user->id);
+
+            // 🔥 CEK ADA GA TANGGAL YANG KOSONG
+            $hasMissingDate = false;
+            foreach ($allDates as $date) {
+                $absensiOnDate = $userAbsensi->first(function($item) use ($date) {
+                    return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                });
+
+                if (!$absensiOnDate) {
+                    $hasMissingDate = true;
+                    break;
+                }
+            }
+
+            // Tentuin warna nama user
+            $userNameColor = $hasMissingDate ? '#FF0000' : '#000000';
+            $userNameWeight = $hasMissingDate ? 'bold' : 'normal';
+        @endphp
+
         {{-- Header Karyawan --}}
         <thead>
             <tr>
@@ -10,7 +32,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="7" style="font-weight: bold; text-align: left;">Nama: {{ $user->name }}</td>
+                <td colspan="7" style="font-weight: {{ $userNameWeight }}; text-align: left; color: {{ $userNameColor }};">Nama: {{ $user->name }}</td>
                 <td colspan="7" style="font-weight: bold; text-align: left;">ID: {{ $user->id_karyawan }}</td>
             </tr>
             <tr>
@@ -44,35 +66,69 @@
             @php
                 $totalGajiAll = 0;
                 $no = 1;
-                // Ambil data absensi SI USER INI AJA dari koleksi besar
-                $userAbsensi = $absensiData->where('user_id', $user->id);
             @endphp
 
-            @forelse($userAbsensi as $item)
+            {{-- 🔥 LOOP BERDASARKAN TANGGAL (BUKAN ABSENSI) --}}
+            @foreach($allDates as $date)
                 @php
-                    // ⬇️ INI RUMUS TOTAL GAJI PER HARI LO ⬇️
-                    $totalGajiHari = ($item->base_salary + $item->overtime_pay) - $item->late_penalty;
-                    $totalGajiAll += $totalGajiHari; // Tambahin ke total si user
+                    // Cari absensi di tanggal ini
+                    $item = $userAbsensi->first(function($absen) use ($date) {
+                        return \Carbon\Carbon::parse($absen->check_in_at)->isSameDay($date);
+                    });
+
+                    // Tentuin style buat baris kosong
+                    $rowStyle = '';
+                    $cellStyle = 'text-align: center; border: 1px solid #000000;';
+
+                    if (!$item) {
+                        // 🔥 BARIS KOSONG = MERAH + BOLD
+                        $rowStyle = 'background-color: #FFE6E6;'; // Light red background
+                        $cellStyle = 'text-align: center; border: 1px solid #000000; color: #FF0000; font-weight: bold;';
+                    }
                 @endphp
-                <tr>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $no++ }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ \Carbon\Carbon::parse($item->check_in_at)->translatedFormat('d M Y') }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ \Carbon\Carbon::parse($item->check_in_at)->format('H:i') }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $item->check_out_at ? \Carbon\Carbon::parse($item->check_out_at)->format('H:i') : '-' }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status) }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->tipe ?? '-') }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $item->late_minutes }} Menit</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $item->overtime_minutes }} Menit</td>
-                    <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->overtime_pay, 0, ',', '.') }}</td>
-                    <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->base_salary, 0, ',', '.') }}</td>
-                    <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->late_penalty, 0, ',', '.') }}</td>
-                    <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->final_salary, 0, ',', '.') }}</td>
-                    <td style="text-align: right; border: 1px solid #000000; background-color: #E2EFDA; font-weight: bold;">Rp {{ number_format($totalGajiHari, 0, ',', '.') }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status_approval) }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="14" style="text-align: center; border: 1px solid #000000;">Tidak ada data absensi.</td></tr>
-            @endforelse
+
+                @if($item)
+                    {{-- BARIS NORMAL (ADA DATA) --}}
+                    @php
+                        $totalGajiHari = ($item->base_salary + $item->overtime_pay) - $item->late_penalty;
+                        $totalGajiAll += $totalGajiHari;
+                    @endphp
+                    <tr>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ $no++ }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ \Carbon\Carbon::parse($item->check_in_at)->translatedFormat('d M Y') }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ \Carbon\Carbon::parse($item->check_in_at)->format('H:i') }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ $item->check_out_at ? \Carbon\Carbon::parse($item->check_out_at)->format('H:i') : '-' }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status) }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->tipe ?? '-') }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ $item->late_minutes }} Menit</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ $item->overtime_minutes }} Menit</td>
+                        <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->overtime_pay, 0, ',', '.') }}</td>
+                        <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->base_salary, 0, ',', '.') }}</td>
+                        <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->late_penalty, 0, ',', '.') }}</td>
+                        <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($item->final_salary, 0, ',', '.') }}</td>
+                        <td style="text-align: right; border: 1px solid #000000; background-color: #E2EFDA; font-weight: bold;">Rp {{ number_format($totalGajiHari, 0, ',', '.') }}</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status_approval) }}</td>
+                    </tr>
+                @else
+                    {{-- 🔥 BARIS KOSONG (GA ABSEN) = MERAH + BOLD --}}
+                    <tr style="{{ $rowStyle }}">
+                        <td style="{{ $cellStyle }}">{{ $no++ }}</td>
+                        <td style="{{ $cellStyle }}">{{ $date->translatedFormat('d M Y') }}</td>
+                        <td style="{{ $cellStyle }}">-</td>
+                        <td style="{{ $cellStyle }}">-</td>
+                        <td style="{{ $cellStyle }}">-</td>
+                        <td style="{{ $cellStyle }}">-</td>
+                        <td style="{{ $cellStyle }}">0 Menit</td>
+                        <td style="{{ $cellStyle }}">0 Menit</td>
+                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000; background-color: #FFE6E6; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="{{ $cellStyle }}">-</td>
+                    </tr>
+                @endif
+            @endforeach
 
             {{-- Baris Total per Karyawan --}}
             <tr>
@@ -89,36 +145,36 @@
         </tbody>
     @endforeach
 
-    {{-- 🔥 GRAND TOTAL SELURUH KARYAWAN (3 BARIS AJA) 🔥 --}}
+    {{-- 🔥 GRAND TOTAL KAYAK GAMBAR REFERENSI --}}
     <tbody>
-        <tr><td colspan="14"></td></tr> {{-- Spasi ekstra --}}
+        <tr><td colspan="14"></td></tr>
 
         {{-- Header Grand Total --}}
         <tr>
-            <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #4F46E5; color: #FFFFFF; border: 2px solid #000000;">
+            <td colspan="14" style="font-weight: bold; font-size: 16px; text-align: center; background-color: #00B0F0; color: #FFFFFF; border: 2px solid #000000;">
                 TOTAL KESELURUHAN {{ $categoryLabel }}
             </td>
         </tr>
 
-        {{-- Baris Total Gaji Lembur --}}
+        {{-- Baris Total Gaji Lembur (Kuning) --}}
         <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC;">TOTAL GAJI LEMBUR:</td>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC;">Total Gaji Lembur</td>
             <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #FFF2CC; font-size: 14px;">
                 Rp {{ number_format($grandTotalGajiLembur, 0, ',', '.') }}
             </td>
         </tr>
 
-        {{-- Baris Total Gaji Pokok --}}
+        {{-- Baris Total Gaji Pokok (Hijau Muda) --}}
         <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA;">TOTAL GAJI POKOK:</td>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA;">Total Gaji Pokok</td>
             <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA; font-size: 14px;">
                 Rp {{ number_format($grandTotalGajiPokok, 0, ',', '.') }}
             </td>
         </tr>
 
-        {{-- Baris Total Gaji (FINAL) --}}
+        {{-- Baris Total Gaji (Hijau Tua + Bold) --}}
         <tr>
-            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">TOTAL GAJI:</td>
+            <td colspan="8" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 14px;">Total Gaji</td>
             <td colspan="6" style="text-align: right; font-weight: bold; border: 2px solid #000000; background-color: #C6E0B4; font-size: 16px;">
                 Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
             </td>
