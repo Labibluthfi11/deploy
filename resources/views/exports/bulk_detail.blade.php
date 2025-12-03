@@ -130,7 +130,29 @@
                 @endif
             @endforeach
 
-            {{-- Baris Total per Karyawan --}}
+            {{-- 🔥 BARIS TOTAL PER USER (KOLOM SPESIFIK) --}}
+            @php
+                $totalTelat = $userAbsensi->sum('late_minutes');
+                $totalMenitLembur = $userAbsensi->sum('overtime_minutes');
+                $totalGajiLembur = $userAbsensi->sum('overtime_pay');
+                $totalGajiPokok = $userAbsensi->sum('base_salary');
+                $totalPotongan = $userAbsensi->sum('late_penalty');
+                $totalGajiBersih = $userAbsensi->sum('final_salary');
+                // $totalGajiAll sudah dihitung di atas
+            @endphp
+            <tr style="background-color: #F0F0F0;">
+                <td colspan="6" style="text-align: right; font-weight: bold; border: 1px solid #000000; padding-right: 5px;">TOTAL:</td>
+                <td style="text-align: center; font-weight: bold; border: 1px solid #000000;">{{ $totalTelat }} Menit</td>
+                <td style="text-align: center; font-weight: bold; border: 1px solid #000000;">{{ $totalMenitLembur }} Menit</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #000000; padding-right: 5px;">Rp {{ number_format($totalGajiLembur, 0, ',', '.') }}</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #000000; padding-right: 5px;">Rp {{ number_format($totalGajiPokok, 0, ',', '.') }}</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #000000; padding-right: 5px;">Rp {{ number_format($totalPotongan, 0, ',', '.') }}</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #000000; padding-right: 5px;">Rp {{ number_format($totalGajiBersih, 0, ',', '.') }}</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #E2EFDA; padding-right: 5px;">Rp {{ number_format($totalGajiAll, 0, ',', '.') }}</td>
+                <td style="border: 1px solid #000000;"></td>
+            </tr>
+
+            {{-- Baris Total per Karyawan (TOTAL DITERIMA) --}}
             <tr>
                 <td colspan="11" style="text-align: right; font-weight: bold; border: 1px solid #000000;">TOTAL DITERIMA:</td>
                 <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; font-size: 12px;">
