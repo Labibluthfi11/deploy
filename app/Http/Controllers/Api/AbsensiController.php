@@ -305,8 +305,8 @@ class AbsensiController extends Controller
                 : Carbon::today()->startOfDay();
 
             $endDate = $request->end_date
-                ? Carbon::parse($request->end_date)->endOfDay()
-                : $startDate->copy()->endOfDay();
+            ? Carbon::parse($request->end_date)->startOfDay()
+            : $startDate->copy()->startOfDay();
 
             // Hitung total hari
             $totalDays = $startDate->diffInDays($endDate) + 1;
@@ -485,8 +485,8 @@ class AbsensiController extends Controller
                 : Carbon::today()->startOfDay();
 
             $endDate = $request->end_date
-                ? Carbon::parse($request->end_date)->endOfDay()
-                : $startDate->copy()->endOfDay();
+            ? Carbon::parse($request->end_date)->startOfDay()  
+            : $startDate->copy()->startOfDay();
 
             $totalDays = $startDate->diffInDays($endDate) + 1;
 
