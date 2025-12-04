@@ -427,17 +427,17 @@ class AbsensiController extends Controller
             $parentAbsensi->file_bukti_url = Storage::url($parentAbsensi->file_bukti);
 
             return response()->json([
-                'success' => true,
-                'message' => "Pengajuan {$request->status} berhasil diajukan untuk {$totalDays} hari.",
-                'data' => $parentAbsensi,
-                'summary' => [
-                    'total_days' => $totalDays,
-                    'total_records' => count($createdRecords),
-                    'parent_id' => $parentAbsensi->id,
-                    'child_count' => $childCount,
-                    'date_range' => $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y'),
-                ]
-            ], 201);
+            'success' => true,
+            'message' => "Pengajuan {$request->status} berhasil diajukan untuk {$totalDays} hari.",
+            'data' => $parentAbsensi,
+            'summary' => [
+                'total_days' => $totalDays,
+                'total_records' => $createdRecords,  // ✅ LANGSUNG PAKE VARIABLE
+                'parent_id' => $parentAbsensi->id,
+                'child_count' => $childCount,
+                'date_range' => $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y'),
+            ]
+        ], 201);
 
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -613,17 +613,17 @@ class AbsensiController extends Controller
             $parentAbsensi->file_bukti_url = Storage::url($parentAbsensi->file_bukti);
 
             return response()->json([
-                'success' => true,
-                'message' => "Pengajuan izin berhasil diajukan untuk {$totalDays} hari.",
-                'data' => $parentAbsensi,
-                'summary' => [
-                    'total_days' => $totalDays,
-                    'total_records' => count($createdRecords),
-                    'parent_id' => $parentAbsensi->id,
-                    'child_count' => $childCount,
-                    'date_range' => $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y'),
-                ]
-            ], 201);
+    'success' => true,
+    'message' => "Pengajuan izin berhasil diajukan untuk {$totalDays} hari.",
+    'data' => $parentAbsensi,
+    'summary' => [
+        'total_days' => $totalDays,
+        'total_records' => $createdRecords,  // ✅ LANGSUNG PAKE VARIABLE
+        'parent_id' => $parentAbsensi->id,
+        'child_count' => $childCount,
+        'date_range' => $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y'),
+        ]
+        ], 201);
 
         } catch (ValidationException $e) {
             DB::rollBack();
