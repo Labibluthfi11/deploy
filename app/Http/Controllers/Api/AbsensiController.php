@@ -369,39 +369,45 @@ class AbsensiController extends Controller
                 'final_salary' => 0,
             ]);
 
-            // ✅ CREATE CHILD RECORDS (1 per hari)
-            $currentDate = $startDate->copy();
-            $createdRecords = [$parentAbsensi];
-            $childCount = 0;
+            // ✅ BULK INSERT CHILDREN
+                $currentDate = $startDate->copy();
+                $childRecords = [];
+                $childCount = 0;
 
-            while ($currentDate->lte($endDate)) {
-                // Skip hari pertama (sudah jadi parent)
-                if (!$currentDate->isSameDay($startDate)) {
-                    $childAbsensi = Absensi::create([
-                        'user_id' => $user->id,
-                        'parent_id' => $parentAbsensi->id,
-                        'check_in_at' => $currentDate->copy(),
-                        'end_date' => null,
-                        'total_days' => 1,
-                        'status' => $request->status,
-                        'tipe' => $request->status,
-                        'status_approval' => 'pending',
-                        'file_bukti' => $fileBuktiPath,
-                        'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
-                        'workflow_status' => $workflow,
-                        'current_approval_level' => 1,
-                        'late_minutes' => 0,
-                        'base_salary' => 0,
-                        'late_penalty' => 0,
-                        'final_salary' => 0,
-                    ]);
+                while ($currentDate->lte($endDate)) {
+                    if (!$currentDate->isSameDay($startDate)) {
+                        $childRecords[] = [
+                            'user_id' => $user->id,
+                            'parent_id' => $parentAbsensi->id,
+                            'check_in_at' => $currentDate->copy()->toDateTimeString(),
+                            'end_date' => null,
+                            'total_days' => 1,
+                            'status' => $request->status,
+                            'tipe' => $request->status,
+                            'status_approval' => 'pending',
+                            'file_bukti' => $fileBuktiPath,
+                            'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
+                            'workflow_status' => json_encode($workflow),
+                            'current_approval_level' => 1,
+                            'late_minutes' => 0,
+                            'base_salary' => 0,
+                            'late_penalty' => 0,
+                            'final_salary' => 0,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                        $childCount++;
+                    }
 
-                    $createdRecords[] = $childAbsensi;
-                    $childCount++;
+                    $currentDate->addDay();
                 }
 
-                $currentDate->addDay();
-            }
+                // INSERT SEMUA SEKALIGUS
+                if (!empty($childRecords)) {
+                    Absensi::insert($childRecords);
+                }
+
+                $createdRecords = 1 + $childCount; // Parent + children
 
             // ✅ CREATE NOTIFICATION (opsional)
             Notification::create([
@@ -485,7 +491,7 @@ class AbsensiController extends Controller
                 : Carbon::today()->startOfDay();
 
             $endDate = $request->end_date
-            ? Carbon::parse($request->end_date)->startOfDay()  
+            ? Carbon::parse($request->end_date)->startOfDay()  // ✅ GANTI
             : $startDate->copy()->startOfDay();
 
             $totalDays = $startDate->diffInDays($endDate) + 1;
@@ -549,39 +555,46 @@ class AbsensiController extends Controller
                 'final_salary' => 0,
             ]);
 
-            // ✅ CREATE CHILDREN
-            $currentDate = $startDate->copy();
-            $createdRecords = [$parentAbsensi];
-            $childCount = 0;
+            // ✅ BULK INSERT CHILDREN
+                $currentDate = $startDate->copy();
+                $childRecords = [];
+                $childCount = 0;
 
-            while ($currentDate->lte($endDate)) {
-                if (!$currentDate->isSameDay($startDate)) {
-                    $childAbsensi = Absensi::create([
-                        'user_id' => $user->id,
-                        'parent_id' => $parentAbsensi->id,
-                        'check_in_at' => $currentDate->copy(),
-                        'end_date' => null,
-                        'total_days' => 1,
-                        'status' => 'izin',
-                        'tipe' => 'izin',
-                        'status_approval' => 'pending',
-                        'file_bukti' => $fileBuktiPath,
-                        'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
-                        'catatan_admin' => $request->catatan_admin,
-                        'workflow_status' => $workflow,
-                        'current_approval_level' => 1,
-                        'late_minutes' => 0,
-                        'base_salary' => 0,
-                        'late_penalty' => 0,
-                        'final_salary' => 0,
-                    ]);
+                while ($currentDate->lte($endDate)) {
+                    if (!$currentDate->isSameDay($startDate)) {
+                        $childRecords[] = [
+                            'user_id' => $user->id,
+                            'parent_id' => $parentAbsensi->id,
+                            'check_in_at' => $currentDate->copy()->toDateTimeString(),
+                            'end_date' => null,
+                            'total_days' => 1,
+                            'status' => 'izin',
+                            'tipe' => 'izin',
+                            'status_approval' => 'pending',
+                            'file_bukti' => $fileBuktiPath,
+                            'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
+                            'catatan_admin' => $request->catatan_admin,
+                            'workflow_status' => json_encode($workflow),
+                            'current_approval_level' => 1,
+                            'late_minutes' => 0,
+                            'base_salary' => 0,
+                            'late_penalty' => 0,
+                            'final_salary' => 0,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                        $childCount++;
+                    }
 
-                    $createdRecords[] = $childAbsensi;
-                    $childCount++;
+                    $currentDate->addDay();
                 }
 
-                $currentDate->addDay();
-            }
+                // INSERT SEMUA SEKALIGUS
+                if (!empty($childRecords)) {
+                    Absensi::insert($childRecords);
+                }
+
+                $createdRecords = 1 + $childCount; // Parent + children
 
             // ✅ CREATE NOTIFICATION
             Notification::create([
