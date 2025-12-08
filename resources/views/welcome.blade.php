@@ -28,10 +28,7 @@
                         <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                     </a>
 
-                    <a href="{{ route('register') }}"
-                       class="px-8 py-3.5 bg-white dark:bg-gray-800 border-2 border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all transform hover:scale-105 animate__animated animate__fadeInUp animate__delay-3s">
-                        Daftar Akun
-                    </a>
+                    
                 </div>
 
                 <!-- Features List -->
