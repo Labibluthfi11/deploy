@@ -66,6 +66,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
         $grandTotalGajiPokok = 0;
         $grandTotalGajiLembur = 0;
+        $grandTotalPotongan = 0; // 🔥 TAMBAH INI
         $grandTotalGajiBersih = 0;
 
         foreach ($users as $user) {
@@ -73,6 +74,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
             $grandTotalGajiPokok += $userAbsensi->sum('base_salary');
             $grandTotalGajiLembur += $userAbsensi->sum('overtime_pay');
+            $grandTotalPotongan += $userAbsensi->sum('late_penalty'); // 🔥 TAMBAH INI
             $grandTotalGajiBersih += $userAbsensi->sum('final_salary');
         }
 
@@ -85,6 +87,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'allDates' => $allDates, // 🔥 KIRIM LIST TANGGAL
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
+            'grandTotalPotongan' => $grandTotalPotongan, // 🔥 TAMBAH INI
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
             'categoryLabel' => $categoryLabel,
         ]);
