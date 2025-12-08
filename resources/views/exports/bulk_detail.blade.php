@@ -73,7 +73,7 @@
                 $no = 1;
             @endphp
 
-            {{-- 🔥 LOOP BERDASARKAN TANGGAL (BUKAN ABSENSI) --}}
+            {{--  LOOP BERDASARKAN TANGGAL (BUKAN ABSENSI) --}}
             @foreach($allDates as $date)
                 @php
                     // Cari absensi di tanggal ini
@@ -81,7 +81,7 @@
                         return \Carbon\Carbon::parse($absen->check_in_at)->isSameDay($date);
                     });
 
-                    // 🔥 CEK HARI KERJA (Senin=1, Jumat=5)
+                    //  CEK HARI KERJA (Senin=1, Jumat=5)
                     $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
 
                     // Tentuin style buat baris kosong
