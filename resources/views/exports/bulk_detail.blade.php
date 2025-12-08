@@ -247,5 +247,16 @@
             {{-- Kolom 14: Kosong --}}
             <td style="border: 1px solid #000000;"></td>
         </tr>
+
+        {{-- BARIS 3: TOTAL KESELURUHAN (TOTAL DITERIMA SEMUA KARYAWAN) --}}
+        <tr>
+            <td colspan="10" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #D9E1F2; padding-right: 5px;">
+                TOTAL KESELURUHAN DITERIMA:
+            </td>
+            <td colspan="2" style="text-align: right; font-weight: bold; border: 1px solid #000000; background-color: #C6E0B4; font-size: 14px; padding-right: 5px;">
+                Rp {{ number_format($grandTotalGajiBersih, 0, ',', '.') }}
+            </td>
+            <td colspan="2" style="border: 1px solid #000000;"></td>
+        </tr>
     </tbody>
 </table>
