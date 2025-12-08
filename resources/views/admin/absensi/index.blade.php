@@ -363,12 +363,7 @@
                       ->orWhereNull('check_in_at');     // Alpha (ga masuk)
                 })
                 ->count();
-
-            // 🔥 TENTUKAN LEVEL PERINGATAN
-            $warningLevel = 0;
-            $warningText = '';
-            $warningColor = '';
-            $warningIcon = '';
+                //level peringatan
 
             if ($telatCount >= 5) {
                 $warningLevel = 3;
