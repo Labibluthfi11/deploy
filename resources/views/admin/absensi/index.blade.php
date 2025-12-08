@@ -364,6 +364,10 @@
                 })
                 ->count();
                 //level peringatan
+            $warningLevel = 0;
+            $warningText = '';
+            $warningColor = '';
+            $warningIcon = '';
 
             if ($telatCount >= 5) {
                 $warningLevel = 3;
