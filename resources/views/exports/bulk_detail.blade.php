@@ -6,9 +6,14 @@
             // Ambil data absensi si user ini
             $userAbsensi = $absensiData->where('user_id', $user->id);
 
-            // 🔥 CEK ADA GA TANGGAL YANG KOSONG
+            //  CEK ADA GA TANGGAL YANG KOSONG (CUMA HARI KERJA!)
             $hasMissingDate = false;
             foreach ($allDates as $date) {
+                // 🔥 SKIP SABTU (6) DAN MINGGU (0)
+                if ($date->dayOfWeek === 0 || $date->dayOfWeek === 6) {
+                    continue;
+                }
+
                 $absensiOnDate = $userAbsensi->first(function($item) use ($date) {
                     return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                 });
@@ -76,12 +81,15 @@
                         return \Carbon\Carbon::parse($absen->check_in_at)->isSameDay($date);
                     });
 
+                    // 🔥 CEK HARI KERJA (Senin=1, Jumat=5)
+                    $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
+
                     // Tentuin style buat baris kosong
                     $rowStyle = '';
                     $cellStyle = 'text-align: center; border: 1px solid #000000;';
 
-                    if (!$item) {
-                        // 🔥 BARIS KOSONG = MERAH + BOLD
+                    // 🔥 CUMA MERAHIN KALAU HARI KERJA & GA ADA DATA
+                    if (!$item && $isWeekday) {
                         $rowStyle = 'background-color: #FFE6E6;'; // Light red background
                         $cellStyle = 'text-align: center; border: 1px solid #000000; color: #FF0000; font-weight: bold;';
                     }
@@ -110,7 +118,7 @@
                         <td style="text-align: center; border: 1px solid #000000;">{{ ucfirst($item->status_approval) }}</td>
                     </tr>
                 @else
-                    {{-- 🔥 BARIS KOSONG (GA ABSEN) = MERAH + BOLD --}}
+                    {{-- 🔥 BARIS KOSONG - MERAH CUMA KALAU WEEKDAY! --}}
                     <tr style="{{ $rowStyle }}">
                         <td style="{{ $cellStyle }}">{{ $no++ }}</td>
                         <td style="{{ $cellStyle }}">{{ $date->translatedFormat('d M Y') }}</td>
@@ -120,11 +128,11 @@
                         <td style="{{ $cellStyle }}">-</td>
                         <td style="{{ $cellStyle }}">0 Menit</td>
                         <td style="{{ $cellStyle }}">0 Menit</td>
-                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000; color: #FF0000; font-weight: bold;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000; background-color: #FFE6E6; color: #FF0000; font-weight: bold;">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000;{{ $isWeekday ? ' color: #FF0000; font-weight: bold;' : '' }}">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000;{{ $isWeekday ? ' color: #FF0000; font-weight: bold;' : '' }}">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000;{{ $isWeekday ? ' color: #FF0000; font-weight: bold;' : '' }}">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000;{{ $isWeekday ? ' color: #FF0000; font-weight: bold;' : '' }}">Rp 0</td>
+                        <td style="text-align: right; border: 1px solid #000000;{{ $isWeekday ? ' background-color: #FFE6E6; color: #FF0000; font-weight: bold;' : '' }}">Rp 0</td>
                         <td style="{{ $cellStyle }}">-</td>
                     </tr>
                 @endif
@@ -167,7 +175,7 @@
         </tbody>
     @endforeach
 
-    {{-- 🔥 GRAND TOTAL - KOLOM NYAMBUNG SAMA TABEL USER! --}}
+    {{--  GRAND TOTAL - KOLOM NYAMBUNG SAMA TABEL USER! --}}
     <tbody>
         <tr><td colspan="14"></td></tr>
 
