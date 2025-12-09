@@ -16,6 +16,7 @@ use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
 use App\Exports\SlipGajiPdfExport;
 use App\Exports\BulkDetailExport;
+use App\Exports\BulkSimpleExport;
 
 class AbsensiAdminController extends Controller
 {
@@ -885,6 +886,23 @@ private function penyebut($nilai)
     }
 
     return $temp;
+}
+
+    public function bulkExportSimple(Request $request)
+{
+    $userIds = $request->input('user_ids', []);
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+
+    // Validasi minimal 1 user dipilih
+    if (empty($userIds)) {
+        return redirect()->back()->with('error', 'Pilih minimal 1 karyawan untuk export!');
+    }
+
+    return Excel::download(
+        new BulkSimpleExport($userIds, $startDate, $endDate),
+        'Absensi_Simple_' . now()->format('Y-m-d_His') . '.xlsx'
+    );
 }
 
 }

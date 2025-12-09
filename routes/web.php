@@ -56,6 +56,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
             Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])
     ->name('admin.absensi.bulk-export-pdf');
 
+        Route::post('/bulk-export-simple',[AbsensiAdminController::class, 'bulkExportSimple'])
+            ->name('admin.absensi.bulk-export-simple');
+
     });
 
     // APPROVAL ABSENSI

@@ -123,7 +123,11 @@
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Data absensi karyawan tetap</p>
                         </div>
                         <div class="flex gap-2">
-                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
+
+                                <button type="submit" formaction="{{ route('admin.absensi.bulk-export-simple') }}" class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
+                                <i class="fas fa-table mr-2"></i> Simple
+                            </button>
+                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
@@ -247,6 +251,10 @@
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Data absensi karyawan lepas</p>
                         </div>
                         <div class="flex gap-2">
+
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-simple') }}" class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
+                                <i class="fas fa-table mr-2"></i> Simple
+                            </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
@@ -371,6 +379,9 @@
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Data absensi karyawan borongan</p>
                         </div>
                         <div class="flex gap-2">
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-simple') }}" class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
+                                <i class="fas fa-table mr-2"></i> Simple
+                            </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
@@ -495,6 +506,9 @@
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Data absensi karyawan magang</p>
                         </div>
                         <div class="flex gap-2">
+                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-simple') }}" class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
+                                <i class="fas fa-table mr-2"></i> Simple
+                            </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
