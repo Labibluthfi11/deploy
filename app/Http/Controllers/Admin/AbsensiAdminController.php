@@ -890,19 +890,40 @@ private function penyebut($nilai)
 
     public function bulkExportSimple(Request $request)
 {
-    $userIds = $request->input('user_ids', []);
-    $startDate = $request->input('start_date');
-    $endDate = $request->input('end_date');
+    // 🔥 VALIDASI SIMPLE (ga perlu strict format)
+    $request->validate([
+        'user_ids'   => 'required|array|min:1',
+        'user_ids.*' => 'exists:users,id',
+        'start_date' => 'required',
+        'end_date'   => 'required',
+    ], [
+        'user_ids.required' => 'Pilih minimal 1 karyawan untuk export!',
+        'user_ids.min' => 'Pilih minimal 1 karyawan untuk export!',
+    ]);
 
-    // Validasi minimal 1 user dipilih
-    if (empty($userIds)) {
-        return redirect()->back()->with('error', 'Pilih minimal 1 karyawan untuk export!');
+    $userIds = $request->input('user_ids');
+
+    // 🔥 PARSE TANGGAL (FLEKSIBEL)
+    try {
+        // Bisa handle format: Y-m-d H:i:s ATAU Y-m-d
+        $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+        $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+    } catch (\Exception $e) {
+        \Log::error('Simple Export Date Parse Error: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Format tanggal tidak valid!');
     }
 
-    return Excel::download(
-        new BulkSimpleExport($userIds, $startDate, $endDate),
-        'Absensi_Simple_' . now()->format('Y-m-d_His') . '.xlsx'
-    );
+    $fileName = "Absensi_Simple_" . now()->format('Ymd_His') . ".xlsx";
+
+    try {
+        return Excel::download(
+            new BulkSimpleExport($userIds, $startDate, $endDate),
+            $fileName
+        );
+    } catch (\Exception $e) {
+        \Log::error('Simple Export Error: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Gagal export: ' . $e->getMessage());
+    }
 }
 
 }
