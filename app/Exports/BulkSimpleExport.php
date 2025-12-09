@@ -82,15 +82,16 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
     {
         $idKaryawan = $user->id_karyawan ?? '';
 
-        if (str_starts_with($idKaryawan, 'CS-AMB')) {
+        // 🔥 KOMPATIBEL PHP 7.x & 8.x
+        if (strpos($idKaryawan, 'CS-AMB') === 0) {
             return 'borongan';
         }
 
-        if (str_starts_with($idKaryawan, 'MG-AMB')) {
+        if (strpos($idKaryawan, 'MG-AMB') === 0) {
             return 'magang';
         }
 
-        if (str_starts_with($idKaryawan, 'AMB')) {
+        if (strpos($idKaryawan, 'AMB') === 0) {
             return 'freelance';
         }
 
