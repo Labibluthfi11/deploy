@@ -402,15 +402,7 @@
                     {{-- Divider --}}
                     <div class="elegant-divider my-8"></div>
 
-                    {{-- Register link --}}
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                            Belum memiliki akun?
-                            <a href="{{ route('register') }}" class="elegant-link ml-1.5 text-gray-900 dark:text-gray-200">
-                                Daftar sekarang
-                            </a>
-                        </p>
-                    </div>
+
                 </form>
             </div>
 
