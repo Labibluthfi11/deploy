@@ -240,18 +240,33 @@ class AbsensiController extends Controller
         }
     }
 
-   public function meAbsensi(Request $request)
+   // ✅ FIXED METHOD: meAbsensi()
+// Paste ini di AbsensiController.php line 220
+
+public function meAbsensi(Request $request)
 {
     $userId = Auth::id();
 
-    // ✅ TAMBAH FILTER TANGGAL (default 3 bulan terakhir)
-    $startDate = $request->input('start_date', Carbon::now()->subMonths(3));
-    $endDate = $request->input('end_date', Carbon::now());
+    // ✅ FIX 1: Parse tanggal dengan timezone yang benar
+    $startDate = $request->input('start_date')
+        ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
+        : Carbon::now('Asia/Jakarta')->subMonths(3)->startOfDay();
 
-    // ✅ FIX QUERY: Ambil DISTINCT per tanggal + prioritas status
+    $endDate = $request->input('end_date')
+        ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
+        : Carbon::now('Asia/Jakarta')->endOfDay();
+
+    \Log::info('📅 [ME ABSENSI] Date Range', [
+        'start' => $startDate->toDateTimeString(),
+        'end' => $endDate->toDateTimeString(),
+        'user_id' => $userId
+    ]);
+
+    // ✅ FIX 2: JANGAN PAKE unique() - Ambil SEMUA data approved dulu
     $absensi = Absensi::with('user')
         ->where('user_id', $userId)
         ->whereBetween('check_in_at', [$startDate, $endDate])
+        ->whereNull('parent_id') // ⬅️ PENTING: Filter child records dari multi-day
         ->orderByRaw("
             CASE status_approval
                 WHEN 'approved' THEN 3
@@ -263,25 +278,65 @@ class AbsensiController extends Controller
         ")
         ->orderBy('check_in_at', 'desc')
         ->orderBy('id', 'desc')
-        ->get()
-        ->unique(function ($item) {
-            // ✅ UNIQUE berdasarkan tanggal + tipe
-            $date = Carbon::parse($item->check_in_at)->format('Y-m-d');
-            return $date . '_' . ($item->tipe ?? 'hadir');
-        })
-        ->values();
+        ->get();
 
-    // ✅ TRANSFORM DATA
-    $result = $absensi->map(function($item) {
+    \Log::info('📊 [ME ABSENSI] Raw Query Result', [
+        'total_records' => $absensi->count(),
+        'sample_dates' => $absensi->take(5)->pluck('check_in_at')->toArray()
+    ]);
+
+    // ✅ FIX 3: MANUAL DEDUPLICATION (Lebih aman)
+    $uniqueAbsensi = [];
+    $seenDates = [];
+
+    foreach ($absensi as $item) {
+        $dateKey = Carbon::parse($item->check_in_at)->format('Y-m-d');
+
+        // ⬅️ LOGIC BARU: Prioritas berdasarkan status approval
+        if (!isset($seenDates[$dateKey])) {
+            // Belum ada untuk tanggal ini, ambil
+            $uniqueAbsensi[] = $item;
+            $seenDates[$dateKey] = $item->status_approval;
+        } else {
+            // Sudah ada, cek mana yang lebih prioritas
+            $existingStatus = $seenDates[$dateKey];
+            $currentStatus = $item->status_approval;
+
+            // Approved > Pending > Rejected
+            $priority = ['approved' => 3, 'pending' => 2, 'rejected' => 1, 'ditolak' => 1];
+
+            if (($priority[$currentStatus] ?? 0) > ($priority[$existingStatus] ?? 0)) {
+                // Replace dengan yang lebih prioritas
+                $uniqueAbsensi = array_filter($uniqueAbsensi, function($existing) use ($dateKey) {
+                    return Carbon::parse($existing->check_in_at)->format('Y-m-d') !== $dateKey;
+                });
+                $uniqueAbsensi[] = $item;
+                $seenDates[$dateKey] = $currentStatus;
+            }
+        }
+    }
+
+    \Log::info('✅ [ME ABSENSI] After Deduplication', [
+        'total_unique' => count($uniqueAbsensi),
+        'dates_found' => array_keys($seenDates)
+    ]);
+
+    // ✅ FIX 4: Transform data
+    $result = collect($uniqueAbsensi)->map(function($item) {
         $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
         $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
         $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
-        return $item->toArray(); // ✅ Biar appended attributes muncul
-    });
+        return $item->toArray();
+    })->values();
+
+    \Log::info('📤 [ME ABSENSI] Response Summary', [
+        'total_sent' => $result->count(),
+        'user_id' => $userId
+    ]);
 
     return response()->json(['data' => $result]);
 }
-    // Method lainnya (absenSakit, absenLembur, resubmit) tetap sama seperti kode asli
+
      public function absenSakit(Request $request)
     {
         // ✅ START TRANSACTION
