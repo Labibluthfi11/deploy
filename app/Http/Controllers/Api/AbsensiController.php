@@ -260,12 +260,12 @@ public function meAbsensi(Request $request)
         'end' => $endDate->toDateTimeString(),
     ]);
 
-    // 🔥 FIX: Ambil data TANPA sorting berdasarkan status
+
     $absensi = Absensi::with('user')
         ->where('user_id', $userId)
         ->whereBetween('check_in_at', [$startDate, $endDate])
         ->whereNull('parent_id')
-        ->orderBy('check_in_at', 'desc') // ✅ CUMA SORT BY TANGGAL
+        ->orderBy('check_in_at', 'desc')
         ->orderBy('id', 'desc')
         ->get();
 
@@ -273,7 +273,7 @@ public function meAbsensi(Request $request)
         'total_records' => $absensi->count(),
     ]);
 
-    // 🔥 FIX: Langsung transform tanpa deduplication
+    
     $result = $absensi->map(function($item) {
         $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
         $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
@@ -1029,19 +1029,55 @@ public function getDetailAbsensi($id)
             ], 403);
         }
 
-        // Format response (sama kayak sebelumnya)
-        $formattedAbsensi = [
-            'id' => $absensi->id,
-            'user_id' => $absensi->user_id,
-            // ... dst
-            'lembur_start' => $absensi->lembur_start
-                ? Carbon::parse($absensi->lembur_start)->format('H:i')
-                : null,
-            'lembur_end' => $absensi->lembur_end
-                ? Carbon::parse($absensi->lembur_end)->format('H:i')
-                : null,
-            // ... dst
-        ];
+        // Pastikan import Carbon di atas: use Carbon\Carbon;
+
+$formattedAbsensi = [
+    // --- 1. IDENTITAS & TANGGAL (Biar jelas ini punya siapa & kapan) ---
+    'id' => $absensi->id,
+    'user_id' => $absensi->user_id,
+    'nama_karyawan' => $absensi->user->name ?? 'User Tidak Ditemukan', // Ambil dari relasi
+    'tanggal_absensi' => Carbon::parse($absensi->created_at)->translatedFormat('l, d F Y'), // Contoh: "Senin, 18 Desember 2025"
+
+    // --- 2. JAM KERJA UTAMA (Diformat biar rapi) ---
+    'jam_masuk' => $absensi->jam_masuk
+        ? Carbon::parse($absensi->jam_masuk)->format('H:i')
+        : '-', // Kirim '-' atau null kalau belum absen
+
+    'jam_keluar' => $absensi->jam_keluar
+        ? Carbon::parse($absensi->jam_keluar)->format('H:i')
+        : '--:--', // Penanda visual kalau belum pulang
+
+    // --- 3. STATUS & INDIKATOR (Bantu Frontend kasih warna) ---
+    'status' => $absensi->status, // Contoh: 'Hadir', 'Izin', 'Sakit'
+    'is_late' => (bool) $absensi->is_late, // True/False (Bisa buat trigger warna merah di UI)
+    'keterangan_telat' => $absensi->late_reason ?? '-',
+
+    // --- 4. DATA LEMBUR (Sesuai request kamu) ---
+    'lembur_start' => $absensi->lembur_start
+        ? Carbon::parse($absensi->lembur_start)->format('H:i')
+        : null,
+    'lembur_end' => $absensi->lembur_end
+        ? Carbon::parse($absensi->lembur_end)->format('H:i')
+        : null,
+    // Hitung durasi lembur otomatis di sini jika perlu
+    'durasi_lembur' => $absensi->lembur_start && $absensi->lembur_end
+        ? Carbon::parse($absensi->lembur_start)->diffInMinutes(Carbon::parse($absensi->lembur_end)) . ' Menit'
+        : '0 Menit',
+
+    // --- 5. BUKTI & LOKASI (Validasi) ---
+    'foto_masuk_url' => $absensi->foto_masuk ? url('storage/' . $absensi->foto_masuk) : null,
+    'foto_keluar_url' => $absensi->foto_keluar ? url('storage/' . $absensi->foto_keluar) : null,
+
+    // Kelompokkan lokasi biar rapi (Nested JSON)
+    'lokasi_masuk' => [
+        'lat' => $absensi->lat_masuk,
+        'long' => $absensi->long_masuk,
+        'alamat' => $absensi->alamat_masuk // Jika ada
+    ],
+
+    // --- 6. META DATA (Info tambahan sistem) ---
+    'terakhir_update' => $absensi->updated_at->diffForHumans(), // Contoh: "2 menit yang lalu"
+];
 
         return response()->json([
             'success' => true,
