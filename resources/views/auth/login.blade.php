@@ -387,11 +387,7 @@
                             </span>
                         </label>
 
-                        @if (Route::has('password.request'))
-                            <a class="elegant-link text-sm" href="{{ route('password.request') }}">
-                                {{ __('Lupa kata sandi?') }}
-                            </a>
-                        @endif
+                        
                     </div>
 
                     {{-- Submit button --}}
