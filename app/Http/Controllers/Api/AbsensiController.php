@@ -379,28 +379,40 @@ public function meAbsensi(Request $request)
                 ], 422);
             }
 
-            // ✅ VALIDASI: Cek overlap dengan pengajuan lain
-            $existingAbsensi = Absensi::where('user_id', $user->id)
-                ->where(function($query) use ($startDate, $endDate) {
-                    $query->whereBetween('check_in_at', [$startDate, $endDate])
-                          ->orWhereBetween('end_date', [$startDate, $endDate])
-                          ->orWhere(function($q) use ($startDate, $endDate) {
-                              $q->where('check_in_at', '<=', $startDate)
-                                ->where('end_date', '>=', $endDate);
-                          });
-                })
-                ->whereIn('status_approval', ['pending', 'approved'])
-                ->first();
+            // ✅ VALIDASI: Cek overlap dengan pengajuan lain (TERMASUK REJECTED!)
+$existingAbsensi = Absensi::where('user_id', $user->id)
+    ->where(function($query) use ($startDate, $endDate) {
+        $query->whereBetween('check_in_at', [$startDate, $endDate])
+              ->orWhereBetween('end_date', [$startDate, $endDate])
+              ->orWhere(function($q) use ($startDate, $endDate) {
+                  $q->where('check_in_at', '<=', $startDate)
+                    ->where('end_date', '>=', $endDate);
+              });
+    })
+    ->whereIn('status_approval', ['pending', 'approved', 'rejected'])
+    ->first();
 
-            if ($existingAbsensi) {
-                DB::rollBack();
+if ($existingAbsensi) {
+    DB::rollBack();
 
-                $conflictDate = Carbon::parse($existingAbsensi->check_in_at)->format('d/m/Y');
-                return response()->json([
-                    'success' => false,
-                    'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->status} pada tanggal {$conflictDate}."
-                ], 409);
-            }
+    $conflictDate = Carbon::parse($existingAbsensi->check_in_at)->format('d/m/Y');
+
+    // KALO REJECTED, KASIH PESAN KHUSUS
+    if ($existingAbsensi->status_approval == 'rejected') {
+        return response()->json([
+            'success' => false,
+            'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->tipe} yang DITOLAK pada tanggal {$conflictDate}. Silakan gunakan tombol 'Ajukan Ulang' untuk memperbaiki pengajuan tersebut, bukan membuat pengajuan baru.",
+            'rejected_id' => $existingAbsensi->id, //  Kirim ID biar Flutter bisa redirect
+            'action' => 'use_resubmit' //  flag
+        ], 409);
+    }
+
+    // ✅ KALO PENDING/APPROVED (biasa)
+    return response()->json([
+        'success' => false,
+        'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->tipe} pada tanggal {$conflictDate}."
+    ], 409);
+}
 
             // ✅ UPLOAD FILE
             $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
@@ -574,18 +586,28 @@ public function meAbsensi(Request $request)
                                 ->where('end_date', '>=', $endDate);
                           });
                 })
-                ->whereIn('status_approval', ['pending', 'approved'])
+                ->whereIn('status_approval', ['pending', 'approved', 'rejected'])
                 ->first();
 
             if ($existingAbsensi) {
-                DB::rollBack();
+    DB::rollBack();
 
-                $conflictDate = Carbon::parse($existingAbsensi->check_in_at)->format('d/m/Y');
-                return response()->json([
-                    'success' => false,
-                    'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->status} pada tanggal {$conflictDate}."
-                ], 409);
-            }
+    $conflictDate = Carbon::parse($existingAbsensi->check_in_at)->format('d/m/Y');
+
+    if ($existingAbsensi->status_approval == 'rejected') {
+        return response()->json([
+            'success' => false,
+            'message' => "Anda sudah memiliki pengajuan izin yang DITOLAK pada tanggal {$conflictDate}. Silakan gunakan tombol 'Ajukan Ulang'.",
+            'rejected_id' => $existingAbsensi->id,
+            'action' => 'use_resubmit'
+        ], 409);
+    }
+
+            return response()->json([
+                'success' => false,
+                'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->tipe} pada tanggal {$conflictDate}."
+            ], 409);
+        }
 
             // ✅ UPLOAD FILE
             $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
