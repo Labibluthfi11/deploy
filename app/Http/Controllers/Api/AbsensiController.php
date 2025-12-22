@@ -815,134 +815,190 @@ public function meAbsensi(Request $request)
     }
 
     public function resubmitSakit(Request $request, $id)
-    {
-        try {
-            $request->validate([
-                'file_bukti' => 'required|file|max:2048',
-                'keterangan_izin_sakit' => 'nullable|string|max:500',
-            ]);
+{
+    DB::beginTransaction(); // Pake transaction biar aman
 
-            $absensi = Absensi::find($id);
-            if (!$absensi) {
-                return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
-            }
+    try {
+        $request->validate([
+            'file_bukti' => 'required|file|max:2048',
+            'keterangan_izin_sakit' => 'nullable|string|max:500',
+        ]);
 
-            if ($absensi->user_id !== Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
-            }
-
-            if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
-                return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
-            }
-
-            if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
-                Storage::disk('public')->delete($absensi->file_bukti);
-            }
-
-            $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
-            $employment = strtolower($absensi->user->employment_type ?? 'organik');
-            $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
-            $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-            $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
-
-            $absensi->update([
-                'file_bukti' => $filePath,
-                'keterangan_izin_sakit' => $request->keterangan_izin_sakit ?? $absensi->keterangan_izin_sakit,
-                'status_approval' => 'pending',
-                'workflow_status' => $workflow,
-                'current_approval_level' => $startLevel,
-                'rejected_by' => null,
-                'rejected_at' => null,
-                'catatan_admin' => null,
-                'updated_at' => now(),
-            ]);
-
-            $absensi->load('user');
-            $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
-
-            Notification::create([
-                'user_id' => $absensi->user_id,
-                'title' => "Pengajuan Sakit Diajukan Ulang",
-                'message' => "Pengajuan kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
-                'type' => 'sakit_resubmitted',
-                'target_page' => '/sakit_detail',
-                'target_id' => $absensi->id,
-            ]);
-
-            return response()->json(['success' => true, 'message' => 'Pengajuan sakit berhasil diajukan ulang. Menunggu approval.', 'data' => $absensi], 200);
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+        //  AMBIL RECORD YANG MAU DI-RESUBMIT
+        $absensi = Absensi::find($id);
+        if (!$absensi) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
         }
+
+        if ($absensi->user_id !== Auth::id()) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+        }
+
+        // HAPUS FILE LAMA
+        if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
+            Storage::disk('public')->delete($absensi->file_bukti);
+        }
+
+        // UPLOAD FILE BARU
+        $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+
+        //  GET WORKFLOW
+        $employment = strtolower($absensi->user->employment_type ?? 'organik');
+        $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
+        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+        //  UPDATE PARENT RECORD
+        $absensi->update([
+            'file_bukti' => $filePath,
+            'keterangan_izin_sakit' => $request->keterangan_izin_sakit ?? $absensi->keterangan_izin_sakit,
+            'status_approval' => 'pending',
+            'workflow_status' => $workflow,
+            'current_approval_level' => $startLevel,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'catatan_admin' => null,
+            'updated_at' => now(),
+        ]);
+
+        //  UPDATE SEMUA CHILDREN (kalo ada multi-day)
+        if ($absensi->end_date && $absensi->total_days > 1) {
+            Absensi::where('parent_id', $absensi->id)
+                ->update([
+                    'file_bukti' => $filePath,
+                    'keterangan_izin_sakit' => $request->keterangan_izin_sakit ?? $absensi->keterangan_izin_sakit,
+                    'status_approval' => 'pending',
+                    'workflow_status' => json_encode($workflow),
+                    'current_approval_level' => $startLevel,
+                    'rejected_by' => null,
+                    'rejected_at' => null,
+                    'catatan_admin' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        DB::commit(); //  COMMIT TRANSACTION
+
+        $absensi->load('user');
+        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
+
+        //  NOTIF
+        Notification::create([
+            'user_id' => $absensi->user_id,
+            'title' => "Pengajuan Sakit Diajukan Ulang",
+            'message' => "Pengajuan kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
+            'type' => 'sakit_resubmitted',
+            'target_page' => '/sakit_detail',
+            'target_id' => $absensi->id,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Pengajuan sakit berhasil diajukan ulang. Menunggu approval.', 'data' => $absensi], 200);
+
+    } catch (ValidationException $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
     }
+}
 
     public function resubmitIzin(Request $request, $id)
-    {
-        try {
-            $request->validate([
-                'file_bukti' => 'required|file|max:2048',
-                'catatan' => 'nullable|string|max:500',
-                'catatan_panggilan' => 'nullable|string|max:255',
-            ]);
+{
+    DB::beginTransaction();
 
-            $absensi = Absensi::find($id);
-            if (!$absensi) {
-                return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
-            }
+    try {
+        $request->validate([
+            'file_bukti' => 'required|file|max:2048',
+            'catatan' => 'nullable|string|max:500',
+            'catatan_panggilan' => 'nullable|string|max:255',
+        ]);
 
-            if ($absensi->user_id !== Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
-            }
-
-            if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
-                return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
-            }
-
-            if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
-                Storage::disk('public')->delete($absensi->file_bukti);
-            }
-
-            $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
-            $employment = strtolower($absensi->user->employment_type ?? 'organik');
-            $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
-            $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-            $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
-
-            $absensi->update([
-                'file_bukti' => $filePath,
-                'keterangan_izin_sakit' => $request->catatan ?? $absensi->keterangan_izin_sakit,
-                'status_approval' => 'pending',
-                'workflow_status' => $workflow,
-                'current_approval_level' => $startLevel,
-                'rejected_by' => null,
-                'rejected_at' => null,
-                'catatan_admin' => null,
-                'updated_at' => now(),
-            ]);
-
-            $absensi->load('user');
-            $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
-
-            Notification::create([
-                'user_id' => $absensi->user_id,
-                'title' => "Pengajuan Izin Diajukan Ulang",
-                'message' => "Pengajuan kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
-                'type' => 'izin_resubmitted',
-                'target_page' => '/izin_detail',
-                'target_id' => $absensi->id,
-            ]);
-
-            return response()->json(['success' => true, 'message' => 'Pengajuan izin berhasil diajukan ulang. Menunggu approval.', 'data' => $absensi], 200);
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+        $absensi = Absensi::find($id);
+        if (!$absensi) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
         }
-    }
 
-    // app/Http/Controllers/Api/AbsensiController.php
-// TAMBAHKAN LOGGING UNTUK DEBUG
+        if ($absensi->user_id !== Auth::id()) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+        }
+
+        if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
+            Storage::disk('public')->delete($absensi->file_bukti);
+        }
+
+        $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+        $employment = strtolower($absensi->user->employment_type ?? 'organik');
+        $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
+        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+        $absensi->update([
+            'file_bukti' => $filePath,
+            'keterangan_izin_sakit' => $request->catatan ?? $absensi->keterangan_izin_sakit,
+            'status_approval' => 'pending',
+            'workflow_status' => $workflow,
+            'current_approval_level' => $startLevel,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'catatan_admin' => null,
+            'updated_at' => now(),
+        ]);
+
+        // ✅ UPDATE CHILDREN
+        if ($absensi->end_date && $absensi->total_days > 1) {
+            Absensi::where('parent_id', $absensi->id)
+                ->update([
+                    'file_bukti' => $filePath,
+                    'keterangan_izin_sakit' => $request->catatan ?? $absensi->keterangan_izin_sakit,
+                    'status_approval' => 'pending',
+                    'workflow_status' => json_encode($workflow),
+                    'current_approval_level' => $startLevel,
+                    'rejected_by' => null,
+                    'rejected_at' => null,
+                    'catatan_admin' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        DB::commit();
+
+        $absensi->load('user');
+        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
+
+        Notification::create([
+            'user_id' => $absensi->user_id,
+            'title' => "Pengajuan Izin Diajukan Ulang",
+            'message' => "Pengajuan kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
+            'type' => 'izin_resubmitted',
+            'target_page' => '/izin_detail',
+            'target_id' => $absensi->id,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Pengajuan izin berhasil diajukan ulang. Menunggu approval.', 'data' => $absensi], 200);
+
+    } catch (ValidationException $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+    }
+}
 
     public function resubmitLembur(Request $request, $id)
     {
