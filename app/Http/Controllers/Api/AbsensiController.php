@@ -94,83 +94,137 @@ class AbsensiController extends Controller
     }
 
     public function absenMasuk(Request $request)
-    {
-        try {
-            $request->validate([
-                'foto' => 'required|image|max:2048',
-                'lat' => 'required|numeric',
-                'lng' => 'required|numeric',
-                'status' => 'required|in:hadir,sakit,izin',
-            ]);
+{
+    try {
+        $request->validate([
+            'foto' => 'required|image|max:2048',
+            'lat' => 'required|numeric',
+            'lng' => 'required|numeric',
+            'status' => 'required|in:hadir,sakit,izin',
+        ]);
 
-            $user = Auth::user();
-            $today = Carbon::today();
+        $user = Auth::user();
+        $today = Carbon::today();
 
-            $existingAbsensi = Absensi::where('user_id', $user->id)
-                ->whereDate('check_in_at', $today)
-                ->whereIn('status_approval', ['pending', 'approved'])
-                ->first();
+        // 🔥 FIX #1: CEK SEMUA STATUS (termasuk REJECTED)
+        $existingAbsensi = Absensi::where('user_id', $user->id)
+            ->whereDate('check_in_at', $today)
+            ->first();
 
-            if ($existingAbsensi && $existingAbsensi->check_in_at) {
-                if ($existingAbsensi->tipe == 'sakit' || $existingAbsensi->tipe == 'izin') {
-                    return response()->json([
-                        'message' => 'Absensi dibatalkan. Anda sudah mengajukan ' . ucfirst($existingAbsensi->tipe) . ' untuk hari ini.',
-                        'tipe' => $existingAbsensi->tipe
-                    ], 409);
+        if ($existingAbsensi) {
+            // 🟢 CASE 1: Izin APPROVED (Disetujui) → BLOKIR
+            if (in_array($existingAbsensi->status_approval, ['approved', 'pending'])
+                && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
+
+                $statusText = $existingAbsensi->status_approval == 'approved' ? 'Disetujui' : 'Sedang Diproses';
+
+                return response()->json([
+                    'message' => "Anda sudah mengajukan {$existingAbsensi->tipe} ({$statusText}). Tidak perlu absen masuk.",
+                    'tipe' => $existingAbsensi->tipe,
+                    'status_approval' => $existingAbsensi->status_approval
+                ], 409);
+            }
+
+            // 🟡 CASE 2: Izin REJECTED → UPDATE jadi HADIR
+            if ($existingAbsensi->status_approval == 'rejected'
+                && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
+
+                $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
+                $lokasiMasuk = $request->lat . ',' . $request->lng; // ✅ FIX: Quote lurus
+                $checkInTime = now();
+                $isWeekend = Absensi::isWeekend($checkInTime);
+                $lateMinutes = 0;
+
+                if ($request->status === 'hadir') {
+                    $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
                 }
-                return response()->json(['message' => 'Anda sudah absen masuk hari ini.'], 409);
+
+                $salaryData = Absensi::calculateSalary($lateMinutes, 'hadir', null, $isWeekend);
+
+                // ⚡ UPDATE record yang REJECTED jadi HADIR
+                $existingAbsensi->update([
+                    'check_in_at' => $checkInTime,
+                    'foto_masuk' => $fotoPath,
+                    'lokasi_masuk' => $lokasiMasuk,
+                    'status' => 'hadir',
+                    'tipe' => null,
+                    'status_approval' => 'approved',
+                    'keterangan_izin_sakit' => null,
+                    'file_bukti' => null,
+                    'late_minutes' => $lateMinutes,
+                    'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+                    'base_salary' => $salaryData['base_salary'],
+                    'late_penalty' => $salaryData['late_penalty'],
+                    'final_salary' => $salaryData['final_salary'],
+                    'is_weekend_overtime' => false,
+                ]);
+
+                $existingAbsensi->load('user');
+                $existingAbsensi->foto_masuk_url = Storage::url($existingAbsensi->foto_masuk);
+
+                return response()->json([
+                    'message' => 'Absensi berhasil! Izin yang ditolak otomatis diubah jadi hadir.'
+                                . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
+                    'data' => $existingAbsensi
+                ], 200);
             }
 
-            $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
-            $lokasiMasuk = $request->lat . ',' . $request->lng;
-            $checkInTime = now();
-
-            $employment = strtolower($user->employment_type ?? 'organik');
-            $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-
-            // 🆕 CEK APAKAH HARI INI WEEKEND
-            $isWeekend = Absensi::isWeekend($checkInTime);
-
-            // Hitung keterlambatan
-            $lateMinutes = 0;
-            if ($request->status === 'hadir') {
-                $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
+            // 🔵 CASE 3: Udah Hadir Sebelumnya
+            if ($existingAbsensi->status == 'hadir' && $existingAbsensi->check_in_at) {
+                return response()->json([
+                    'message' => 'Anda sudah absen masuk hari ini.'
+                ], 409);
             }
-
-            // 🆕 Hitung gaji dengan parameter weekend
-            $salaryData = Absensi::calculateSalary($lateMinutes, $request->status, null, $isWeekend);
-
-            $absensi = Absensi::create([
-                'user_id' => $user->id,
-                'check_in_at' => $checkInTime,
-                'foto_masuk' => $fotoPath,
-                'lokasi_masuk' => $lokasiMasuk,
-                'status' => $request->status,
-                'tipe' => ($request->status == 'hadir') ? null : $request->status,
-                'status_approval' => ($request->status == 'hadir') ? 'approved' : 'pending',
-                'current_approval_level' => 1,
-                'workflow_status' => $workflow,
-                'late_minutes' => $lateMinutes,
-                'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
-                'base_salary' => $salaryData['base_salary'],
-                'late_penalty' => $salaryData['late_penalty'],
-                'final_salary' => $salaryData['final_salary'],
-                'is_weekend_overtime' => false, // Normal absen masuk bukan weekend overtime
-            ]);
-
-            $absensi->load('user');
-            $absensi->foto_masuk_url = Storage::url($absensi->foto_masuk);
-
-            return response()->json([
-                'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
-                'data' => $absensi
-            ], 201);
-        } catch (ValidationException $e) {
-            return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
         }
+
+        // 🟢 CASE 4: Belum Ada Data → CREATE BARU (Normal Flow)
+        $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
+        $lokasiMasuk = $request->lat . ',' . $request->lng; // ✅ FIX: Quote lurus
+        $checkInTime = now();
+        $employment = strtolower($user->employment_type ?? 'organik');
+        $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+        $isWeekend = Absensi::isWeekend($checkInTime);
+        $lateMinutes = 0;
+
+        if ($request->status === 'hadir') {
+            $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
+        }
+
+        $salaryData = Absensi::calculateSalary($lateMinutes, $request->status, null, $isWeekend);
+
+        $absensi = Absensi::create([
+            'user_id' => $user->id,
+            'check_in_at' => $checkInTime,
+            'foto_masuk' => $fotoPath,
+            'lokasi_masuk' => $lokasiMasuk,
+            'status' => $request->status,
+            'tipe' => ($request->status == 'hadir') ? null : $request->status,
+            'status_approval' => ($request->status == 'hadir') ? 'approved' : 'pending',
+            'current_approval_level' => 1,
+            'workflow_status' => $workflow,
+            'late_minutes' => $lateMinutes,
+            'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+            'base_salary' => $salaryData['base_salary'],
+            'late_penalty' => $salaryData['late_penalty'],
+            'final_salary' => $salaryData['final_salary'],
+            'is_weekend_overtime' => false,
+        ]);
+
+        $absensi->load('user');
+        $absensi->foto_masuk_url = Storage::url($absensi->foto_masuk);
+
+        return response()->json([
+            'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
+            'data' => $absensi
+        ], 201);
+
+    } catch (ValidationException $e) {
+        return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
     }
+}
+
     // Method lain tetap sama (absenPulang, absenLembur, dll.)
     public function absenPulang(Request $request)
     {
@@ -273,7 +327,7 @@ public function meAbsensi(Request $request)
         'total_records' => $absensi->count(),
     ]);
 
-    
+
     $result = $absensi->map(function($item) {
         $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
         $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
