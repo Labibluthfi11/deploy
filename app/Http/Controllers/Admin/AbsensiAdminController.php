@@ -361,21 +361,21 @@ class AbsensiAdminController extends Controller
         });
 
         // Filter data yang approved untuk statistik
-        $approvedAbsensi = $absensi->where('status_approval', 'approved');
-
+        // ✅ AMBIL SEMUA DATA (APPROVED + REJECTED YANG PUNYA GAJI)
+        $approvedAbsensi = $absensi->whereIn('status_approval', ['approved', 'rejected']);
         // Hitung statistik berdasarkan data yang sudah difilter
-        $absensiStats = [
+            $absensiStats = [
             'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
             'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
-            'izin' => $approvedAbsensi->where('status', 'izin')->count(),
-            'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
-            'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
+            'izin' => $approvedAbsensi->where('status', 'izin')->where('status_approval', 'approved')->count(),
+            'sakit' => $approvedAbsensi->where('status', 'sakit')->where('status_approval', 'approved')->count(),
+            'lembur' => $approvedAbsensi->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
             'total_absensi' => $approvedAbsensi->count(),
             'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
             'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+            'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-            'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+            'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
         ];
 
         // Variabel dummy untuk mingguan (biar view gak error)
@@ -397,78 +397,79 @@ class AbsensiAdminController extends Controller
     }
 
     public function recap(Request $request)
-    {
-        $month = $request->input('month', Carbon::now()->month);
-        $year = $request->input('year', Carbon::now()->year);
-        $range = $request->input('range', 'monthly');
-        $week = $request->input('week', null);
+{
+    $month = $request->input('month', Carbon::now()->month);
+    $year = $request->input('year', Carbon::now()->year);
+    $range = $request->input('range', 'monthly');
+    $week = $request->input('week', null);
 
-        // 🔥 LOGIKA BARU: 3 PILIHAN
-        if ($range === 'custom') {
-            $startDate = $request->input('start_date')
-                ? Carbon::parse($request->input('start_date'))->startOfDay()
-                : Carbon::now()->startOfMonth();
+    // Logika tanggal (sama kayak sebelumnya)
+    if ($range === 'custom') {
+        $startDate = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()
+            : Carbon::now()->startOfMonth();
 
-            $endDate = $request->input('end_date')
-                ? Carbon::parse($request->input('end_date'))->endOfDay()
-                : Carbon::now()->endOfMonth();
+        $endDate = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()
+            : Carbon::now()->endOfMonth();
 
-        } elseif ($range === 'weekly' && $week) {
-            $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
-            if ($firstMonday->month != $month) {
-                $firstMonday = Carbon::create($year, $month, 1);
-            }
-            $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
-            $endDate = (clone $startDate)->endOfWeek();
-
-        } else {
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+    } elseif ($range === 'weekly' && $week) {
+        $firstMonday = Carbon::create($year, $month, 1)->startOfMonth()->next(Carbon::MONDAY);
+        if ($firstMonday->month != $month) {
+            $firstMonday = Carbon::create($year, $month, 1);
         }
+        $startDate = (clone $firstMonday)->addWeeks($week - 1)->startOfWeek();
+        $endDate = (clone $startDate)->endOfWeek();
 
-        $users = User::all();
-        $recapData = [];
-
-        foreach ($users as $user) {
-            // 🔥 QUERY BIASA AJA (JANGAN TAMBAHIN orderBy updated_at)
-            $absensiUser = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$startDate, $endDate])
-                ->where('status_approval', 'approved')
-                ->get();
-
-            // 🔥 FORCE REFRESH DATA APPROVED (Re-fetch dari DB)
-            $absensiUser = $absensiUser->map(function($item) {
-                return Absensi::find($item->id); // Force reload
-            });
-
-            $totalGaji = $absensiUser->sum('final_salary') ?? 0;
-            $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
-            $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            $kategori = $this->detectKategori($user);
-
-            $recapData[] = [
-                'user' => $user,
-                'kategori' => $kategori,
-                'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-                'total_izin' => $absensiUser->where('status', 'izin')->count(),
-                'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
-                'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
-                'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-                'total_menit_telat' => $absensiUser->sum('late_minutes'),
-                'total_menit_lembur' => $totalMenitLembur,
-                'total_gaji_lembur' => $totalGajiLembur,
-                'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan,
-            ];
-        }
-
-        return view('admin.absensi.recap', compact(
-            'recapData', 'month', 'year', 'range', 'week',
-            'startDate', 'endDate'
-        ))->with('selectedMonth', $month)
-          ->with('selectedYear', $year);
+    } else {
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
     }
+
+    $users = User::all();
+    $recapData = [];
+
+    foreach ($users as $user) {
+        // ✅ AMBIL SEMUA DATA (APPROVED + REJECTED)
+        $absensiUser = Absensi::where('user_id', $user->id)
+            ->whereBetween('check_in_at', [$startDate, $endDate])
+            ->whereIn('status_approval', ['approved', 'rejected'])
+            ->get();
+
+        // 🔥 FORCE REFRESH
+        $absensiUser = $absensiUser->map(function($item) {
+            return Absensi::find($item->id);
+        });
+
+        // ✅ HITUNG GAJI (Semua yang punya final_salary)
+        $totalGaji = $absensiUser->sum('final_salary') ?? 0;
+        $totalGajiLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay') ?? 0;
+        $totalMenitLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes');
+        $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+        $kategori = $this->detectKategori($user);
+
+        $recapData[] = [
+            'user' => $user,
+            'kategori' => $kategori,
+            'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
+            'total_izin' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count(),
+            'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
+            'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+            'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+            'total_menit_telat' => $absensiUser->sum('late_minutes'),
+            'total_menit_lembur' => $totalMenitLembur,
+            'total_gaji_lembur' => $totalGajiLembur,
+            'total_gaji' => $totalGaji,
+            'total_potongan' => $totalPotongan,
+        ];
+    }
+
+    return view('admin.absensi.recap', compact(
+        'recapData', 'month', 'year', 'range', 'week',
+        'startDate', 'endDate'
+    ))->with('selectedMonth', $month)
+      ->with('selectedYear', $year);
+}
 
     public function exportRecap(Request $request)
     {
@@ -506,36 +507,35 @@ class AbsensiAdminController extends Controller
         foreach ($users as $user) {
             // 🔥 QUERY BIASA
             $absensiUser = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$startDate, $endDate])
-                ->where('status_approval', 'approved')
-                ->get();
+    ->whereBetween('check_in_at', [$startDate, $endDate])
+    ->whereIn('status_approval', ['approved', 'rejected']) // ✅
+    ->get();
 
-            // 🔥 FORCE REFRESH
-            $absensiUser = $absensiUser->map(function($item) {
-                return Absensi::find($item->id);
-            });
+    $absensiUser = $absensiUser->map(function($item) {
+        return Absensi::find($item->id);
+    });
 
-            $totalGaji = $absensiUser->sum('final_salary') ?? 0;
-            $totalGajiLembur = $absensiUser->sum('overtime_pay') ?? 0;
-            $totalMenitLembur = $absensiUser->sum('overtime_minutes');
-            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-            $kategori = $this->detectKategori($user);
+    $totalGaji = $absensiUser->sum('final_salary') ?? 0;
+    $totalGajiLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay') ?? 0;
+    $totalMenitLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes');
+    $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+    $kategori = $this->detectKategori($user);
 
-            $recapData[] = [
-                'user' => $user,
-                'kategori' => $kategori,
-                'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-                'total_izin' => $absensiUser->where('status', 'izin')->count(),
-                'total_sakit' => $absensiUser->where('status', 'sakit')->count(),
-                'total_lembur' => $absensiUser->where('tipe', 'lembur')->count(),
-                'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-                'total_menit_lembur' => $totalMenitLembur,
-                'total_gaji_lembur' => $totalGajiLembur,
-                'total_menit_telat' => $absensiUser->sum('late_minutes'),
-                'total_gaji' => $totalGaji,
-                'total_potongan' => $totalPotongan,
-                'total_absensi' => $absensiUser->count(),
-            ];
+    $recapData[] = [
+        'user' => $user,
+        'kategori' => $kategori,
+        'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
+        'total_izin' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count(),
+        'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
+        'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+        'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+        'total_menit_lembur' => $totalMenitLembur,
+        'total_gaji_lembur' => $totalGajiLembur,
+        'total_menit_telat' => $absensiUser->sum('late_minutes'),
+        'total_gaji' => $totalGaji,
+        'total_potongan' => $totalPotongan,
+        'total_absensi' => $absensiUser->count(),
+    ];
         }
 
         $filenameSuffix = $range === 'weekly' && $week
@@ -642,21 +642,19 @@ class AbsensiAdminController extends Controller
     }
 
     // Ambil data yang DI-APPROVE AJA
-    $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+    $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])->get();
 
-    // 🔥 FORCE REFRESH DATA
     $approvedAbsensi = $approvedAbsensi->map(function($item) {
         return Absensi::find($item->id);
     });
 
-    // Hitung Statistik
     $absensiStats = [
         'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
         'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
         'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-        'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
+        'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
         'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
+        'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
     ];
 
     // Nama File
@@ -723,20 +721,20 @@ public function exportSlipGajiPdf(Request $request, $id)
         }
     }
 
-    $approvedAbsensi = $query->where('status_approval', 'approved')->get();
+   $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])->get();
 
-    $approvedAbsensi = $approvedAbsensi->map(function($item) {
-        return Absensi::find($item->id);
-    });
+$approvedAbsensi = $approvedAbsensi->map(function($item) {
+    return Absensi::find($item->id);
+});
 
-    $absensiStats = [
-        'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-        'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-        'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-        'total_gaji_lembur' => $approvedAbsensi->sum('overtime_pay'),
-        'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-        'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
-    ];
+$absensiStats = [
+    'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
+    'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
+    'total_potongan' => $approvedAbsensi->sum('late_penalty'),
+    'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
+    'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
+    'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
+];
 
     $exporter = new SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
     $pdf = $exporter->generate();
