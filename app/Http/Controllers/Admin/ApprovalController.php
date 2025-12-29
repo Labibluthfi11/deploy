@@ -33,6 +33,7 @@ class ApprovalController extends Controller
         ],
     ];
 
+
     private function getSubmissions(Request $request, $type, $level, $status = 'pending')
     {
         $search = $request->input('search');
@@ -137,52 +138,127 @@ class ApprovalController extends Controller
         // 🟥 REJECT ACTION
         // =====================================================
         if ($action === 'reject') {
-            $request->validate(['catatan_admin' => 'required|min:5']);
-            $workflowStatus[$workflowKey] = 'rejected';
-            $rejectedBy = $workflowKey;
-            $resubmitLevel = $this->determineResubmitLevel($rejectedBy, $workflowStatus);
-            $resetWorkflow = $this->resetWorkflowFromLevel($workflowStatus, $resubmitLevel, $userTipe);
+    $request->validate(['catatan_admin' => 'required|min:5']);
+    $workflowStatus[$workflowKey] = 'rejected';
+    $rejectedBy = $workflowKey;
+    $resubmitLevel = $this->determineResubmitLevel($rejectedBy, $workflowStatus);
+    $resetWorkflow = $this->resetWorkflowFromLevel($workflowStatus, $resubmitLevel, $userTipe);
 
-            $absensi->update([
-                'status_approval' => 'rejected',
-                'catatan_admin' => $request->catatan_admin,
-                'rejected_by' => $rejectedBy,
-                'rejected_at' => now(),
-                'workflow_status' => $resetWorkflow,
-                'current_approval_level' => $resubmitLevel,
-                'overtime_minutes' => 0,
-                'overtime_pay'     => 0,
-                'final_salary'     => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
+    // ✅ CEK APAKAH INI IZIN/SAKIT (GAK ADA GAJI)
+    $isLeaveType = in_array(strtolower($absensi->status ?? ''), ['izin', 'sakit']) ||
+                   in_array(strtolower($absensi->tipe ?? ''), ['izin', 'sakit']);
+
+    Log::info('🔍 [REJECT] Processing rejection', [
+        'id' => $absensi->id,
+        'tipe' => $absensi->tipe,
+        'status' => $absensi->status,
+        'is_leave_type' => $isLeaveType,
+    ]);
+
+    // ✅ HITUNG GAJI BERDASARKAN TIPE
+    if ($isLeaveType) {
+        // IZIN/SAKIT → Gak ada gaji
+        $finalSalary = 0;
+        $baseSalary = 0;
+        $latePenalty = 0;
+
+        Log::info('💰 [REJECT] Leave type - No salary');
+
+    } else {
+        // HADIR/LEMBUR → Ada gaji pokok, tapi lembur gak masuk
+
+        // Pastikan base_salary udah ada (kalo belum, hitung dulu)
+        if ($absensi->base_salary === null) {
+            $salaryData = \App\Models\Absensi::calculateSalary(
+                $absensi->late_minutes ?? 0,
+                $absensi->status,
+                null, // Bukan lembur
+                $absensi->is_weekend_overtime ?? false
+            );
+
+            $baseSalary = $salaryData['base_salary'];
+            $latePenalty = $salaryData['late_penalty'];
+
+            Log::info('💰 [REJECT] Calculated base salary', [
+                'base_salary' => $baseSalary,
+                'late_penalty' => $latePenalty,
             ]);
 
-            if ($absensi->children()->exists()) {
-                $absensi->children()->update([
-                    'status_approval' => 'rejected',
-                    'workflow_status' => $resetWorkflow,
-                    'current_approval_level' => $resubmitLevel,
-                    'rejected_by' => $rejectedBy,
-                    'rejected_at' => now(),
-                    'catatan_admin' => $request->catatan_admin,
-                    'approved_at' => null,
-                    'overtime_minutes' => 0,
-                    'overtime_pay' => 0,
-                    'final_salary' => ($absensi->base_salary ?? 0) - ($absensi->late_penalty ?? 0),
-                ]);
+        } else {
+            // Udah ada, pake yang ada
+            $baseSalary = $absensi->base_salary;
+            $latePenalty = $absensi->late_penalty ?? 0;
 
-                Log::info("✅ Synced REJECT status to " . $absensi->children()->count() . " child records");
-            }
-
-            Notification::create([
-                'user_id' => $absensi->user_id,
-                'title' => "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
-                'message' => "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin,
-                'type' => "{$submissionType}_rejected",
-                'target_page' => $targetPage,
-                'target_id' => $absensi->id,
+            Log::info('💰 [REJECT] Using existing base salary', [
+                'base_salary' => $baseSalary,
+                'late_penalty' => $latePenalty,
             ]);
-
-            return back()->with('success', 'Pengajuan ditolak dan dikembalikan ke level yang sesuai.');
         }
+
+        // FINAL SALARY = Gaji Pokok - Potongan (TANPA LEMBUR)
+        $finalSalary = $baseSalary - $latePenalty;
+
+        Log::info('💰 [REJECT] Final salary (no overtime)', [
+            'final_salary' => $finalSalary,
+        ]);
+    }
+
+    // ✅ UPDATE DATABASE
+    $absensi->update([
+        'status_approval' => 'rejected',
+        'catatan_admin' => $request->catatan_admin,
+        'rejected_by' => $rejectedBy,
+        'rejected_at' => now(),
+        'workflow_status' => $resetWorkflow,
+        'current_approval_level' => $resubmitLevel,
+
+        // ✅ RESET LEMBUR (karena lembur ditolak)
+        'overtime_minutes' => 0,
+        'overtime_pay'     => 0,
+
+        // ✅ TETEP KASIH GAJI POKOK (kalo bukan izin/sakit)
+        'base_salary'   => $baseSalary,
+        'late_penalty'  => $latePenalty,
+        'final_salary'  => $finalSalary, // ✅ Gaji pokok - potongan (tanpa lembur)
+    ]);
+
+    Log::info('✅ [REJECT] Updated main record', [
+        'id' => $absensi->id,
+        'final_salary' => $finalSalary,
+    ]);
+
+    // ✅ UPDATE CHILDREN (kalo ada)
+    if ($absensi->children()->exists()) {
+        $absensi->children()->update([
+            'status_approval' => 'rejected',
+            'workflow_status' => $resetWorkflow,
+            'current_approval_level' => $resubmitLevel,
+            'rejected_by' => $rejectedBy,
+            'rejected_at' => now(),
+            'catatan_admin' => $request->catatan_admin,
+            'approved_at' => null,
+            'overtime_minutes' => 0,
+            'overtime_pay' => 0,
+            'base_salary' => $baseSalary,
+            'late_penalty' => $latePenalty,
+            'final_salary' => $finalSalary,
+        ]);
+
+        Log::info("✅ Synced REJECT status to " . $absensi->children()->count() . " child records");
+    }
+
+    // ✅ NOTIFIKASI
+    Notification::create([
+        'user_id' => $absensi->user_id,
+        'title' => "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
+        'message' => "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin,
+        'type' => "{$submissionType}_rejected",
+        'target_page' => $targetPage,
+        'target_id' => $absensi->id,
+    ]);
+
+    return back()->with('success', 'Pengajuan ditolak. Gaji pokok tetap dihitung.');
+}
 
         // =====================================================
         // ✅ APPROVE ACTION
