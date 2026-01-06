@@ -852,9 +852,7 @@ public function bulkExportPdf(Request $request)
     return response()->download($zipPath)->deleteFileAfterSend(true);
 }
 
-/**
- * 🔥 HELPER: Convert angka ke terbilang 🔥
- */
+
 private function penyebut($nilai)
 {
     $nilai = abs($nilai);
@@ -901,9 +899,9 @@ private function penyebut($nilai)
 
     $userIds = $request->input('user_ids');
 
-    // 🔥 PARSE TANGGAL (FLEKSIBEL)
+
     try {
-        // Bisa handle format: Y-m-d H:i:s ATAU Y-m-d
+        
         $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
         $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
     } catch (\Exception $e) {
@@ -925,47 +923,56 @@ private function penyebut($nilai)
 }
 
 public function updateCheckIn(Request $request, Absensi $absensi)
-    {
+{
 
-        $request->validate([
-            'new_check_in' => 'required|date_format:Y-m-d H:i:s',
-        ]);
-
-        $newCheckIn = Carbon::parse($request->input('new_check_in'));
+    $request->validate([
+        'new_check_in' => 'required|date_format:Y-m-d\TH:i',
+    ]);
 
 
-        $user = $absensi->user;
-        $shift = $user->shift;
-
-        if (!$shift) {
-            return back()->with('error', 'User tidak punya shift!');
-        }
+    $inputTime = $request->input('new_check_in');
+    $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
 
 
-        $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
-        $lateMinutes = 0;
+    $user = $absensi->user;
+    $shift = $user->shift;
 
-        if ($newCheckIn->greaterThan($jamMasukShift)) {
-            $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
-        }
-
-
-        $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
-        $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
-        $latePenalty = $lateMinutes * $tarifDendaTelat;
-
-
-        $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
-
-
-        $absensi->update([
-            'check_in_at' => $newCheckIn,
-            'late_minutes' => $lateMinutes,
-            'late_penalty' => $latePenalty,
-            'final_salary' => $finalSalary,
-        ]);
-
-        return back()->with('success', " Check-in berhasil diubah! Telat: {$lateMinutes} menit, Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+    if (!$shift) {
+        return back()->with('error', ' User tidak punya shift!');
     }
+
+
+    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
+    $lateMinutes = 0;
+
+    if ($newCheckIn->greaterThan($jamMasukShift)) {
+        $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
+    }
+
+
+    $roundedLateMinutes = 0;
+    if ($lateMinutes > 0) {
+        $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
+    }
+
+
+    $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
+    $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
+    $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
+
+
+    $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
+
+
+    $absensi->update([
+        'check_in_at' => $newCheckIn,
+        'late_minutes' => $lateMinutes,
+        'rounded_late_minutes' => $roundedLateMinutes,
+        'late_penalty' => $latePenalty,
+        'final_salary' => $finalSalary,
+    ]);
+
+    return back()->with('success', " Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+}
 
 }
