@@ -27,13 +27,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         Route::get('/', [AbsensiAdminController::class, 'index'])->name('admin.absensi.index');
         Route::get('/organik', [AbsensiAdminController::class, 'indexOrganik'])->name('admin.absensi.organik');
         Route::get('/freelance', [AbsensiAdminController::class, 'indexFreelance'])->name('admin.absensi.freelance');
+        
+                // tempat ngedit absen telat
+                Route::put('/{id}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
+                    ->name('admin.absensi.updateCheckIn');
 
         // Detail absensi per user
         Route::get('/user/{user}', [AbsensiAdminController::class, 'show'])->name('admin.absensi.user');
 
-        // tempat ngedit absen telat
-        Route::put('/{id}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
-            ->name('admin.absensi.updateCheckIn');
 
         // Export absensi per user
         Route::get('/user/{id}/export', [AbsensiAdminController::class, 'exportUser'])
