@@ -580,44 +580,123 @@
         </div>
     </div>
 
-    <div id="modalEditCheckIn" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
-            <form id="formEditCheckIn" method="POST">
-                @csrf
-                @method('PUT')
+    <div id="modalEditCheckIn" class="fixed inset-0 bg-gradient-to-br from-black/60 via-black/70 to-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-95 hover:scale-100 border border-gray-200 dark:border-gray-700">
 
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">Edit Waktu Check-In</h3>
-                    <button type="button" onclick="closeModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
+        {{-- Header dengan Gradient --}}
+        <div class="relative bg-gradient-to-r from-blue-600 via-blue-500 to-purple-600 rounded-t-3xl p-6 overflow-hidden">
+            {{-- Animated Background Pattern --}}
+            <div class="absolute inset-0 opacity-20">
+                <div class="absolute top-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse"></div>
+                <div class="absolute bottom-0 right-0 w-32 h-32 bg-purple-300 rounded-full blur-2xl animate-pulse delay-300"></div>
+            </div>
+
+            <div class="relative flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clock text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Edit Waktu Check-In</h3>
+                        <p class="text-xs text-blue-100 mt-0.5">Ubah jam masuk karyawan</p>
+                    </div>
                 </div>
+                <button type="button" onclick="closeModal()"
+                        class="w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-lg rounded-xl flex items-center justify-center transition-all duration-200 hover:rotate-90">
+                    <i class="fas fa-times text-lg text-white"></i>
+                </button>
+            </div>
+        </div>
 
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Jam Check-In Baru
-                    </label>
+        {{-- Form Content --}}
+        <form id="formEditCheckIn" method="POST" class="p-6 space-y-6">
+            @csrf
+            @method('PUT')
+
+            {{-- Info Card --}}
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-info-circle text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-1">Perhatian!</h4>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                            Perubahan waktu check-in akan otomatis menghitung ulang keterlambatan dan potongan gaji.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Input Field dengan Icon --}}
+            <div class="space-y-2">
+                <label class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    <i class="fas fa-calendar-alt text-blue-600 dark:text-blue-400"></i>
+                    <span>Pilih Waktu Check-In Baru</span>
+                </label>
+
+                <div class="relative group">
                     <input type="datetime-local"
                            name="new_check_in"
                            id="inputNewCheckIn"
-                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                           class="w-full px-4 py-3.5 pl-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl
+                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium
+                                  focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20
+                                  transition-all duration-200 outline-none
+                                  hover:border-blue-400 dark:hover:border-blue-500"
                            required>
+
+                    {{-- Icon di dalam input --}}
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors">
+                        <i class="fas fa-clock"></i>
+                    </div>
+
+                    {{-- Animated border --}}
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-20 blur transition-opacity duration-300 -z-10"></div>
                 </div>
 
-                <div class="flex gap-3">
-                    <button type="button"
-                            onclick="closeModal()"
-                            class="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium">
-                        Batal
-                    </button>
-                    <button type="submit"
-                            class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium">
-                         Simpan
-                    </button>
+                {{-- Helper text --}}
+                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 ml-1">
+                    <i class="fas fa-lightbulb text-yellow-500"></i>
+                    <span>Format: Tanggal dan jam (contoh: 06/01/2025 08:00)</span>
+                </p>
+            </div>
+
+            {{-- Action Buttons --}}
+            <div class="flex gap-3 pt-4">
+                <button type="button"
+                        onclick="closeModal()"
+                        class="flex-1 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
+                               text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm
+                               transition-all duration-200 transform hover:scale-105 active:scale-95
+                               flex items-center justify-center gap-2 group">
+                    <i class="fas fa-times group-hover:rotate-90 transition-transform duration-200"></i>
+                    <span>Batal</span>
+                </button>
+
+                <button type="submit"
+                        class="flex-1 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
+                               text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/50
+                               transition-all duration-200 transform hover:scale-105 active:scale-95
+                               flex items-center justify-center gap-2 group relative overflow-hidden">
+                    {{-- Shine effect --}}
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+
+                    <i class="fas fa-save relative z-10"></i>
+                    <span class="relative z-10">Simpan Perubahan</span>
+                </button>
+            </div>
+
+            {{-- Security Badge --}}
+            <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-shield-alt text-green-600 dark:text-green-400"></i>
+                    <span>Perubahan akan dicatat dalam sistem audit</span>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
+</div>
 
    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 <script>
