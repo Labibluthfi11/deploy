@@ -619,24 +619,55 @@
         </div>
     </div>
 
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <script>
-                function toggleFilterInputs() {
-                    const type = document.getElementById('filter_type').value;
-                    const monthSection = document.getElementById('month_section');
-                    const customSection = document.getElementById('custom_date_section');
+   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script>
 
-                    // Hide all first
-                    monthSection.style.display = 'none';
-                    customSection.style.display = 'none';
+    function toggleFilterInputs() {
+        const type = document.getElementById('filter_type').value;
+        const monthSection = document.getElementById('month_section');
+        const customSection = document.getElementById('custom_date_section');
 
-                    if (type === 'monthly') {
-                        monthSection.style.display = 'flex';
-                    } else if (type === 'custom') {
-                        customSection.style.display = 'flex';
-                    }
-                }
-                // Jalanin pas loading
-                document.addEventListener('DOMContentLoaded', toggleFilterInputs);
-            </script>
+
+        monthSection.style.display = 'none';
+        customSection.style.display = 'none';
+
+
+        if (type === 'monthly') {
+            monthSection.style.display = 'flex';
+        } else if (type === 'custom') {
+            customSection.style.display = 'flex';
+        }
+    }
+
+
+    document.addEventListener('DOMContentLoaded', toggleFilterInputs);
+
+
+    function editCheckIn(absensiId, currentTime) {
+
+        const form = document.getElementById('formEditCheckIn');
+
+
+        form.action = `/admin/absensi/${absensiId}/edit-checkin`;
+
+
+        const formatted = currentTime.replace(' ', 'T').substring(0, 16);
+        document.getElementById('inputNewCheckIn').value = formatted;
+
+
+        document.getElementById('modalEditCheckIn').classList.remove('hidden');
+        document.getElementById('modalEditCheckIn').classList.add('flex');
+    }
+
+    function closeModal() {
+
+        document.getElementById('modalEditCheckIn').classList.add('hidden');
+        document.getElementById('modalEditCheckIn').classList.remove('flex');
+    }
+
+    
+    document.getElementById('modalEditCheckIn').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+</script>
 </x-app-layout>
