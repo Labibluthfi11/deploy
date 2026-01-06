@@ -698,7 +698,7 @@
     </div>
 </div>
 
-   
+
 <script>
 console.log('🔥 Script loaded');
 
@@ -723,29 +723,21 @@ function editCheckIn(absensiId, currentTime) {
     console.log('🔥 editCheckIn() called!', {absensiId, currentTime});
 
     const form = document.getElementById('formEditCheckIn');
-    if (!form) {
-        console.error('❌ Form tidak ditemukan!');
-        alert('ERROR: Form tidak ditemukan!');
-        return;
-    }
-
     const inputField = document.getElementById('inputNewCheckIn');
-    if (!inputField) {
-        console.error('❌ Input field tidak ditemukan!');
-        alert('ERROR: Input field tidak ditemukan!');
-        return;
-    }
-
     const modal = document.getElementById('modalEditCheckIn');
-    if (!modal) {
-        console.error('❌ Modal tidak ditemukan!');
-        alert('ERROR: Modal tidak ditemukan!');
+
+    if (!form || !inputField || !modal) {
+        alert('ERROR: Element tidak ditemukan!');
         return;
     }
 
     // Set form action
-    form.action = `/admin/absensi/${absensiId}/edit-checkin`;
+    const newAction = `/admin/absensi/${absensiId}/edit-checkin`;
+    form.action = newAction;
     console.log('✅ Form action set to:', form.action);
+
+    // 🔥 ALERT BUAT CEK
+    alert('Form action akan di-set ke: ' + newAction + '\n\nAction sekarang: ' + form.action);
 
     // Format waktu
     const formatted = currentTime.replace(' ', 'T').substring(0, 16);
@@ -768,7 +760,7 @@ function closeModal() {
     }
 }
 
-// Test submit form
+// Submit listener dengan ALERT
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔥 DOM ready');
 
@@ -776,12 +768,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('🔥 FORM SUBMIT TRIGGERED!');
-            console.log('Form action:', form.action);
-            console.log('Form method:', form.method);
-            console.log('Form data:', new FormData(form));
+            console.log('Form action:', this.action);
+            console.log('Form method:', this.method);
 
-            // JANGAN PREVENT! Biar submit beneran
-            // e.preventDefault(); // ❌ HAPUS INI KALO ADA!
+            // 🔥 ALERT BUAT CEK SEBELUM SUBMIT
+            const confirm = window.confirm(
+                'FORM AKAN DI-SUBMIT!\n\n' +
+                'Action: ' + this.action + '\n' +
+                'Method: ' + this.method + '\n\n' +
+                'Klik OK untuk lanjut submit, Cancel untuk batal'
+            );
+
+            if (!confirm) {
+                e.preventDefault();
+                alert('Submit dibatalkan!');
+            }
         });
         console.log('✅ Submit listener attached');
     } else {
@@ -789,7 +790,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Close modal kalo klik di luar
+// Close modal on outside click
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('modalEditCheckIn');
     if (modal) {
