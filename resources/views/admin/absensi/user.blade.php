@@ -700,53 +700,108 @@
 
    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 <script>
+console.log('🔥 Script loaded');
 
-    function toggleFilterInputs() {
-        const type = document.getElementById('filter_type').value;
-        const monthSection = document.getElementById('month_section');
-        const customSection = document.getElementById('custom_date_section');
+function toggleFilterInputs() {
+    const type = document.getElementById('filter_type').value;
+    const monthSection = document.getElementById('month_section');
+    const customSection = document.getElementById('custom_date_section');
 
-        // Sembunyiin semua dulu
-        monthSection.style.display = 'none';
-        customSection.style.display = 'none';
+    monthSection.style.display = 'none';
+    customSection.style.display = 'none';
 
-        // Munculin yang dipilih
-        if (type === 'monthly') {
-            monthSection.style.display = 'flex';
-        } else if (type === 'custom') {
-            customSection.style.display = 'flex';
-        }
+    if (type === 'monthly') {
+        monthSection.style.display = 'flex';
+    } else if (type === 'custom') {
+        customSection.style.display = 'flex';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', toggleFilterInputs);
+
+function editCheckIn(absensiId, currentTime) {
+    console.log('🔥 editCheckIn() called!', {absensiId, currentTime});
+
+    const form = document.getElementById('formEditCheckIn');
+    if (!form) {
+        console.error('❌ Form tidak ditemukan!');
+        alert('ERROR: Form tidak ditemukan!');
+        return;
     }
 
-    // Jalanin pas halaman loading
-    document.addEventListener('DOMContentLoaded', toggleFilterInputs);
-
-
-    function editCheckIn(absensiId, currentTime) {
-        // Ambil form modal
-        const form = document.getElementById('formEditCheckIn');
-
-        // Set URL action form → /admin/absensi/123/edit-checkin
-        form.action = `/admin/absensi/${absensiId}/edit-checkin`;
-
-        // Format waktu dari "2025-01-06 09:30:00" jadi "2025-01-06T09:30"
-        const formatted = currentTime.replace(' ', 'T').substring(0, 16);
-        document.getElementById('inputNewCheckIn').value = formatted;
-
-        // Munculin modal
-        document.getElementById('modalEditCheckIn').classList.remove('hidden');
-        document.getElementById('modalEditCheckIn').classList.add('flex');
+    const inputField = document.getElementById('inputNewCheckIn');
+    if (!inputField) {
+        console.error('❌ Input field tidak ditemukan!');
+        alert('ERROR: Input field tidak ditemukan!');
+        return;
     }
 
-    function closeModal() {
-        // Sembunyiin modal
-        document.getElementById('modalEditCheckIn').classList.add('hidden');
-        document.getElementById('modalEditCheckIn').classList.remove('flex');
+    const modal = document.getElementById('modalEditCheckIn');
+    if (!modal) {
+        console.error('❌ Modal tidak ditemukan!');
+        alert('ERROR: Modal tidak ditemukan!');
+        return;
     }
 
-    // Kalo klik di luar modal, tutup modal
-    document.getElementById('modalEditCheckIn').addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
-    });
+    // Set form action
+    form.action = `/admin/absensi/${absensiId}/edit-checkin`;
+    console.log('✅ Form action set to:', form.action);
+
+    // Format waktu
+    const formatted = currentTime.replace(' ', 'T').substring(0, 16);
+    inputField.value = formatted;
+    console.log('✅ Input value set to:', formatted);
+
+    // Show modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    console.log('✅ Modal shown');
+}
+
+function closeModal() {
+    console.log('🔥 closeModal() called');
+    const modal = document.getElementById('modalEditCheckIn');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        console.log('✅ Modal hidden');
+    }
+}
+
+// Test submit form
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔥 DOM ready');
+
+    const form = document.getElementById('formEditCheckIn');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('🔥 FORM SUBMIT TRIGGERED!');
+            console.log('Form action:', form.action);
+            console.log('Form method:', form.method);
+            console.log('Form data:', new FormData(form));
+
+            // JANGAN PREVENT! Biar submit beneran
+            // e.preventDefault(); // ❌ HAPUS INI KALO ADA!
+        });
+        console.log('✅ Submit listener attached');
+    } else {
+        console.error('❌ Form tidak ditemukan saat DOM ready!');
+    }
+});
+
+// Close modal kalo klik di luar
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('modalEditCheckIn');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        console.log('✅ Click-outside listener attached');
+    }
+});
+
+console.log('🔥 Script initialized');
 </script>
 </x-app-layout>
