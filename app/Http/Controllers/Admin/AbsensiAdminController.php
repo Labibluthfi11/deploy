@@ -922,60 +922,70 @@ private function penyebut($nilai)
     }
 }
 
-        public function updateCheckIn(Request $request, $id)
-        {
-            $request->validate([
-                'new_check_in' => 'required|date_format:Y-m-d\TH:i',
-            ]);
+       public function updateCheckIn(Request $request, $id)
+{
+    $request->validate([
+        'new_check_in' => 'required|date_format:Y-m-d\TH:i',
+    ]);
 
-            // 🔥 MANUAL QUERY (bypass model binding issue)
-            $absensi = Absensi::findOrFail($id);
+    // 🔥 MANUAL QUERY (bypass model binding)
+    $absensi = Absensi::findOrFail($id);
 
-            $inputTime = $request->input('new_check_in');
-            $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
+    $inputTime = $request->input('new_check_in');
+    $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
 
-            $user = $absensi->user;
-            $shift = $user->shift;
+    $user = $absensi->user;
+    $shift = $user->shift;
 
-            if (!$shift) {
-                return back()->with('error', '❌ User tidak punya shift!');
-            }
+    if (!$shift) {
+        return back()->with('error', '❌ User tidak punya shift!');
+    }
 
-            // === HITUNG ULANG DARI NOL ===
-            $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
-            $lateMinutes = 0;
+    // === HITUNG ULANG DARI NOL ===
+    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
+    $lateMinutes = 0;
 
-            if ($newCheckIn->greaterThan($jamMasukShift)) {
-                $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
-            }
+    if ($newCheckIn->greaterThan($jamMasukShift)) {
+        $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
+    }
 
-            // Pembulatan 15 menit
-            $roundedLateMinutes = 0;
-            if ($lateMinutes > 0) {
-                $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
-            }
+    // Pembulatan 15 menit
+    $roundedLateMinutes = 0;
+    if ($lateMinutes > 0) {
+        $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
+    }
 
-            // Hitung denda
-            $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
-            $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
-            $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
+    // Hitung denda
+    $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
+    $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
+    $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
 
-            // Hitung gaji bersih (Base - Denda + Lembur)
-            $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
+    // Hitung gaji bersih (Base - Denda + Lembur)
+    $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
 
-            // 🔥 UPDATE SEKALIGUS (biar gak ada race condition)
-            $absensi->update([
-                'check_in_at' => $newCheckIn,
-                'late_minutes' => $lateMinutes,
-                'rounded_late_minutes' => $roundedLateMinutes,
-                'late_penalty' => $latePenalty,
-                'final_salary' => $finalSalary,
-            ]);
+    // 🔥 BYPASS OBSERVER - LANGSUNG KE DATABASE! 🔥
+    \DB::table('absensis')
+        ->where('id', $absensi->id)
+        ->update([
+            'check_in_at' => $newCheckIn,
+            'late_minutes' => $lateMinutes,
+            'rounded_late_minutes' => $roundedLateMinutes,
+            'late_penalty' => $latePenalty,
+            'final_salary' => $finalSalary,
+            'updated_at' => now(), // 👈 JANGAN LUPA INI!
+        ]);
 
-            // 🔥 FORCE REFRESH (clear cache Laravel)
-            $absensi->refresh();
+    // 🔥 LOG BUAT CEK (hapus setelah fix)
+    \Log::info('Edit Check-In Success', [
+        'absensi_id' => $absensi->id,
+        'new_check_in' => $newCheckIn,
+        'late_minutes' => $lateMinutes,
+        'rounded' => $roundedLateMinutes,
+        'penalty' => $latePenalty,
+        'final_salary' => $finalSalary
+    ]);
 
-            return back()->with('success', "✅ Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
-        }
+    return back()->with('success', "✅ Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+}
 
 }
