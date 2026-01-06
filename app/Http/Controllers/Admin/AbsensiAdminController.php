@@ -901,7 +901,7 @@ private function penyebut($nilai)
 
 
     try {
-        
+
         $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
         $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
     } catch (\Exception $e) {
@@ -922,57 +922,60 @@ private function penyebut($nilai)
     }
 }
 
-public function updateCheckIn(Request $request, Absensi $absensi)
-{
+        public function updateCheckIn(Request $request, $id)
+        {
+            $request->validate([
+                'new_check_in' => 'required|date_format:Y-m-d\TH:i',
+            ]);
 
-    $request->validate([
-        'new_check_in' => 'required|date_format:Y-m-d\TH:i',
-    ]);
+            // 🔥 MANUAL QUERY (bypass model binding issue)
+            $absensi = Absensi::findOrFail($id);
 
+            $inputTime = $request->input('new_check_in');
+            $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
 
-    $inputTime = $request->input('new_check_in');
-    $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
+            $user = $absensi->user;
+            $shift = $user->shift;
 
+            if (!$shift) {
+                return back()->with('error', '❌ User tidak punya shift!');
+            }
 
-    $user = $absensi->user;
-    $shift = $user->shift;
+            // === HITUNG ULANG DARI NOL ===
+            $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
+            $lateMinutes = 0;
 
-    if (!$shift) {
-        return back()->with('error', ' User tidak punya shift!');
-    }
+            if ($newCheckIn->greaterThan($jamMasukShift)) {
+                $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
+            }
 
+            // Pembulatan 15 menit
+            $roundedLateMinutes = 0;
+            if ($lateMinutes > 0) {
+                $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
+            }
 
-    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
-    $lateMinutes = 0;
+            // Hitung denda
+            $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
+            $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
+            $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
 
-    if ($newCheckIn->greaterThan($jamMasukShift)) {
-        $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
-    }
+            // Hitung gaji bersih (Base - Denda + Lembur)
+            $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
 
+            // 🔥 UPDATE SEKALIGUS (biar gak ada race condition)
+            $absensi->update([
+                'check_in_at' => $newCheckIn,
+                'late_minutes' => $lateMinutes,
+                'rounded_late_minutes' => $roundedLateMinutes,
+                'late_penalty' => $latePenalty,
+                'final_salary' => $finalSalary,
+            ]);
 
-    $roundedLateMinutes = 0;
-    if ($lateMinutes > 0) {
-        $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
-    }
+            // 🔥 FORCE REFRESH (clear cache Laravel)
+            $absensi->refresh();
 
-
-    $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
-    $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
-    $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
-
-
-    $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
-
-
-    $absensi->update([
-        'check_in_at' => $newCheckIn,
-        'late_minutes' => $lateMinutes,
-        'rounded_late_minutes' => $roundedLateMinutes,
-        'late_penalty' => $latePenalty,
-        'final_salary' => $finalSalary,
-    ]);
-
-    return back()->with('success', " Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
-}
+            return back()->with('success', "✅ Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+        }
 
 }

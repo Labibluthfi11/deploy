@@ -32,7 +32,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         Route::get('/user/{user}', [AbsensiAdminController::class, 'show'])->name('admin.absensi.user');
 
         // tempat ngedit absen telat
-        Route::put('/{absensi}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
+        Route::put('/{id}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
             ->name('admin.absensi.updateCheckIn');
 
         // Export absensi per user
