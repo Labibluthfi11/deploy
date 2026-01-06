@@ -924,4 +924,48 @@ private function penyebut($nilai)
     }
 }
 
+public function updateCheckIn(Request $request, Absensi $absensi)
+    {
+
+        $request->validate([
+            'new_check_in' => 'required|date_format:Y-m-d H:i:s',
+        ]);
+
+        $newCheckIn = Carbon::parse($request->input('new_check_in'));
+
+
+        $user = $absensi->user;
+        $shift = $user->shift;
+
+        if (!$shift) {
+            return back()->with('error', 'User tidak punya shift!');
+        }
+
+
+        $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
+        $lateMinutes = 0;
+
+        if ($newCheckIn->greaterThan($jamMasukShift)) {
+            $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
+        }
+
+
+        $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
+        $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
+        $latePenalty = $lateMinutes * $tarifDendaTelat;
+
+
+        $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
+
+
+        $absensi->update([
+            'check_in_at' => $newCheckIn,
+            'late_minutes' => $lateMinutes,
+            'late_penalty' => $latePenalty,
+            'final_salary' => $finalSalary,
+        ]);
+
+        return back()->with('success', " Check-in berhasil diubah! Telat: {$lateMinutes} menit, Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+    }
+
 }

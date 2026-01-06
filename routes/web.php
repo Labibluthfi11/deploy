@@ -31,11 +31,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         // Detail absensi per user
         Route::get('/user/{user}', [AbsensiAdminController::class, 'show'])->name('admin.absensi.user');
 
+        // tempat ngedit absen telat
+        Route::put('/absensi/{absensi}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
+            ->name('admin.absensi.updateCheckIn');
+
         // Export absensi per user
         Route::get('/user/{id}/export', [AbsensiAdminController::class, 'exportUser'])
             ->name('admin.absensi.user.export');
 
-        // ✅ Export Slip Gaji EXCEL
+        // Export slip gaji per user
         Route::get('/user/{user}/export-slip', [AbsensiAdminController::class, 'exportSlipGaji'])
             ->name('admin.absensi.user.export-slip');
 
