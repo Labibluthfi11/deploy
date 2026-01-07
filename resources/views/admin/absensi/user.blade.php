@@ -729,8 +729,8 @@ function editCheckIn(absensiId, currentTime) {
         return;
     }
 
-    // 🔥 SET ACTION URL (PAKE ROUTE HELPER!)
-    const actionUrl = `{{ url('/admin/absensi') }}/${absensiId}/edit-checkin`;
+    // 🔥 PAKE ROUTE HELPER BIAR GA SALAH PATH!
+    const actionUrl = "{{ route('admin.absensi.updateCheckIn', ':id') }}".replace(':id', absensiId);
     form.setAttribute('action', actionUrl);
     
     console.log('✅ Form action set to:', actionUrl);
