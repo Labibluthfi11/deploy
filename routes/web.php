@@ -29,7 +29,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         Route::get('/freelance', [AbsensiAdminController::class, 'indexFreelance'])->name('admin.absensi.freelance');
         
                 // tempat ngedit absen telat
-                Route::put('/{id}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
+                Route::post('/{id}/edit-checkin', [AbsensiAdminController::class, 'updateCheckIn'])
                     ->name('admin.absensi.updateCheckIn');
 
         // Detail absensi per user

@@ -611,7 +611,6 @@
         {{-- Form Content --}}
                 <form id="formEditCheckIn" method="POST" action="" class="p-6 space-y-6">
             @csrf
-            @method('PUT')
 
             {{-- Info Card --}}
             <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
