@@ -922,53 +922,46 @@ private function penyebut($nilai)
     }
 }
 
-       public function updateCheckIn(Request $request, $id)
+public function updateCheckIn(Request $request, $id)
 {
-    // 🔥 LOG BUAT DEBUG
     \Log::info('🔥 updateCheckIn called', [
         'id' => $id,
         'request' => $request->all(),
-        'csrf' => $request->input('_token'),
     ]);
 
     $request->validate([
         'new_check_in' => 'required|date_format:Y-m-d\TH:i',
     ]);
 
-    // 🔥 Manual query
     $absensi = Absensi::findOrFail($id);
-
     $inputTime = $request->input('new_check_in');
     $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
 
-    $user = $absensi->user;
-    $shift = $user->shift;
+    // 🔥 LANGSUNG HARDCODE JAM MASUK 08:00 (GA PAKE SHIFT)
+    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' 08:00:00');
 
-    if (!$shift) {
-        \Log::error('❌ User tidak punya shift!', ['user_id' => $user->id]);
-        return back()->with('error', '❌ User tidak punya shift!');
-    }
-
-    // Hitung ulang (sama kayak sebelumnya)
-    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' ' . $shift->jam_masuk);
+    // Hitung telat
     $lateMinutes = 0;
-
     if ($newCheckIn->greaterThan($jamMasukShift)) {
         $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
     }
 
+    // Bulatkan ke kelipatan 15 menit
     $roundedLateMinutes = 0;
     if ($lateMinutes > 0) {
         $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
     }
 
+    // Hitung denda
+    $user = $absensi->user;
     $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
     $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
     $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
 
+    // Hitung gaji bersih
     $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
 
-    // Update via DB::table
+    // Update database
     \DB::table('absensis')
         ->where('id', $absensi->id)
         ->update([
