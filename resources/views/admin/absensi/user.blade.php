@@ -609,91 +609,87 @@
         </div>
 
         {{-- Form Content --}}
-                <form id="formEditCheckIn" method="POST" action="" class="p-6 space-y-6">
-            @csrf
-
-            {{-- Info Card --}}
-            <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
-                <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-info-circle text-white"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-1">Perhatian!</h4>
-                        <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                            Perubahan waktu check-in akan otomatis menghitung ulang keterlambatan dan potongan gaji.
-                        </p>
-                    </div>
-                </div>
+               <form id="formEditCheckIn" method="POST" class="p-6 space-y-6">
+    @csrf
+    
+    {{-- Info Card --}}
+    <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
+        <div class="flex items-start gap-3">
+            <div class="w-10 h-10 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-info-circle text-white"></i>
             </div>
-
-            {{-- Input Field dengan Icon --}}
-            <div class="space-y-2">
-                <label class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300">
-                    <i class="fas fa-calendar-alt text-blue-600 dark:text-blue-400"></i>
-                    <span>Pilih Waktu Check-In Baru</span>
-                </label>
-
-                <div class="relative group">
-                    <input type="datetime-local"
-                           name="new_check_in"
-                           id="inputNewCheckIn"
-                           class="w-full px-4 py-3.5 pl-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl
-                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium
-                                  focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20
-                                  transition-all duration-200 outline-none
-                                  hover:border-blue-400 dark:hover:border-blue-500"
-                           required>
-
-                    {{-- Icon di dalam input --}}
-                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors">
-                        <i class="fas fa-clock"></i>
-                    </div>
-
-                    {{-- Animated border --}}
-                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-20 blur transition-opacity duration-300 -z-10"></div>
-                </div>
-
-                {{-- Helper text --}}
-                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 ml-1">
-                    <i class="fas fa-lightbulb text-yellow-500"></i>
-                    <span>Format: Tanggal dan jam (contoh: 06/01/2025 08:00)</span>
+            <div class="flex-1">
+                <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-1">Perhatian!</h4>
+                <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    Perubahan waktu check-in akan otomatis menghitung ulang keterlambatan dan potongan gaji.
                 </p>
             </div>
+        </div>
+    </div>
 
-            {{-- Action Buttons --}}
-            <div class="flex gap-3 pt-4">
-                <button type="button"
-                        onclick="closeModal()"
-                        class="flex-1 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
-                               text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm
-                               transition-all duration-200 transform hover:scale-105 active:scale-95
-                               flex items-center justify-center gap-2 group">
-                    <i class="fas fa-times group-hover:rotate-90 transition-transform duration-200"></i>
-                    <span>Batal</span>
-                </button>
+    {{-- Input Field --}}
+    <div class="space-y-2">
+        <label class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300">
+            <i class="fas fa-calendar-alt text-blue-600 dark:text-blue-400"></i>
+            <span>Pilih Waktu Check-In Baru</span>
+        </label>
 
-                <button type="submit"
-                        class="flex-1 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
-                               text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/50
-                               transition-all duration-200 transform hover:scale-105 active:scale-95
-                               flex items-center justify-center gap-2 group relative overflow-hidden">
-                    {{-- Shine effect --}}
-                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+        <div class="relative group">
+            <input type="datetime-local"
+                   name="new_check_in"
+                   id="inputNewCheckIn"
+                   class="w-full px-4 py-3.5 pl-12 border-2 border-gray-300 dark:border-gray-600 rounded-xl
+                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium
+                          focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20
+                          transition-all duration-200 outline-none
+                          hover:border-blue-400 dark:hover:border-blue-500"
+                   required>
 
-                    <i class="fas fa-save relative z-10"></i>
-                    <span class="relative z-10">Simpan Perubahan</span>
-                </button>
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors">
+                <i class="fas fa-clock"></i>
             </div>
 
-            {{-- Security Badge --}}
-            <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <i class="fas fa-shield-alt text-green-600 dark:text-green-400"></i>
-                    <span>Perubahan akan dicatat dalam sistem audit</span>
-                </div>
-            </div>
-        </form>
+            <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-20 blur transition-opacity duration-300 -z-10"></div>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 ml-1">
+            <i class="fas fa-lightbulb text-yellow-500"></i>
+            <span>Format: Tanggal dan jam (contoh: 06/01/2025 08:00)</span>
+        </p>
+    </div>
+
+    {{-- Buttons --}}
+    <div class="flex gap-3 pt-4">
+        <button type="button"
+                onclick="closeModal()"
+                class="flex-1 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
+                       text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm
+                       transition-all duration-200 transform hover:scale-105 active:scale-95
+                       flex items-center justify-center gap-2 group">
+            <i class="fas fa-times group-hover:rotate-90 transition-transform duration-200"></i>
+            <span>Batal</span>
+        </button>
+
+        <button type="submit"
+                class="flex-1 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
+                       text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/50
+                       transition-all duration-200 transform hover:scale-105 active:scale-95
+                       flex items-center justify-center gap-2 group relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+
+            <i class="fas fa-save relative z-10"></i>
+            <span class="relative z-10">Simpan Perubahan</span>
+        </button>
+    </div>
+
+    {{-- Security Badge --}}
+    <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <i class="fas fa-shield-alt text-green-600 dark:text-green-400"></i>
+            <span>Perubahan akan dicatat dalam sistem audit</span>
+        </div>
+    </div>
+</form>
     </div>
 </div>
 
@@ -724,17 +720,19 @@ function editCheckIn(absensiId, currentTime) {
     const modal = document.getElementById('modalEditCheckIn');
 
     if (!form || !inputField || !modal) {
-        alert('ERROR: Element tidak ditemukan!');
+        console.error('Element not found!');
         return;
     }
 
-    // 🔥 PAKE ROUTE HELPER BIAR GA SALAH PATH!
-    const actionUrl = "{{ route('admin.absensi.updateCheckIn', ':id') }}".replace(':id', absensiId);
+    // Set action URL dengan BASE URL dari Laravel
+    const baseUrl = "{{ url('/admin/absensi') }}";
+    const actionUrl = `${baseUrl}/${absensiId}/edit-checkin`;
+    
     form.setAttribute('action', actionUrl);
     
-    console.log('✅ Form action set to:', actionUrl);
+    console.log('✅ Action URL:', actionUrl);
 
-    // Format waktu
+    // Format waktu ke datetime-local format
     const formatted = currentTime.replace(' ', 'T').substring(0, 16);
     inputField.value = formatted;
 
@@ -744,47 +742,33 @@ function editCheckIn(absensiId, currentTime) {
 }
 
 function closeModal() {
-    console.log('🔥 closeModal() called');
     const modal = document.getElementById('modalEditCheckIn');
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
-        console.log('✅ Modal hidden');
     }
 }
 
-// Submit listener dengan ALERT
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔥 DOM ready');
+function toggleFilterInputs() {
+    const type = document.getElementById('filter_type').value;
+    const monthSection = document.getElementById('month_section');
+    const customSection = document.getElementById('custom_date_section');
 
-    const form = document.getElementById('formEditCheckIn');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            console.log('🔥 FORM SUBMIT TRIGGERED!');
-            console.log('Form action:', this.action);
-            console.log('Form method:', this.method);
+    if (monthSection) monthSection.style.display = 'none';
+    if (customSection) customSection.style.display = 'none';
 
-            // 🔥 ALERT BUAT CEK SEBELUM SUBMIT
-            const confirm = window.confirm(
-                'FORM AKAN DI-SUBMIT!\n\n' +
-                'Action: ' + this.action + '\n' +
-                'Method: ' + this.method + '\n\n' +
-                'Klik OK untuk lanjut submit, Cancel untuk batal'
-            );
-
-            if (!confirm) {
-                e.preventDefault();
-                alert('Submit dibatalkan!');
-            }
-        });
-        console.log('✅ Submit listener attached');
-    } else {
-        console.error('❌ Form tidak ditemukan saat DOM ready!');
+    if (type === 'monthly' && monthSection) {
+        monthSection.style.display = 'flex';
+    } else if (type === 'custom' && customSection) {
+        customSection.style.display = 'flex';
     }
-});
+}
 
-// Close modal on outside click
+// Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+    toggleFilterInputs();
+    
+    // Close modal on outside click
     const modal = document.getElementById('modalEditCheckIn');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -792,10 +776,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeModal();
             }
         });
-        console.log('✅ Click-outside listener attached');
     }
 });
-
 console.log('🔥 Script initialized');
 </script>
 </x-app-layout>
