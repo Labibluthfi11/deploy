@@ -609,7 +609,7 @@
         </div>
 
         {{-- Form Content --}}
-        <form id="formEditCheckIn" method="POST" class="p-6 space-y-6">
+                <form id="formEditCheckIn" method="POST" action="" class="p-6 space-y-6">
             @csrf
             @method('PUT')
 
@@ -720,8 +720,6 @@ function toggleFilterInputs() {
 document.addEventListener('DOMContentLoaded', toggleFilterInputs);
 
 function editCheckIn(absensiId, currentTime) {
-    console.log('🔥 editCheckIn() called!', {absensiId, currentTime});
-
     const form = document.getElementById('formEditCheckIn');
     const inputField = document.getElementById('inputNewCheckIn');
     const modal = document.getElementById('modalEditCheckIn');
@@ -731,23 +729,19 @@ function editCheckIn(absensiId, currentTime) {
         return;
     }
 
-    // Set form action
-    const newAction = `/admin/absensi/${absensiId}/edit-checkin`;
-    form.action = newAction;
-    console.log('✅ Form action set to:', form.action);
-
-    // 🔥 ALERT BUAT CEK
-    alert('Form action akan di-set ke: ' + newAction + '\n\nAction sekarang: ' + form.action);
+    // 🔥 SET ACTION URL (PAKE ROUTE HELPER!)
+    const actionUrl = `{{ url('/admin/absensi') }}/${absensiId}/edit-checkin`;
+    form.setAttribute('action', actionUrl);
+    
+    console.log('✅ Form action set to:', actionUrl);
 
     // Format waktu
     const formatted = currentTime.replace(' ', 'T').substring(0, 16);
     inputField.value = formatted;
-    console.log('✅ Input value set to:', formatted);
 
     // Show modal
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    console.log('✅ Modal shown');
 }
 
 function closeModal() {
