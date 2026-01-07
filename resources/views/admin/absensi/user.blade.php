@@ -609,7 +609,7 @@
         </div>
 
         {{-- Form Content --}}
-        <form id="formEditCheckIn" method="POST" class="p-6 space-y-6">
+        <form id="formEditCheckIn" method="PUT" class="p-6 space-y-6">
             @csrf
             @method('PUT')
 
