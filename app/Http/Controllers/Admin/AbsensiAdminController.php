@@ -924,7 +924,7 @@ private function penyebut($nilai)
 
 public function updateCheckIn(Request $request, $id)
 {
-    \Log::info('🔥 updateCheckIn called', [
+    \Log::info(' updateCheckIn called', [
         'id' => $id,
         'request' => $request->all(),
     ]);
@@ -936,8 +936,7 @@ public function updateCheckIn(Request $request, $id)
     $absensi = Absensi::findOrFail($id);
     $inputTime = $request->input('new_check_in');
     $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
-
-    // 🔥 LANGSUNG HARDCODE JAM MASUK 08:00 (GA PAKE SHIFT)
+    
     $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' 08:00:00');
 
     // Hitung telat

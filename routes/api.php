@@ -6,9 +6,15 @@ use App\Http\Controllers\Api\AbsensiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserProfileController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ForgotPasswordController; // ✅ TAMBAH INI
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// ✅ FORGOT PASSWORD ROUTES (BARU)
+Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp']);
+Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
+Route::post('/forgot-password/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Absensi
@@ -18,12 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/absensi/me', [AbsensiController::class, 'meAbsensi']);
     Route::post('/absensi/sakit', [AbsensiController::class, 'absenSakit']);
     Route::post('/absensi/izin', [AbsensiController::class, 'absenIzin']);
-
-    // ⬇️ ⬇️ ⬇️ INI TAMBAHANNYA ⬇️ ⬇️ ⬇️
-    // Rute baru buat ngambil data lembur lama (mode edit)
     Route::get('/absensi/detail/{id}', [AbsensiController::class, 'getDetailAbsensi']);
-
-    // Resubmit endpoints (ini udah bener)
     Route::post('/absensi/sakit/{id}/resubmit', [AbsensiController::class, 'resubmitSakit']);
     Route::post('/absensi/izin/{id}/resubmit', [AbsensiController::class, 'resubmitIzin']);
     Route::post('/absensi/lembur/{id}/resubmit', [AbsensiController::class, 'resubmitLembur']);
