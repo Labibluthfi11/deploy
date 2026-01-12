@@ -263,64 +263,76 @@ class AbsensiController extends Controller
         $checkOutTime = now();
 
         // ===================================================================
-        // 🔥 HITUNG DURASI KERJA AKTUAL
+        // 🔥 HITUNG DURASI KERJA
         // ===================================================================
         $checkInTime = Carbon::parse($absensi->check_in_at);
-        $workDuration = $checkInTime->diffInMinutes($checkOutTime);
+        $workDurationMinutes = $checkInTime->diffInMinutes($checkOutTime);
 
-        // Kurangi 1 jam istirahat (12:00-13:00) kalau kerja > 4 jam
-        if ($workDuration > 240) {
-            $workDuration -= 60;
+        // 🔥 LOG RAW DURATION
+        \Log::info('🕐 [RAW CALCULATION]', [
+            'check_in' => $checkInTime->format('Y-m-d H:i:s'),
+            'check_out' => $checkOutTime->format('Y-m-d H:i:s'),
+            'raw_work_minutes' => $workDurationMinutes,
+        ]);
+
+        // Kurangi 1 jam istirahat kalau kerja > 4 jam
+        if ($workDurationMinutes > 240) {
+            $workDurationMinutes -= 60;
+            \Log::info('⏰ [LUNCH DEDUCTED] Work minutes after lunch: ' . $workDurationMinutes);
         }
 
-        $actualWorkHours = $workDuration / 60; // Jam kerja beneran
+        $actualWorkHours = $workDurationMinutes / 60;
 
         // ===================================================================
-        // 🔥 CEK APAKAH PULANG SEBELUM JAM 5 SORE
+        // 🔥 CEK EARLY CHECKOUT
         // ===================================================================
         $jamPulangStandar = Carbon::parse($checkOutTime->format('Y-m-d') . ' 17:00:00');
-        $isEarlyCheckout = $checkOutTime->lt($jamPulangStandar); // lt = less than
+        $isEarlyCheckout = $checkOutTime->lt($jamPulangStandar);
+
+        \Log::info('🚪 [CHECKOUT CHECK]', [
+            'checkout_time' => $checkOutTime->format('H:i:s'),
+            'standard_time' => '17:00:00',
+            'is_early' => $isEarlyCheckout,
+            'actual_work_hours' => round($actualWorkHours, 2),
+        ]);
 
         // ===================================================================
-        // 🔥 HITUNG GAJI BERDASARKAN JAM KERJA
+        // 🔥 HITUNG GAJI
         // ===================================================================
         $baseFullSalary = 150000;
         $latePenalty = $absensi->late_penalty ?? 0;
 
-        $baseSalary = $baseFullSalary; // Default full
-        $finalSalary = $baseFullSalary - $latePenalty; // Default full - penalty
+        $baseSalary = $baseFullSalary;
+        $finalSalary = $baseFullSalary - $latePenalty;
 
-        // 🔥 PRO-RATA GAJI: Kalo pulang sebelum jam 5
-        if ($isEarlyCheckout) {
-            // Jam kerja standar = 8 jam
-            // Kalo kerja kurang dari 8 jam → potong gaji
-            if ($actualWorkHours < 8) {
-                // Hitung gaji pro-rata berdasarkan jam kerja
-                $baseSalary = ($baseFullSalary / 8) * $actualWorkHours;
+        \Log::info('💰 [BEFORE PRORATE]', [
+            'base_salary' => $baseSalary,
+            'final_salary' => $finalSalary,
+        ]);
 
-                // Final salary = base salary - late penalty
-                $finalSalary = $baseSalary - $latePenalty;
-                $finalSalary = max(0, $finalSalary); // Ga boleh minus
-            }
+        // 🔥 PEMOTONGAN GAJI
+        if ($isEarlyCheckout && $actualWorkHours < 8) {
+            // Pro-rata calculation
+            $baseSalary = ($baseFullSalary / 8) * $actualWorkHours;
+            $finalSalary = $baseSalary - $latePenalty;
+            $finalSalary = max(0, $finalSalary);
+
+            \Log::info('✂️ [SALARY CUT APPLIED]', [
+                'hours_worked' => round($actualWorkHours, 2),
+                'new_base_salary' => round($baseSalary),
+                'late_penalty' => $latePenalty,
+                'new_final_salary' => round($finalSalary),
+            ]);
+        } else {
+            \Log::info('✅ [NO SALARY CUT] Full salary applied', [
+                'is_early_checkout' => $isEarlyCheckout,
+                'actual_work_hours' => round($actualWorkHours, 2),
+                'reason' => !$isEarlyCheckout ? 'Not early checkout' : 'Worked 8+ hours',
+            ]);
         }
 
         // ===================================================================
-        // 🔥 LOG UNTUK DEBUG
-        // ===================================================================
-        \Log::info('💰 [ABSEN PULANG] Salary Calculation', [
-            'absensi_id' => $absensi->id,
-            'check_in' => $checkInTime->format('H:i'),
-            'check_out' => $checkOutTime->format('H:i'),
-            'work_minutes' => $workDuration,
-            'work_hours' => round($actualWorkHours, 2),
-            'is_early_checkout' => $isEarlyCheckout,
-            'base_salary_calculated' => round($baseSalary),
-            'late_penalty' => $latePenalty,
-            'final_salary_calculated' => round($finalSalary),
-        ]);
-
-        // ===================================================================
-        // Logic lembur (tetap sama)
+        // Logic lembur
         // ===================================================================
         if ($request->tipe === 'lembur') {
             $statusApproval = 'pending';
@@ -336,31 +348,36 @@ class AbsensiController extends Controller
         // ===================================================================
         // 🔥 UPDATE DATABASE
         // ===================================================================
+        $updateData = [
+            'check_out_at' => $checkOutTime,
+            'foto_pulang' => $fotoPath,
+            'lokasi_pulang' => $lokasiPulang,
+            'tipe' => $request->tipe,
+            'status_approval' => $statusApproval,
+            'workflow_status' => json_encode($workflow),
+            'current_approval_level' => $currentLevel,
+            'base_salary' => round($baseSalary, 2),
+            'final_salary' => round($finalSalary, 2),
+            'actual_work_hours' => round($actualWorkHours, 2),
+            'updated_at' => now(),
+        ];
+
+        \Log::info('💾 [UPDATING DATABASE]', $updateData);
+
         \DB::table('absensis')
             ->where('id', $absensi->id)
-            ->update([
-                'check_out_at' => $checkOutTime,
-                'foto_pulang' => $fotoPath,
-                'lokasi_pulang' => $lokasiPulang,
-                'tipe' => $request->tipe,
-                'status_approval' => $statusApproval,
-                'workflow_status' => json_encode($workflow),
-                'current_approval_level' => $currentLevel,
-                'base_salary' => round($baseSalary),
-                'final_salary' => round($finalSalary),
-                'actual_work_hours' => round($actualWorkHours, 2),
-                'updated_at' => now(),
-            ]);
+            ->update($updateData);
 
         // ===================================================================
-        // 🔥 RELOAD DATA DARI DB
+        // 🔥 VERIFY UPDATE
         // ===================================================================
         $absensi = Absensi::find($absensi->id);
 
-        \Log::info('✅ [UPDATE SUCCESS] Data After Update', [
+        \Log::info('✅ [DATABASE VERIFICATION]', [
             'id' => $absensi->id,
-            'base_salary_in_db' => $absensi->base_salary,
-            'final_salary_in_db' => $absensi->final_salary,
+            'base_salary_db' => $absensi->base_salary,
+            'final_salary_db' => $absensi->final_salary,
+            'actual_work_hours_db' => $absensi->actual_work_hours,
             'check_out_at' => $absensi->check_out_at,
         ]);
 
@@ -368,7 +385,7 @@ class AbsensiController extends Controller
         $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
 
         // ===================================================================
-        // Response message
+        // Response
         // ===================================================================
         $message = 'Absensi pulang berhasil';
         if ($isEarlyCheckout && $actualWorkHours < 8) {
@@ -384,8 +401,8 @@ class AbsensiController extends Controller
             'data' => $absensi,
             'work_info' => [
                 'actual_hours' => round($actualWorkHours, 2),
-                'base_salary' => round($baseSalary),
-                'final_salary' => round($finalSalary),
+                'base_salary' => round($baseSalary, 2),
+                'final_salary' => round($finalSalary, 2),
                 'is_early_checkout' => $isEarlyCheckout,
                 'late_penalty' => $latePenalty
             ]
@@ -394,7 +411,10 @@ class AbsensiController extends Controller
     } catch (ValidationException $e) {
         return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
     } catch (\Exception $e) {
-        \Log::error('❌ [ABSEN PULANG] Error: ' . $e->getMessage());
+        \Log::error('❌ [ABSEN PULANG ERROR]', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
         return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
     }
 }
