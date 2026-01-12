@@ -273,24 +273,34 @@ class AbsensiController extends Controller
 
         $actualWorkHours = $workDuration / 60;
 
+
         $isEarlyCheckout = $checkOutTime->format('H:i') < '17:00';
 
 
         $baseFullSalary = 150000;
-        $finalSalary = $absensi->final_salary ?? $baseFullSalary;
+        $latePenalty = $absensi->late_penalty ?? 0;
+
+
+        $finalSalary = $baseFullSalary - $latePenalty;
+
 
         if ($isEarlyCheckout && $actualWorkHours < 8) {
-
             $finalSalary = ($baseFullSalary / 8) * $actualWorkHours;
-
-
-            if ($absensi->late_penalty) {
-                $finalSalary -= $absensi->late_penalty;
-            }
-
-
+            $finalSalary -= $latePenalty;
             $finalSalary = max(0, $finalSalary);
         }
+
+
+        \Log::info('💰 [ABSEN PULANG] Salary Calculation', [
+            'check_in' => $checkInTime->format('H:i'),
+            'check_out' => $checkOutTime->format('H:i'),
+            'work_minutes' => $workDuration,
+            'work_hours' => round($actualWorkHours, 2),
+            'is_early_checkout' => $isEarlyCheckout,
+            'old_final_salary_from_db' => $absensi->final_salary,
+            'new_calculated_salary' => round($finalSalary),
+            'late_penalty' => $latePenalty,
+        ]);
 
 
         if ($request->tipe === 'lembur') {
@@ -303,6 +313,7 @@ class AbsensiController extends Controller
             $workflow = $absensi->workflow_status;
             $currentLevel = $absensi->current_approval_level;
         }
+
 
         $absensi->update([
             'check_out_at' => $checkOutTime,
@@ -319,7 +330,7 @@ class AbsensiController extends Controller
         $absensi->load('user');
         $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
 
-
+        
         $message = 'Absensi pulang berhasil';
         if ($isEarlyCheckout && $actualWorkHours < 8) {
             $message .= sprintf(
@@ -332,16 +343,18 @@ class AbsensiController extends Controller
         return response()->json([
             'message' => $message,
             'data' => $absensi,
-            'work_info' => [ 
+            'work_info' => [
                 'actual_hours' => round($actualWorkHours, 2),
-                'final_salary' => $finalSalary,
-                'is_early_checkout' => $isEarlyCheckout
+                'final_salary' => round($finalSalary),
+                'is_early_checkout' => $isEarlyCheckout,
+                'late_penalty' => $latePenalty
             ]
         ]);
 
     } catch (ValidationException $e) {
         return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
     } catch (\Exception $e) {
+        \Log::error('❌ [ABSEN PULANG] Error: ' . $e->getMessage());
         return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
     }
 }
