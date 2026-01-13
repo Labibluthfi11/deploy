@@ -262,72 +262,80 @@ class AbsensiController extends Controller
         $lokasiPulang = $request->lat . ',' . $request->lng;
         $checkOutTime = now();
 
-
+        // ===================================================================
+        // 🔥 HITUNG DURASI KERJA AKTUAL
+        // ===================================================================
         $checkInTime = Carbon::parse($absensi->check_in_at);
         $workDurationMinutes = $checkInTime->diffInMinutes($checkOutTime);
 
-        \Log::info(' [RAW CALCULATION]', [
+        \Log::info('🕐 [RAW CALCULATION]', [
             'check_in' => $checkInTime->format('Y-m-d H:i:s'),
             'check_out' => $checkOutTime->format('Y-m-d H:i:s'),
             'raw_work_minutes' => $workDurationMinutes,
         ]);
 
-
+        // Kurangi 1 jam istirahat kalau kerja > 4 jam
         if ($workDurationMinutes > 240) {
             $workDurationMinutes -= 60;
-            \Log::info(' [LUNCH DEDUCTED] Work minutes after lunch: ' . $workDurationMinutes);
+            \Log::info('⏰ [LUNCH DEDUCTED] Work minutes after lunch: ' . $workDurationMinutes);
         }
 
         $actualWorkHours = $workDurationMinutes / 60;
 
-
-
+        // ===================================================================
+        // 🔥 CEK APAKAH PULANG SEBELUM JAM 5 SORE
+        // ===================================================================
         $jamPulangStandar = Carbon::parse($checkOutTime->format('Y-m-d') . ' 17:00:00');
         $isEarlyCheckout = $checkOutTime->lt($jamPulangStandar);
 
-        \Log::info(' [CHECKOUT CHECK]', [
+        \Log::info('🚪 [CHECKOUT CHECK]', [
             'checkout_time' => $checkOutTime->format('H:i:s'),
             'standard_time' => '17:00:00',
             'is_early' => $isEarlyCheckout,
             'actual_work_hours' => round($actualWorkHours, 2),
         ]);
 
+        // ===================================================================
+        // 🔥 HITUNG GAJI BERDASARKAN JAM KERJA
+        // ===================================================================
         $baseFullSalary = 150000;
-        $latePenalty = $absensi->late_penalty ?? 0;
+        $latePenalty = $absensi->late_penalty ?? 0; // ✅ Ambil dari data lama
 
-        $baseSalary = $baseFullSalary;
-        $finalSalary = $baseFullSalary - $latePenalty;
+        $baseSalary = $baseFullSalary; // Default full
+        $finalSalary = $baseFullSalary - $latePenalty; // Default full - penalty
 
-        \Log::info(' [BEFORE PRORATE]', [
+        \Log::info('💰 [BEFORE PRORATE]', [
             'base_salary' => $baseSalary,
             'late_penalty' => $latePenalty,
             'final_salary' => $finalSalary,
         ]);
 
-
+        // 🔥 PRO-RATA GAJI: Kalo pulang sebelum jam 5 DAN kerja < 8 jam
         if ($isEarlyCheckout && $actualWorkHours < 8) {
-
+            // Hitung gaji pro-rata berdasarkan jam kerja
             $baseSalary = ($baseFullSalary / 8) * $actualWorkHours;
 
-
+            // Final salary = base salary - late penalty (BUKAN base - penalty - penalty lagi!)
             $finalSalary = $baseSalary - $latePenalty;
-            $finalSalary = max(0, $finalSalary);
+            $finalSalary = max(0, $finalSalary); // Ga boleh minus
 
-            \Log::info(' [SALARY CUT APPLIED]', [
+            \Log::info('✂️ [SALARY CUT APPLIED]', [
                 'hours_worked' => round($actualWorkHours, 2),
                 'new_base_salary' => round($baseSalary),
                 'late_penalty' => $latePenalty,
                 'new_final_salary' => round($finalSalary),
             ]);
         } else {
-            \Log::info(' [NO SALARY CUT] Full salary applied', [
+            \Log::info('✅ [NO SALARY CUT] Full salary applied', [
                 'is_early_checkout' => $isEarlyCheckout,
                 'actual_work_hours' => round($actualWorkHours, 2),
                 'reason' => !$isEarlyCheckout ? 'Not early checkout' : 'Worked 8+ hours',
             ]);
         }
 
-
+        // ===================================================================
+        // Logic lembur (tetap sama)
+        // ===================================================================
         if ($request->tipe === 'lembur') {
             $statusApproval = 'pending';
             $employment = strtolower($user->employment_type ?? 'organik');
@@ -339,7 +347,9 @@ class AbsensiController extends Controller
             $currentLevel = $absensi->current_approval_level;
         }
 
-
+        // ===================================================================
+        // 🔥 UPDATE DATABASE
+        // ===================================================================
         $updateData = [
             'check_out_at' => $checkOutTime,
             'foto_pulang' => $fotoPath,
@@ -354,16 +364,18 @@ class AbsensiController extends Controller
             'updated_at' => now(),
         ];
 
-        \Log::info(' [UPDATING DATABASE]', $updateData);
+        \Log::info('💾 [UPDATING DATABASE]', $updateData);
 
         \DB::table('absensis')
             ->where('id', $absensi->id)
             ->update($updateData);
 
-
+        // ===================================================================
+        // 🔥 VERIFY UPDATE
+        // ===================================================================
         $absensi = Absensi::find($absensi->id);
 
-        \Log::info(' [DATABASE VERIFICATION]', [
+        \Log::info('✅ [DATABASE VERIFICATION]', [
             'id' => $absensi->id,
             'base_salary_db' => $absensi->base_salary,
             'final_salary_db' => $absensi->final_salary,
@@ -374,7 +386,9 @@ class AbsensiController extends Controller
         $absensi->load('user');
         $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
 
-
+        // ===================================================================
+        // Response message
+        // ===================================================================
         $message = 'Absensi pulang berhasil';
         if ($isEarlyCheckout && $actualWorkHours < 8) {
             $message .= sprintf(
@@ -399,7 +413,7 @@ class AbsensiController extends Controller
     } catch (ValidationException $e) {
         return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
     } catch (\Exception $e) {
-        \Log::error(' [ABSEN PULANG ERROR]', [
+        \Log::error('❌ [ABSEN PULANG ERROR]', [
             'message' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
@@ -407,6 +421,51 @@ class AbsensiController extends Controller
     }
 }
 
+public function meAbsensi(Request $request)
+{
+    $userId = Auth::id();
+
+    // Parse tanggal
+    $startDate = $request->input('start_date')
+        ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
+        : Carbon::now('Asia/Jakarta')->subMonths(3)->startOfDay();
+
+    $endDate = $request->input('end_date')
+        ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
+        : Carbon::now('Asia/Jakarta')->endOfDay();
+
+    \Log::info('📅 [ME ABSENSI] Date Range', [
+        'start' => $startDate->toDateTimeString(),
+        'end' => $endDate->toDateTimeString(),
+    ]);
+
+
+    $absensi = Absensi::with('user')
+        ->where('user_id', $userId)
+        ->whereBetween('check_in_at', [$startDate, $endDate])
+        ->whereNull('parent_id')
+        ->orderBy('check_in_at', 'desc')
+        ->orderBy('id', 'desc')
+        ->get();
+
+    \Log::info('✅ [ME ABSENSI] Query Complete', [
+        'total_records' => $absensi->count(),
+    ]);
+
+
+    $result = $absensi->map(function($item) {
+        $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
+        $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
+        $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
+        return $item->toArray();
+    })->values();
+
+    \Log::info('📤 [ME ABSENSI] Response Summary', [
+        'total_sent' => $result->count(),
+    ]);
+
+    return response()->json(['data' => $result]);
+}
      public function absenSakit(Request $request)
     {
         // ✅ START TRANSACTION
