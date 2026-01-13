@@ -226,200 +226,72 @@ class AbsensiController extends Controller
 }
 
    public function absenPulang(Request $request)
-{
-    try {
-        $request->validate([
-            'foto' => 'required|image|max:2048',
-            'lat' => 'required|numeric',
-            'lng' => 'required|numeric',
-            'tipe' => 'nullable|in:lembur,cuti',
-        ]);
-
-        $user = Auth::user();
-        $today = Carbon::today();
-
-        $absensi = Absensi::where('user_id', $user->id)
-            ->whereDate('check_in_at', $today)
-            ->whereIn('status_approval', ['pending', 'approved'])
-            ->first();
-
-        if (!$absensi) {
-            return response()->json(['message' => 'Anda belum absen masuk hari ini.'], 400);
-        }
-
-        if ($absensi->tipe === 'sakit' || $absensi->tipe === 'izin') {
-            return response()->json([
-                'message' => 'Anda tidak perlu absen pulang. Anda telah mengajukan ' . ucfirst($absensi->tipe) . ' hari ini.',
-                'tipe' => $absensi->tipe
-            ], 400);
-        }
-
-        if ($absensi->check_out_at) {
-            return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 409);
-        }
-
-        $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
-        $lokasiPulang = $request->lat . ',' . $request->lng;
-        $checkOutTime = now();
-
-        // ===================================================================
-        // 🔥 HITUNG DURASI KERJA AKTUAL
-        // ===================================================================
-        $checkInTime = Carbon::parse($absensi->check_in_at);
-        $workDurationMinutes = $checkInTime->diffInMinutes($checkOutTime);
-
-        \Log::info('🕐 [RAW CALCULATION]', [
-            'check_in' => $checkInTime->format('Y-m-d H:i:s'),
-            'check_out' => $checkOutTime->format('Y-m-d H:i:s'),
-            'raw_work_minutes' => $workDurationMinutes,
-        ]);
-
-        // Kurangi 1 jam istirahat kalau kerja > 4 jam
-        if ($workDurationMinutes > 240) {
-            $workDurationMinutes -= 60;
-            \Log::info('⏰ [LUNCH DEDUCTED] Work minutes after lunch: ' . $workDurationMinutes);
-        }
-
-        $actualWorkHours = $workDurationMinutes / 60;
-
-        // ===================================================================
-        // 🔥 CEK APAKAH PULANG SEBELUM JAM 5 SORE
-        // ===================================================================
-        $jamPulangStandar = Carbon::parse($checkOutTime->format('Y-m-d') . ' 17:00:00');
-        $isEarlyCheckout = $checkOutTime->lt($jamPulangStandar);
-
-        \Log::info('🚪 [CHECKOUT CHECK]', [
-            'checkout_time' => $checkOutTime->format('H:i:s'),
-            'standard_time' => '17:00:00',
-            'is_early' => $isEarlyCheckout,
-            'actual_work_hours' => round($actualWorkHours, 2),
-        ]);
-
-        // ===================================================================
-        // 🔥 HITUNG GAJI BERDASARKAN JAM KERJA
-        // ===================================================================
-        $baseFullSalary = 150000;
-        $latePenalty = $absensi->late_penalty ?? 0; // ✅ Ambil dari data lama
-
-        $baseSalary = $baseFullSalary; // Default full
-        $finalSalary = $baseFullSalary - $latePenalty; // Default full - penalty
-
-        \Log::info('💰 [BEFORE PRORATE]', [
-            'base_salary' => $baseSalary,
-            'late_penalty' => $latePenalty,
-            'final_salary' => $finalSalary,
-        ]);
-
-        // 🔥 PRO-RATA GAJI: Kalo pulang sebelum jam 5 DAN kerja < 8 jam
-        if ($isEarlyCheckout && $actualWorkHours < 8) {
-            // Hitung gaji pro-rata berdasarkan jam kerja
-            $baseSalary = ($baseFullSalary / 8) * $actualWorkHours;
-
-            // Final salary = base salary - late penalty (BUKAN base - penalty - penalty lagi!)
-            $finalSalary = $baseSalary - $latePenalty;
-            $finalSalary = max(0, $finalSalary); // Ga boleh minus
-
-            \Log::info('✂️ [SALARY CUT APPLIED]', [
-                'hours_worked' => round($actualWorkHours, 2),
-                'new_base_salary' => round($baseSalary),
-                'late_penalty' => $latePenalty,
-                'new_final_salary' => round($finalSalary),
+    {
+        try {
+            $request->validate([
+                'foto' => 'required|image|max:2048',
+                'lat' => 'required|numeric',
+                'lng' => 'required|numeric',
+                'tipe' => 'nullable|in:lembur,cuti',
             ]);
-        } else {
-            \Log::info('✅ [NO SALARY CUT] Full salary applied', [
-                'is_early_checkout' => $isEarlyCheckout,
-                'actual_work_hours' => round($actualWorkHours, 2),
-                'reason' => !$isEarlyCheckout ? 'Not early checkout' : 'Worked 8+ hours',
+
+            $user = Auth::user();
+            $today = Carbon::today();
+
+            $absensi = Absensi::where('user_id', $user->id)
+                ->whereDate('check_in_at', $today)
+                ->whereIn('status_approval', ['pending', 'approved'])
+                ->first();
+
+            if (!$absensi) {
+                return response()->json(['message' => 'Anda belum absen masuk hari ini.'], 400);
+            }
+
+            if ($absensi->tipe === 'sakit' || $absensi->tipe === 'izin') {
+                return response()->json([
+                    'message' => 'Anda tidak perlu absen pulang. Anda telah mengajukan ' . ucfirst($absensi->tipe) . ' hari ini.',
+                    'tipe' => $absensi->tipe
+                ], 400);
+            }
+
+            if ($absensi->check_out_at) {
+                return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 409);
+            }
+
+            $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
+            $lokasiPulang = $request->lat . ',' . $request->lng;
+
+            if ($request->tipe === 'lembur') {
+                $statusApproval = 'pending';
+                $employment = strtolower($user->employment_type ?? 'organik');
+                $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+                $currentLevel = 1;
+            } else {
+                $statusApproval = 'approved';
+                $workflow = $absensi->workflow_status;
+                $currentLevel = $absensi->current_approval_level;
+            }
+
+            $absensi->update([
+                'check_out_at' => now(),
+                'foto_pulang' => $fotoPath,
+                'lokasi_pulang' => $lokasiPulang,
+                'tipe' => $request->tipe,
+                'status_approval' => $statusApproval,
+                'workflow_status' => $workflow,
+                'current_approval_level' => $currentLevel,
             ]);
+
+            $absensi->load('user');
+            $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
+
+            return response()->json(['message' => 'Absensi pulang berhasil', 'data' => $absensi]);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
         }
-
-        // ===================================================================
-        // Logic lembur (tetap sama)
-        // ===================================================================
-        if ($request->tipe === 'lembur') {
-            $statusApproval = 'pending';
-            $employment = strtolower($user->employment_type ?? 'organik');
-            $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-            $currentLevel = 1;
-        } else {
-            $statusApproval = 'approved';
-            $workflow = $absensi->workflow_status;
-            $currentLevel = $absensi->current_approval_level;
-        }
-
-        // ===================================================================
-        // 🔥 UPDATE DATABASE
-        // ===================================================================
-        $updateData = [
-            'check_out_at' => $checkOutTime,
-            'foto_pulang' => $fotoPath,
-            'lokasi_pulang' => $lokasiPulang,
-            'tipe' => $request->tipe,
-            'status_approval' => $statusApproval,
-            'workflow_status' => json_encode($workflow),
-            'current_approval_level' => $currentLevel,
-            'base_salary' => round($baseSalary, 2),
-            'final_salary' => round($finalSalary, 2),
-            'actual_work_hours' => round($actualWorkHours, 2),
-            'updated_at' => now(),
-        ];
-
-        \Log::info('💾 [UPDATING DATABASE]', $updateData);
-
-        \DB::table('absensis')
-            ->where('id', $absensi->id)
-            ->update($updateData);
-
-        // ===================================================================
-        // 🔥 VERIFY UPDATE
-        // ===================================================================
-        $absensi = Absensi::find($absensi->id);
-
-        \Log::info('✅ [DATABASE VERIFICATION]', [
-            'id' => $absensi->id,
-            'base_salary_db' => $absensi->base_salary,
-            'final_salary_db' => $absensi->final_salary,
-            'actual_work_hours_db' => $absensi->actual_work_hours,
-            'check_out_at' => $absensi->check_out_at,
-        ]);
-
-        $absensi->load('user');
-        $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
-
-        // ===================================================================
-        // Response message
-        // ===================================================================
-        $message = 'Absensi pulang berhasil';
-        if ($isEarlyCheckout && $actualWorkHours < 8) {
-            $message .= sprintf(
-                ' (Kerja %.1f jam, Gaji Rp %s)',
-                $actualWorkHours,
-                number_format($finalSalary, 0, ',', '.')
-            );
-        }
-
-        return response()->json([
-            'message' => $message,
-            'data' => $absensi,
-            'work_info' => [
-                'actual_hours' => round($actualWorkHours, 2),
-                'base_salary' => round($baseSalary, 2),
-                'final_salary' => round($finalSalary, 2),
-                'is_early_checkout' => $isEarlyCheckout,
-                'late_penalty' => $latePenalty
-            ]
-        ]);
-
-    } catch (ValidationException $e) {
-        return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
-    } catch (\Exception $e) {
-        \Log::error('❌ [ABSEN PULANG ERROR]', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
     }
-}
 
 public function meAbsensi(Request $request)
 {
