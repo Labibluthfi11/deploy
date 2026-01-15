@@ -35,64 +35,32 @@ class ApprovalController extends Controller
 
 
     private function getSubmissions(Request $request, $type, $level, $status = 'pending')
-{
-    $search = $request->input('search');
+    {
+        $search = $request->input('search');
 
-    // 🔥 LOG DEBUG #2: CEK PARAMETER QUERY
-    \Log::info('🔎 [GET SUBMISSIONS] Query Parameters', [
-        'type' => $type,
-        'level' => $level,
-        'status' => $status,
-        'search' => $search,
-    ]);
+        $query = Absensi::with('user')
+            ->whereHas('user', fn($q) => $q->where('employment_type', $type))
+            ->where('current_approval_level', $level);
 
-    // Query dasar
-    $query = Absensi::with('user')
-        ->whereHas('user', fn($q) => $q->where('employment_type', $type))
-        ->where('current_approval_level', $level);
+        if (is_array($status)) {
+            $query->whereIn('status_approval', $status);
+        } else {
+            $query->where('status_approval', $status);
+        }
 
-    if (is_array($status)) {
-        $query->whereIn('status_approval', $status);
-    } else {
-        $query->where('status_approval', $status);
+        if ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('id_karyawan', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->join('users', 'absensis.user_id', '=', 'users.id')
+            ->select('absensis.*')
+            ->orderBy('users.name', 'asc')
+            ->orderBy('absensis.check_in_at', 'desc')
+            ->get();
     }
-
-    if ($search) {
-        $query->whereHas('user', function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('id_karyawan', 'like', "%{$search}%");
-        });
-    }
-
-    // 🔥 AMBIL SQL QUERY (buat debug)
-    $sql = $query->toSql();
-    $bindings = $query->getBindings();
-
-    // 🔥 LOG DEBUG #3: CEK HASIL QUERY
-    $results = $query->join('users', 'absensis.user_id', '=', 'users.id')
-        ->select('absensis.*')
-        ->orderBy('users.name', 'asc')
-        ->orderBy('absensis.check_in_at', 'desc')
-        ->get();
-
-    \Log::info('✅ [GET SUBMISSIONS] Query Results', [
-        'type' => $type,
-        'level' => $level,
-        'total_found' => $results->count(),
-        'sql' => $sql,
-        'bindings' => $bindings,
-        'sample_data' => $results->first() ? [
-            'id' => $results->first()->id,
-            'user_id' => $results->first()->user_id,
-            'user_name' => $results->first()->user->name ?? 'N/A',
-            'employment_type' => $results->first()->user->employment_type ?? 'N/A',
-            'status_approval' => $results->first()->status_approval,
-            'current_approval_level' => $results->first()->current_approval_level,
-        ] : null,
-    ]);
-
-    return $results;
-}
 
     public function supervisor(Request $request)
     {
@@ -105,30 +73,18 @@ class ApprovalController extends Controller
         ]);
     }
 
-   public function manager(Request $request)
-{
-    Log::info('🏢 [MANAGER APPROVAL] START');
+    public function manager(Request $request)
+    {
+        $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
+        $organikManager = $this->getSubmissions($request, 'organik', 1);
 
-    // ✅ FREELANCE: Manager adalah Level 2
-    $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
-
-    // ✅ ORGANIK: Manager adalah Level 1 (APPROVAL PERTAMA!)
-    $organikManager = $this->getSubmissions($request, 'organik', 1);
-
-    Log::info('📊 [MANAGER APPROVAL] Results', [
-        'freelance_count' => $freelanceManager->count(),
-        'organik_count' => $organikManager->count(),
-    ]);
-
-    Log::info('🏢 [MANAGER APPROVAL] END');
-
-    return view('admin.absensi.approval.manager', [
-        'freelanceManager' => $freelanceManager,
-        'organikManager'   => $organikManager,
-        'approverName'     => 'Manager',
-        'approverRole'     => 'Level 2 Approval',
-    ]);
-}
+        return view('admin.absensi.approval.manager', [
+            'freelanceManager' => $freelanceManager,
+            'organikManager'   => $organikManager,
+            'approverName'     => 'Manager',
+            'approverRole'     => 'Level 2 Approval',
+        ]);
+    }
 
     public function hrga(Request $request)
     {
