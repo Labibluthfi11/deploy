@@ -284,13 +284,13 @@
                                     </form>
 
                                     <button type="button"
-                                        onclick="openRejectModal({{ $submission->id }})"
-                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
-                                        Reject
-                                    </button>
+                                    onclick="openRejectModal({{ $submission->id }}, '{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}')"
+                                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow">
+                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                    Reject
+                                </button>
                                 </div>
                             @elseif (in_array($statusApproval, ['approved_supervisor', 'approved_manager']))
                                 <span class="inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
