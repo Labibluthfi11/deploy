@@ -1,3 +1,5 @@
+{{-- File: resources/views/admin/absensi/approval/table.blade.php --}}
+
 {{-- HEADER SECTION --}}
 <div class="mb-6">
     <div class="flex items-center justify-between">
@@ -16,9 +18,7 @@
                     <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'pending')->count() }}</p>
                 </div>
                 <div class="p-3 bg-yellow-500/10 rounded-lg">
-                    <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                    <span class="text-2xl">⏱️</span>
                 </div>
             </div>
         </div>
@@ -29,9 +29,7 @@
                     <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'approved_hrga')->count() }}</p>
                 </div>
                 <div class="p-3 bg-green-500/10 rounded-lg">
-                    <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                    <span class="text-2xl">✅</span>
                 </div>
             </div>
         </div>
@@ -42,9 +40,7 @@
                     <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->where('status_approval', 'rejected')->count() }}</p>
                 </div>
                 <div class="p-3 bg-red-500/10 rounded-lg">
-                    <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                    <span class="text-2xl">❌</span>
                 </div>
             </div>
         </div>
@@ -55,9 +51,7 @@
                     <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $submissions->count() }}</p>
                 </div>
                 <div class="p-3 bg-indigo-500/10 rounded-lg">
-                    <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
+                    <span class="text-2xl">📋</span>
                 </div>
             </div>
         </div>
@@ -161,10 +155,7 @@
                                     <span>{{ $submission->lembur_end ? \Carbon\Carbon::parse($submission->lembur_end)->format('H:i') : '-' }}</span>
                                     @if($submission->lembur_rest == 1)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 104 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-                                            </svg>
-                                            Istirahat
+                                            ⏸️ Istirahat
                                         </span>
                                     @endif
                                 </div>
@@ -175,10 +166,7 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if($isOvertime)
                                 <div class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    {{ $duration }}
+                                    ⏱️ {{ $duration }}
                                 </div>
                             @else
                                 <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
@@ -191,11 +179,7 @@
                                 @if ($submission->file_bukti)
                                     <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank"
                                        class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                        Lihat Bukti
+                                        👁️ Lihat Bukti
                                     </a>
                                 @else
                                     <span class="text-xs text-gray-400 dark:text-gray-500 italic">Tidak ada</span>
@@ -228,11 +212,9 @@
                                 @if (!empty($submission->rejected_by) && !empty($submission->catatan_admin) && $submission->status_approval === 'pending')
                                 <div class="mt-2 p-2.5 bg-amber-500/10 border-l-4 border-amber-500 rounded text-xs leading-relaxed">
                                     <div class="flex items-start gap-2">
-                                        <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                        </svg>
+                                        <span class="text-amber-400">⚠️</span>
                                         <div class="flex-1">
-                                            <p class="font-bold text-amber-300 mb-1">⚠️ Pernah Ditolak oleh {{ strtoupper(str_replace(['_', '-'], ' ', $submission->rejected_by)) }}</p>
+                                            <p class="font-bold text-amber-300 mb-1">Pernah Ditolak oleh {{ strtoupper(str_replace(['_', '-'], ' ', $submission->rejected_by)) }}</p>
                                             <p class="text-amber-200 italic leading-tight">"{{ $submission->catatan_admin }}"</p>
                                             @if($submission->rejected_at)
                                                 <p class="text-amber-400 mt-1.5 text-xs">📅 {{ \Carbon\Carbon::parse($submission->rejected_at)->isoFormat('DD MMM YYYY, HH:mm') }} <span class="text-amber-500">({{ \Carbon\Carbon::parse($submission->rejected_at)->diffForHumans() }})</span></p>
@@ -269,50 +251,36 @@
                         <td class="px-6 py-4 whitespace-nowrap text-center">
                             @if ($statusApproval === 'pending')
                                 <div class="flex items-center justify-center gap-2">
+                                    {{-- 🔥 TOMBOL APPROVE (FIXED) --}}
                                     <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'approve']) }}"
                                         method="POST" class="inline">
                                         @csrf
                                         <input type="hidden" name="catatan_admin" value="Disetujui">
                                         <button type="submit"
                                             onclick="return confirm('Apakah Anda yakin ingin MENYETUJUI pengajuan ini?')"
-                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-all shadow-sm hover:shadow">
-                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                            </svg>
-                                            Approve
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all shadow-sm hover:shadow">
+                                            ✅ Approve
                                         </button>
                                     </form>
 
+                                    {{-- 🔥 TOMBOL REJECT (FIXED) --}}
                                     <button type="button"
                                         onclick="openRejectModal({{ $submission->id }})"
-                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
-                                        Reject
+                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all shadow-sm hover:shadow">
+                                        ❌ Reject
                                     </button>
                                 </div>
                             @elseif (in_array($statusApproval, ['approved_supervisor', 'approved_manager']))
                                 <span class="inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                    <svg class="animate-spin h-3.5 w-3.5 mr-1.5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Pending approval
+                                    ⏳ Pending approval
                                 </span>
                             @elseif ($statusApproval === 'approved_hrga')
                                 <span class="inline-flex items-center text-xs text-green-600 dark:text-green-400 font-medium">
-                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Completed
+                                    ✅ Completed
                                 </span>
                             @elseif ($statusApproval === 'rejected')
                                 <button type="button" class="inline-flex items-center text-xs text-red-600 dark:text-red-400 font-medium hover:text-red-500 dark:hover:text-red-300">
-                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    View reason
+                                    ℹ️ View reason
                                 </button>
                             @else
                                 <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
@@ -322,9 +290,7 @@
                 @empty
                     <tr>
                         <td colspan="8" class="px-6 py-12 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
+                            <div class="text-4xl mb-4">📋</div>
                             <h3 class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tidak ada data</h3>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-500">Belum ada pengajuan yang perlu di-review.</p>
                         </td>
@@ -359,5 +325,3 @@
 </div>
 
 @include('admin.absensi.approval.partials.reject-modal')
-
-
