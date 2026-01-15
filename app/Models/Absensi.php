@@ -105,31 +105,77 @@ protected $casts = [
     // ===================================================================
     // 🆕 HELPER: Hitung gaji (Support Weekend)
     // ===================================================================
-    public static function calculateSalary(int $actualLateMinutes, string $status, ?string $tipe = null, bool $isWeekend = false): array
-    {
-        $baseSalary = 0;
-        $latePenalty = 0;
-        $finalSalary = 0;
-        $roundedLateMinutes = 0;
+    public static function calculateSalary(
+    int $actualLateMinutes,
+    string $status,
+    ?string $tipe = null,
+    bool $isWeekend = false,
+    ?\Carbon\Carbon $checkIn = null,  // 🆕 TAMBAH INI
+    ?\Carbon\Carbon $checkOut = null  // 🆕 TAMBAH INI
+): array
+{
+    $baseSalary = 0;
+    $latePenalty = 0;
+    $finalSalary = 0;
+    $roundedLateMinutes = 0;
 
-        // Hitung gaji hanya untuk status 'hadir' atau tipe 'lembur'
-        if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
-            // 🆕 Tentukan gaji berdasarkan weekend atau tidak
-            $baseSalary = $isWeekend ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
-            $salaryPerMinute = $isWeekend ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
+    if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
+        $dailySalary = $isWeekend ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
+        $salaryPerMinute = $isWeekend ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
 
-            $roundedLateMinutes = self::roundLateMinutes($actualLateMinutes);
-            $latePenalty = $roundedLateMinutes * $salaryPerMinute;
-            $finalSalary = max(0, $baseSalary - $latePenalty);
+        // 🆕 HITUNG TOTAL JAM KERJA
+        $workedMinutes = 0;
+        if ($checkIn && $checkOut) {
+            $workedMinutes = self::calculateWorkedMinutes($checkIn, $checkOut);
+        } else {
+            // Kalo belum checkout, assume 8 jam kerja penuh
+            $workedMinutes = 480; // 8 jam
         }
 
-        return [
-            'base_salary' => round($baseSalary, 2),
-            'late_penalty' => round($latePenalty, 2),
-            'final_salary' => round($finalSalary, 2),
-            'rounded_late_minutes' => $roundedLateMinutes,
-        ];
+        // 🆕 PRORATA GAJI BERDASARKAN JAM KERJA
+        $expectedMinutes = 480; // 8 jam kerja normal (exclude istirahat)
+        $workRatio = min(1, $workedMinutes / $expectedMinutes); // Max 1 (100%)
+        $baseSalary = $dailySalary * $workRatio;
+
+        // Potong penalty telat
+        $roundedLateMinutes = self::roundLateMinutes($actualLateMinutes);
+        $latePenalty = $roundedLateMinutes * $salaryPerMinute;
+        $finalSalary = max(0, $baseSalary - $latePenalty);
     }
+
+    return [
+        'base_salary' => round($baseSalary, 2),
+        'late_penalty' => round($latePenalty, 2),
+        'final_salary' => round($finalSalary, 2),
+        'rounded_late_minutes' => $roundedLateMinutes,
+        'worked_minutes' => $workedMinutes ?? 0,
+    ];
+}
+
+/**
+ * Hitung total menit kerja (exclude istirahat 12:00-13:00)
+ */
+private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\Carbon $checkOut): int
+{
+    // Total menit dari check-in sampai check-out
+    $totalMinutes = $checkIn->diffInMinutes($checkOut);
+
+    // Define waktu istirahat: 12:00 - 13:00
+    $restStart = $checkIn->copy()->setTime(12, 0, 0);
+    $restEnd = $checkIn->copy()->setTime(13, 0, 0);
+
+    // Cek apakah periode kerja overlap dengan jam istirahat
+    if ($checkIn->lessThan($restEnd) && $checkOut->greaterThan($restStart)) {
+        // Hitung overlap duration
+        $overlapStart = $checkIn->greaterThan($restStart) ? $checkIn : $restStart;
+        $overlapEnd = $checkOut->lessThan($restEnd) ? $checkOut : $restEnd;
+
+        $restMinutes = $overlapStart->diffInMinutes($overlapEnd);
+        $totalMinutes -= $restMinutes;
+    }
+
+    return max(0, $totalMinutes);
+}
 
     // ===================================================================
     // 🆕 HELPER: Hitung lembur (Support Weekend Multiplier)

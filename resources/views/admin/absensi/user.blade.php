@@ -611,7 +611,7 @@
         {{-- Form Content --}}
                <form id="formEditCheckIn" method="POST" class="p-6 space-y-6">
     @csrf
-    
+
     {{-- Info Card --}}
     <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
         <div class="flex items-start gap-3">
@@ -727,9 +727,9 @@ function editCheckIn(absensiId, currentTime) {
     // Set action URL dengan BASE URL dari Laravel
     const baseUrl = "{{ url('/admin/absensi') }}";
     const actionUrl = `${baseUrl}/${absensiId}/edit-checkin`;
-    
+
     form.setAttribute('action', actionUrl);
-    
+
     console.log('✅ Action URL:', actionUrl);
 
     // Format waktu ke datetime-local format
@@ -767,7 +767,7 @@ function toggleFilterInputs() {
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     toggleFilterInputs();
-    
+
     // Close modal on outside click
     const modal = document.getElementById('modalEditCheckIn');
     if (modal) {

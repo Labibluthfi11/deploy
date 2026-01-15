@@ -35,32 +35,64 @@ class ApprovalController extends Controller
 
 
     private function getSubmissions(Request $request, $type, $level, $status = 'pending')
-    {
-        $search = $request->input('search');
+{
+    $search = $request->input('search');
 
-        $query = Absensi::with('user')
-            ->whereHas('user', fn($q) => $q->where('employment_type', $type))
-            ->where('current_approval_level', $level);
+    // 🔥 LOG DEBUG #2: CEK PARAMETER QUERY
+    \Log::info('🔎 [GET SUBMISSIONS] Query Parameters', [
+        'type' => $type,
+        'level' => $level,
+        'status' => $status,
+        'search' => $search,
+    ]);
 
-        if (is_array($status)) {
-            $query->whereIn('status_approval', $status);
-        } else {
-            $query->where('status_approval', $status);
-        }
+    // Query dasar
+    $query = Absensi::with('user')
+        ->whereHas('user', fn($q) => $q->where('employment_type', $type))
+        ->where('current_approval_level', $level);
 
-        if ($search) {
-            $query->whereHas('user', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('id_karyawan', 'like', "%{$search}%");
-            });
-        }
-
-        return $query->join('users', 'absensis.user_id', '=', 'users.id')
-            ->select('absensis.*')
-            ->orderBy('users.name', 'asc')
-            ->orderBy('absensis.check_in_at', 'desc')
-            ->get();
+    if (is_array($status)) {
+        $query->whereIn('status_approval', $status);
+    } else {
+        $query->where('status_approval', $status);
     }
+
+    if ($search) {
+        $query->whereHas('user', function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('id_karyawan', 'like', "%{$search}%");
+        });
+    }
+
+    // 🔥 AMBIL SQL QUERY (buat debug)
+    $sql = $query->toSql();
+    $bindings = $query->getBindings();
+
+    // 🔥 LOG DEBUG #3: CEK HASIL QUERY
+    $results = $query->join('users', 'absensis.user_id', '=', 'users.id')
+        ->select('absensis.*')
+        ->orderBy('users.name', 'asc')
+        ->orderBy('absensis.check_in_at', 'desc')
+        ->get();
+
+    \Log::info('✅ [GET SUBMISSIONS] Query Results', [
+        'type' => $type,
+        'level' => $level,
+        'total_found' => $results->count(),
+        'sql' => $sql,
+        'bindings' => $bindings,
+        'sample_data' => $results->first() ? [
+            'id' => $results->first()->id,
+            'user_id' => $results->first()->user_id,
+            'user_name' => $results->first()->user->name ?? 'N/A',
+            'employment_type' => $results->first()->user->employment_type ?? 'N/A',
+            'status_approval' => $results->first()->status_approval,
+            'current_approval_level' => $results->first()->current_approval_level,
+        ] : null,
+    ]);
+
+    return $results;
+}
 
     public function supervisor(Request $request)
     {
@@ -74,17 +106,93 @@ class ApprovalController extends Controller
     }
 
     public function manager(Request $request)
-    {
-        $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
-        $organikManager = $this->getSubmissions($request, 'organik', 1);
+{
+    \Log::info('═══════════════════════════════════════');
+    \Log::info('🏢 [MANAGER APPROVAL] START DEBUG');
+    \Log::info('═══════════════════════════════════════');
 
-        return view('admin.absensi.approval.manager', [
-            'freelanceManager' => $freelanceManager,
-            'organikManager'   => $organikManager,
-            'approverName'     => 'Manager',
-            'approverRole'     => 'Level 2 Approval',
+    // 🔥 DEBUG #1: CEK TOTAL USER ORGANIK
+    $totalOrganikUsers = \App\Models\User::where('employment_type', 'organik')->count();
+    \Log::info('👥 Total user organik di database', ['count' => $totalOrganikUsers]);
+
+    // 🔥 DEBUG #2: CEK DATA USER ORGANIK (sample)
+    $sampleOrganikUser = \App\Models\User::where('employment_type', 'organik')->first();
+    if ($sampleOrganikUser) {
+        \Log::info('👤 Sample user organik', [
+            'id' => $sampleOrganikUser->id,
+            'name' => $sampleOrganikUser->name,
+            'employment_type' => $sampleOrganikUser->employment_type,
+            'employment_type_length' => strlen($sampleOrganikUser->employment_type),
+            'employment_type_hex' => bin2hex($sampleOrganikUser->employment_type), // 👈 DETEKSI SPASI
         ]);
+    } else {
+        \Log::warning('⚠️ TIDAK ADA user dengan employment_type = "organik"!');
     }
+
+    // 🔥 DEBUG #3: CEK TOTAL PENDING (TANPA FILTER LEVEL)
+    $totalPendingOrganik = Absensi::whereHas('user', function($q) {
+        $q->where('employment_type', 'organik');
+    })
+    ->where('status_approval', 'pending')
+    ->count();
+    \Log::info('📊 Total absensi pending organik (all levels)', ['count' => $totalPendingOrganik]);
+
+    // 🔥 DEBUG #4: CEK TOTAL PENDING LEVEL 1
+    $totalPendingOrganikLevel1 = Absensi::whereHas('user', function($q) {
+        $q->where('employment_type', 'organik');
+    })
+    ->where('status_approval', 'pending')
+    ->where('current_approval_level', 1)
+    ->count();
+    \Log::info('📊 Total absensi pending organik level 1', ['count' => $totalPendingOrganikLevel1]);
+
+    // 🔥 DEBUG #5: CEK SAMPLE DATA PENDING
+    $samplePendingOrganik = Absensi::with('user')
+        ->whereHas('user', function($q) {
+            $q->where('employment_type', 'organik');
+        })
+        ->where('status_approval', 'pending')
+        ->where('current_approval_level', 1)
+        ->first();
+
+    if ($samplePendingOrganik) {
+        \Log::info('📄 Sample data pending organik', [
+            'absensi_id' => $samplePendingOrganik->id,
+            'user_id' => $samplePendingOrganik->user_id,
+            'user_name' => $samplePendingOrganik->user->name ?? 'N/A',
+            'user_employment_type' => $samplePendingOrganik->user->employment_type ?? 'N/A',
+            'status' => $samplePendingOrganik->status,
+            'tipe' => $samplePendingOrganik->tipe,
+            'status_approval' => $samplePendingOrganik->status_approval,
+            'current_approval_level' => $samplePendingOrganik->current_approval_level,
+            'workflow_status' => $samplePendingOrganik->workflow_status,
+            'check_in_at' => $samplePendingOrganik->check_in_at,
+        ]);
+    } else {
+        \Log::warning('⚠️ TIDAK ADA sample pending organik level 1!');
+    }
+
+    // 🔥 JALANKAN FUNGSI ASLI
+    $freelanceManager = $this->getSubmissions($request, 'freelance', 2);
+    $organikManager = $this->getSubmissions($request, 'organik', 1);
+
+    // 🔥 DEBUG #6: HASIL AKHIR
+    \Log::info('📊 Hasil getSubmissions', [
+        'freelance_count' => $freelanceManager->count(),
+        'organik_count' => $organikManager->count(),
+    ]);
+
+    \Log::info('═══════════════════════════════════════');
+    \Log::info('🏢 [MANAGER APPROVAL] END DEBUG');
+    \Log::info('═══════════════════════════════════════');
+
+    return view('admin.absensi.approval.manager', [
+        'freelanceManager' => $freelanceManager,
+        'organikManager'   => $organikManager,
+        'approverName'     => 'Manager',
+        'approverRole'     => 'Level 2 Approval',
+    ]);
+}
 
     public function hrga(Request $request)
     {
