@@ -20,7 +20,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 2 }}"></td> {{-- Spasi --}}
+                <td colspan="{{ count($users) + 2 }}"></td>
             </tr>
 
             {{-- HEADER TABEL --}}
@@ -39,12 +39,10 @@
         <tbody>
             @foreach($section['dates'] as $date)
                 <tr>
-                    {{-- TANGGAL --}}
                     <td style="text-align: center; border: 1px solid #000000; font-weight: bold;">
                         {{ $date->translatedFormat('d-M-Y') }}
                     </td>
 
-                    {{-- HARI --}}
                     <td style="text-align: center; border: 1px solid #000000;">
                         {{ $date->translatedFormat('l') }}
                     </td>
@@ -52,57 +50,54 @@
                     {{-- LOOP PER USER --}}
                     @foreach($users as $user)
                         @php
-                            // Cari absensi user di tanggal ini
-                            $absen = $absensiData->first(function($item) use ($user, $date) {
-                                return $item->user_id === $user->id && \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                            // 🔥 FIX: PAKE format() BUKAN isSameDay()!
+                            $targetDate = $date->format('Y-m-d');
+
+                            $absen = $absensiData->first(function($item) use ($user, $targetDate) {
+                                $itemDate = \Carbon\Carbon::parse($item->check_in_at)->format('Y-m-d');
+                                return $item->user_id === $user->id && $itemDate === $targetDate;
                             });
 
                             $cellContent = '-';
                             $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 10px;';
 
                             if ($absen) {
-                                // Ada absensi
                                 $checkIn = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
                                 $checkOut = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
 
                                 if (strtolower($absen->status) === 'hadir') {
                                     $cellContent = "$checkIn - $checkOut";
 
-                                    // 🔥 TAMBAH LEMBUR (KALO ADA)
-                                    if ($absen->overtime_minutes > 0) {
+                                    if (($absen->overtime_minutes ?? 0) > 0) {
                                         $overtimeHours = floor($absen->overtime_minutes / 60);
                                         $overtimeMinutes = $absen->overtime_minutes % 60;
                                         $cellContent .= "\nLembur: {$overtimeHours}j {$overtimeMinutes}m";
-                                        $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 9px; background-color: #E7F3FF;'; // Biru muda
+                                        $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 9px; background-color: #E7F3FF;';
                                     }
 
-                                    // 🔥 TAMBAH TELAT (KALO ADA)
                                     if (($absen->late_minutes ?? 0) > 0) {
                                         $cellContent .= "\n⏱ Telat: {$absen->late_minutes}m";
-                                        $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 9px; background-color: #FFF3CD;'; // Kuning muda
+                                        $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 9px; background-color: #FFF3CD;';
                                     }
 
                                 } elseif (strtolower($absen->status) === 'izin') {
                                     $cellContent = 'Izin';
-                                    $cellStyle .= ' background-color: #D1ECF1;'; // Biru tosca
+                                    $cellStyle .= ' background-color: #D1ECF1;';
                                 } elseif (strtolower($absen->status) === 'sakit') {
                                     $cellContent = 'Sakit';
-                                    $cellStyle .= ' background-color: #F8D7DA;'; // Merah muda
+                                    $cellStyle .= ' background-color: #F8D7DA;';
                                 } else {
                                     $cellContent = ucfirst($absen->status);
                                 }
                             } else {
-                                // Ga ada absensi
                                 $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
 
                                 if ($isWeekday) {
-                                    // Hari kerja tapi ga masuk = KOSONG (highlight merah)
                                     $cellContent = 'Tidak Masuk';
                                     $cellStyle = 'text-align: center; border: 1px solid #000000; font-size: 9px; background-color: #FFCCCC; font-weight: bold;';
                                 } else {
-                                    // Weekend = strip biasa
                                     $cellContent = '-';
-                                    $cellStyle .= ' background-color: #F0F0F0;'; // Abu-abu
+                                    $cellStyle .= ' background-color: #F0F0F0;';
                                 }
                             }
                         @endphp
@@ -117,13 +112,15 @@
                 <td colspan="2" style="text-align: center; border: 1px solid #000000;">TOTAL</td>
                 @foreach($users as $user)
                     @php
-                        // Hitung total di section ini
                         $totalTelat = 0;
                         $totalMenitLembur = 0;
 
                         foreach ($section['dates'] as $date) {
-                            $absen = $absensiData->first(function($item) use ($user, $date) {
-                                return $item->user_id === $user->id && \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                            $targetDate = $date->format('Y-m-d');
+
+                            $absen = $absensiData->first(function($item) use ($user, $targetDate) {
+                                $itemDate = \Carbon\Carbon::parse($item->check_in_at)->format('Y-m-d');
+                                return $item->user_id === $user->id && $itemDate === $targetDate;
                             });
 
                             if ($absen) {
@@ -147,7 +144,6 @@
         </tbody>
     </table>
 
-    {{-- SPASI ANTAR SECTION --}}
     @if($sectionIndex < count($sections) - 1)
         <table><tr><td colspan="{{ count($users) + 2 }}" style="height: 30px;"></td></tr></table>
     @endif

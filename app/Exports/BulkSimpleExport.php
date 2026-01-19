@@ -27,15 +27,46 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
     {
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // 🔥 AMBIL SEMUA DATA (APPROVED ONLY - SESUAI KODE LAMA)
+        // 🔥 DEBUG: LOG USER IDS
+        \Log::info('🔍 EXPORT USERS:', [
+            'user_ids' => $this->userIds,
+            'user_names' => $users->pluck('name', 'id')->toArray(),
+        ]);
+
+        // 🔥 AMBIL SEMUA DATA
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
-            ->where('status_approval', 'approved') // 👈 CUMA APPROVED (KAYAK KODE LAMA)
+            ->where('status_approval', 'approved')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // 🔥 PECAH TANGGAL PER BULAN & MINGGU (MAX 15 HARI)
+        // 🔥 DEBUG: LOG QUERY RESULT
+        \Log::info('🔍 EXPORT ABSENSI DATA:', [
+            'date_range' => [
+                'start' => $this->startDate,
+                'end' => $this->endDate,
+            ],
+            'total_data' => $absensiData->count(),
+            'sample_data' => $absensiData->take(5)->map(function($a) {
+                return [
+                    'user_id' => $a->user_id,
+                    'user_name' => $a->user->name ?? 'N/A',
+                    'check_in' => $a->check_in_at->format('Y-m-d H:i:s'),
+                    'status' => $a->status,
+                    'status_approval' => $a->status_approval,
+                ];
+            })->toArray(),
+        ]);
+
+        // 🔥 PECAH TANGGAL
         $sections = $this->splitDatesByMonth($this->startDate, $this->endDate);
+
+        // 🔥 DEBUG: LOG SECTIONS
+        \Log::info('📅 SECTIONS:', [
+            'total_sections' => count($sections),
+            'first_section_dates' => isset($sections[0]) ? count($sections[0]['dates']) : 0,
+            'first_date' => isset($sections[0]['dates'][0]) ? $sections[0]['dates'][0]->format('Y-m-d') : null,
+        ]);
 
         // Deteksi kategori
         $categories = [];
