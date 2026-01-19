@@ -25,17 +25,16 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
     public function view(): View
     {
-        // Ambil users yang dipilih, urutkan by name
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // Ambil semua absensi di range (approved + rejected yang ada gaji)
+        // 🔥 AMBIL SEMUA DATA (APPROVED ONLY - SESUAI KODE LAMA)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
-            ->whereIn('status_approval', ['approved', 'rejected'])
+            ->where('status_approval', 'approved') // 👈 CUMA APPROVED (KAYAK KODE LAMA)
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // 🔥 PECAH TANGGAL PER BULAN & PER MINGGU (max 15 hari per section)
+        // 🔥 PECAH TANGGAL PER BULAN & MINGGU (MAX 15 HARI)
         $sections = $this->splitDatesByMonth($this->startDate, $this->endDate);
 
         // Deteksi kategori
@@ -65,15 +64,12 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
         return view('exports.bulk_simple', [
             'users' => $users,
             'absensiData' => $absensiData,
-            'sections' => $sections, // 🔥 Array of sections (per bulan & minggu)
+            'sections' => $sections,
             'periodeStr' => $periodeStr,
             'categoryLabel' => $categoryLabel,
         ]);
     }
 
-    /**
-     * 🔥 PECAH TANGGAL PER BULAN & PER MINGGU (MAX 15 HARI)
-     */
     private function splitDatesByMonth($start, $end)
     {
         $sections = [];
@@ -85,9 +81,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
         $weekNumber = 1;
 
         while ($current <= $endDate) {
-            // Cek kalo ganti bulan
             if ($current->month != $currentMonth) {
-                // Simpan minggu terakhir bulan sebelumnya
                 if (!empty($weekDates)) {
                     $sections[] = [
                         'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
@@ -96,16 +90,13 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
                     ];
                 }
 
-                // Reset untuk bulan baru
                 $currentMonth = $current->month;
                 $weekDates = [];
                 $weekNumber = 1;
             }
 
-            // Tambah tanggal ke minggu ini
             $weekDates[] = $current->copy();
 
-            // Kalo udah 15 hari, bikin section baru
             if (count($weekDates) >= 15) {
                 $sections[] = [
                     'month' => $current->translatedFormat('F Y'),
@@ -120,7 +111,6 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $current->addDay();
         }
 
-        // Simpan sisa tanggal terakhir
         if (!empty($weekDates)) {
             $sections[] = [
                 'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
