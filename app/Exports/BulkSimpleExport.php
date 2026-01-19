@@ -45,7 +45,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // Deteksi kategori (kayak di BulkDetailExport)
+        // Deteksi kategori
         $categories = [];
         foreach ($users as $user) {
             $kategori = $this->detectKategori($user);
@@ -67,22 +67,61 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $categoryLabel = 'Semua Karyawan';
         }
 
+        // 🔥 SPLIT TANGGAL PER 15 HARI & PER BULAN
+        $dateGroups = $this->splitDatesByMonth($allDates);
+
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
         return view('exports.bulk_simple', [
             'users' => $users,
             'absensiData' => $absensiData,
-            'allDates' => $allDates,
+            'dateGroups' => $dateGroups,
             'periodeStr' => $periodeStr,
             'categoryLabel' => $categoryLabel,
         ]);
+    }
+
+    /**
+     * Split tanggal per bulan, lalu per 15 hari
+     */
+    private function splitDatesByMonth(array $allDates): array
+    {
+        $grouped = [];
+
+        foreach ($allDates as $date) {
+            $monthYear = $date->format('Y-m'); // 2025-01, 2025-02, dst
+
+            if (!isset($grouped[$monthYear])) {
+                $grouped[$monthYear] = [
+                    'month_label' => $date->translatedFormat('F Y'), // Januari 2025
+                    'chunks' => []
+                ];
+            }
+
+            $grouped[$monthYear]['chunks'][] = $date;
+        }
+
+        // Split setiap bulan jadi chunk 15 hari
+        $result = [];
+        foreach ($grouped as $monthYear => $data) {
+            $chunks = array_chunk($data['chunks'], 15);
+
+            foreach ($chunks as $index => $chunk) {
+                $result[] = [
+                    'month_label' => $data['month_label'],
+                    'week_label' => 'Minggu Ke-' . ($index + 1),
+                    'dates' => $chunk
+                ];
+            }
+        }
+
+        return $result;
     }
 
     private function detectKategori(User $user): string
     {
         $idKaryawan = $user->id_karyawan ?? '';
 
-        // 🔥 KOMPATIBEL PHP 7.x & 8.x
         if (strpos($idKaryawan, 'CS-AMB') === 0) {
             return 'borongan';
         }
