@@ -23,7 +23,7 @@
                 <td colspan="15"></td> {{-- Spasi --}}
             </tr>
 
-            {{-- HEADER TABEL - CUMA SEKALI --}}
+            {{-- HEADER TABEL --}}
             <tr style="background-color: #D9D9D9;">
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 50px;">NO</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px;">Nama</th>
@@ -42,13 +42,9 @@
             @php $no = 1; @endphp
             @foreach($users as $user)
                 @php
-                    // Ambil absensi user ini
                     $userAbsensi = $absensiData->where('user_id', $user->id);
-
-                    // Split tanggal jadi chunk 11 hari
                     $dateChunks = array_chunk($group['dates'], 11);
 
-                    // Hitung total telat & lembur
                     $totalTelat = 0;
                     $totalMenitLembur = 0;
 
@@ -69,7 +65,7 @@
                     $lemburMenit = $totalMenitLembur % 60;
                     $totalLemburStr = $totalMenitLembur > 0 ? sprintf('%dj %dm', $lemburJam, $lemburMenit) : '-';
 
-                    // Total baris = 2 baris per chunk (tanggal + data)
+                    // Hitung total baris: setiap chunk = 2 baris (tanggal + data)
                     $totalRows = count($dateChunks) * 2;
                 @endphp
 
@@ -77,26 +73,21 @@
                 @foreach($dateChunks as $chunkIndex => $chunk)
                     {{-- BARIS TANGGAL --}}
                     <tr>
-                        {{-- NO & NAMA di rowspan (cuma di chunk pertama) --}}
+                        {{-- NO & NAMA cuma muncul di chunk pertama --}}
                         @if($chunkIndex === 0)
                             <td rowspan="{{ $totalRows }}" style="text-align: center; border: 1px solid #000000; vertical-align: middle; font-weight: bold;">{{ $no }}</td>
                             <td rowspan="{{ $totalRows }}" style="text-align: left; border: 1px solid #000000; padding-left: 5px; vertical-align: middle; font-weight: bold;">{{ $user->name }}</td>
                         @endif
 
-                        {{-- ISI TANGGAL (01-Jan, 02-Jan, dst) --}}
+                        {{-- ISI TANGGAL --}}
                         @for($i = 0; $i < 11; $i++)
                             @php
-                                if (isset($chunk[$i])) {
-                                    $date = $chunk[$i];
-                                    $cellContent = $date->format('d-M');
-                                } else {
-                                    $cellContent = '';
-                                }
+                                $cellContent = isset($chunk[$i]) ? $chunk[$i]->format('d-M') : '';
                             @endphp
-                            <td style="text-align: center; border: 1px solid #000000; font-size: 10px;">{{ $cellContent }}</td>
+                            <td style="text-align: center; border: 1px solid #000000; font-size: 10px; background-color: #FFFFFF;">{{ $cellContent }}</td>
                         @endfor
 
-                        {{-- TOTAL (rowspan, cuma di chunk pertama) --}}
+                        {{-- TOTAL TELAT & LEMBUR (rowspan, cuma di chunk pertama) --}}
                         @if($chunkIndex === 0)
                             <td rowspan="{{ $totalRows }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: middle;">
                                 {{ $totalTelat > 0 ? $totalTelat . 'x' : '-' }}
@@ -114,7 +105,6 @@
                             @php
                                 if (isset($chunk[$i])) {
                                     $date = $chunk[$i];
-
                                     $absen = $userAbsensi->first(function($item) use ($date) {
                                         return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                                     });
@@ -134,8 +124,8 @@
                                             if ($lemburMenit > 0) {
                                                 $lemburJam = floor($lemburMenit / 60);
                                                 $lemburSisa = $lemburMenit % 60;
-                                                $lemburStr = sprintf('Lembur: %dj %dm', $lemburJam, $lemburSisa);
-                                                $cellContent .= " $lemburStr";
+                                                $lemburStr = sprintf(' Lembur: %dj %dm', $lemburJam, $lemburSisa);
+                                                $cellContent .= $lemburStr;
                                             }
                                         } elseif (strtolower($absen->status) === 'izin') {
                                             $cellContent = 'Izin';
@@ -145,6 +135,7 @@
                                             $cellContent = ucfirst($absen->status);
                                         }
                                     } else {
+                                        // Tidak ada absensi
                                         $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
 
                                         if ($isWeekday) {
@@ -155,6 +146,7 @@
                                         }
                                     }
                                 } else {
+                                    // Sel kosong
                                     $cellContent = '';
                                     $cellStyle = 'text-align: center; border: 1px solid #000000; background-color: #F0F0F0;';
                                 }
@@ -173,7 +165,7 @@
     {{-- Spasi antar tabel --}}
     @if($groupIndex < count($dateGroups) - 1)
         <table>
-            <tr><td colspan="50" style="height: 30px;"></td></tr>
+            <tr><td colspan="15" style="height: 30px;"></td></tr>
         </table>
     @endif
 @endforeach
