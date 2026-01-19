@@ -5,72 +5,91 @@
         {{-- HEADER KUNING --}}
         <thead>
             <tr>
-                <td colspan="{{ count($group['dates']) + 3 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 4 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
                     ABSENSI {{ strtoupper($categoryLabel) }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($group['dates']) + 3 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 4 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
                     {{ $group['month_label'] }} - {{ $group['week_label'] }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($group['dates']) + 3 }}" style="text-align: center; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 4 }}" style="text-align: center; border: 1px solid #000000;">
                     {{ $periodeStr }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($group['dates']) + 3 }}"></td> {{-- Spasi --}}
+                <td colspan="{{ count($users) + 4 }}"></td> {{-- Spasi --}}
             </tr>
 
             {{-- HEADER TABEL --}}
             <tr style="background-color: #D9D9D9;">
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 50px;">NO</th>
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px;">Nama</th>
-                @foreach($group['dates'] as $date)
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">
-                        {{ $date->format('d-M') }}
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Tanggal</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Hari</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Lembur per hari</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Telat Per Hari</th>
+                @foreach($users as $user)
+                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 150px;">
+                        {{ $user->name }}
                     </th>
                 @endforeach
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 80px;">Total Telat</th>
             </tr>
         </thead>
 
         {{-- BODY TABEL --}}
         <tbody>
-            @php $no = 1; @endphp
-            @foreach($users as $user)
+            @foreach($group['dates'] as $date)
                 @php
-                    // Ambil absensi user ini
-                    $userAbsensi = $absensiData->where('user_id', $user->id);
+                    // Data untuk baris ini
+                    $dayName = $date->translatedFormat('l'); // Monday, Tuesday, dst
+                    $dateStr = $date->format('d-M-Y');
+                    $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
 
-                    // Hitung total telat HANYA untuk chunk tanggal ini
-                    $totalTelat = 0;
+                    // Hitung total lembur & telat untuk HARI ini (semua user)
+                    $totalLemburHari = 0;
+                    $totalTelatHari = 0;
 
-                    foreach ($group['dates'] as $date) {
-                        $absen = $userAbsensi->first(function($item) use ($date) {
-                            return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                    foreach ($users as $user) {
+                        $absen = $absensiData->first(function($item) use ($user, $date) {
+                            return $item->user_id == $user->id &&
+                                   \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                         });
 
-                        if ($absen && ($absen->late_minutes ?? 0) > 0) {
-                            $totalTelat++;
+                        if ($absen) {
+                            $totalLemburHari += $absen->overtime_minutes ?? 0;
+                            if (($absen->late_minutes ?? 0) > 0) {
+                                $totalTelatHari++;
+                            }
                         }
                     }
+
+                    // Format total lembur hari ini
+                    $lemburJam = floor($totalLemburHari / 60);
+                    $lemburMenit = $totalLemburHari % 60;
+                    $lemburStr = $totalLemburHari > 0 ? sprintf('%d jam %d menit', $lemburJam, $lemburMenit) : '-';
                 @endphp
 
                 <tr>
-                    {{-- NO --}}
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $no++ }}</td>
+                    {{-- TANGGAL --}}
+                    <td style="text-align: center; border: 1px solid #000000;">{{ $dateStr }}</td>
 
-                    {{-- NAMA --}}
-                    <td style="text-align: left; border: 1px solid #000000; padding-left: 5px;">{{ $user->name }}</td>
+                    {{-- HARI --}}
+                    <td style="text-align: center; border: 1px solid #000000;">{{ $dayName }}</td>
 
-                    {{-- LOOP TANGGAL --}}
-                    @foreach($group['dates'] as $date)
+                    {{-- TOTAL LEMBUR HARI INI --}}
+                    <td style="text-align: center; border: 1px solid #000000;">{{ $lemburStr }}</td>
+
+                    {{-- TOTAL TELAT HARI INI --}}
+                    <td style="text-align: center; border: 1px solid #000000;">{{ $totalTelatHari > 0 ? $totalTelatHari : '-' }}</td>
+
+                    {{-- LOOP SEMUA USER --}}
+                    @foreach($users as $user)
                         @php
-                            // Cari absensi di tanggal ini
-                            $absen = $userAbsensi->first(function($item) use ($date) {
-                                return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                            // Cari absensi user ini di tanggal ini
+                            $absen = $absensiData->first(function($item) use ($user, $date) {
+                                return $item->user_id == $user->id &&
+                                       \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                             });
 
                             $cellContent = '-';
@@ -81,17 +100,8 @@
                                 $checkIn = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
                                 $checkOut = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
 
-                                // 🔥 LEMBUR PER HARI (dalam format jam:menit)
-                                $lemburMenit = $absen->overtime_minutes ?? 0;
-                                $lemburJam = floor($lemburMenit / 60);
-                                $lemburSisa = $lemburMenit % 60;
-                                $lemburStr = $lemburMenit > 0 ? sprintf('%dj%02dm', $lemburJam, $lemburSisa) : '';
-
                                 if (strtolower($absen->status) === 'hadir') {
                                     $cellContent = "$checkIn - $checkOut";
-                                    if ($lemburStr) {
-                                        $cellContent .= "\n($lemburStr)";
-                                    }
                                 } elseif (strtolower($absen->status) === 'izin') {
                                     $cellContent = 'Izin';
                                 } elseif (strtolower($absen->status) === 'sakit') {
@@ -101,23 +111,19 @@
                                 }
                             } else {
                                 // Ga ada absensi
-                                $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
-
                                 if ($isWeekday) {
-                                    $cellContent = ''; // Kosong untuk hari kerja
+                                    // Hari kerja tapi ga masuk = TIDAK MASUK (background merah muda)
+                                    $cellContent = 'Tidak Masuk';
+                                    $cellStyle = 'text-align: center; border: 1px solid #000000; background-color: #FFB6C1;';
                                 } else {
-                                    $cellContent = '-'; // Strip untuk weekend
+                                    // Weekend = strip biasa
+                                    $cellContent = '-';
                                 }
                             }
                         @endphp
 
                         <td style="{{ $cellStyle }}">{{ $cellContent }}</td>
                     @endforeach
-
-                    {{-- TOTAL TELAT (untuk chunk ini aja) --}}
-                    <td style="text-align: center; border: 1px solid #000000; font-weight: bold;">
-                        {{ $totalTelat }}
-                    </td>
                 </tr>
             @endforeach
         </tbody>
@@ -126,7 +132,7 @@
     {{-- Spasi antar tabel --}}
     @if($groupIndex < count($dateGroups) - 1)
         <table>
-            <tr><td colspan="20" style="height: 20px;"></td></tr>
+            <tr><td colspan="50" style="height: 30px;"></td></tr>
         </table>
     @endif
 @endforeach

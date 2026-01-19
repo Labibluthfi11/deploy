@@ -93,7 +93,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
             if (!isset($grouped[$monthYear])) {
                 $grouped[$monthYear] = [
-                    'month_label' => $date->translatedFormat('F Y'), // Januari 2025
+                    'month_label' => strtoupper($date->translatedFormat('F Y')), // JANUARY 2026
                     'chunks' => []
                 ];
             }
