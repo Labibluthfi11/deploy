@@ -28,24 +28,17 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
         // Ambil users yang dipilih, urutkan by name
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // Generate semua tanggal di range
-        $allDates = [];
-        $current = Carbon::parse($this->startDate);
-        $end = Carbon::parse($this->endDate);
-
-        while ($current <= $end) {
-            $allDates[] = $current->copy();
-            $current->addDay();
-        }
-
-        // Ambil semua absensi di range (approved only)
+        // Ambil semua absensi di range (approved + rejected yang ada gaji)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
-            ->where('status_approval', 'approved')
+            ->whereIn('status_approval', ['approved', 'rejected'])
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // Deteksi kategori (kayak di BulkDetailExport)
+        // 🔥 PECAH TANGGAL PER BULAN & PER MINGGU (max 15 hari per section)
+        $sections = $this->splitDatesByMonth($this->startDate, $this->endDate);
+
+        // Deteksi kategori
         $categories = [];
         foreach ($users as $user) {
             $kategori = $this->detectKategori($user);
@@ -69,20 +62,80 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
-        return view('exports.bulk_simple', [
+        return view('exports.bulk_simple_vertical', [
             'users' => $users,
             'absensiData' => $absensiData,
-            'allDates' => $allDates,
+            'sections' => $sections, // 🔥 Array of sections (per bulan & minggu)
             'periodeStr' => $periodeStr,
             'categoryLabel' => $categoryLabel,
         ]);
+    }
+
+    /**
+     * 🔥 PECAH TANGGAL PER BULAN & PER MINGGU (MAX 15 HARI)
+     */
+    private function splitDatesByMonth($start, $end)
+    {
+        $sections = [];
+        $current = Carbon::parse($start);
+        $endDate = Carbon::parse($end);
+
+        $currentMonth = $current->month;
+        $weekDates = [];
+        $weekNumber = 1;
+
+        while ($current <= $endDate) {
+            // Cek kalo ganti bulan
+            if ($current->month != $currentMonth) {
+                // Simpan minggu terakhir bulan sebelumnya
+                if (!empty($weekDates)) {
+                    $sections[] = [
+                        'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
+                        'week' => $weekNumber,
+                        'dates' => $weekDates,
+                    ];
+                }
+
+                // Reset untuk bulan baru
+                $currentMonth = $current->month;
+                $weekDates = [];
+                $weekNumber = 1;
+            }
+
+            // Tambah tanggal ke minggu ini
+            $weekDates[] = $current->copy();
+
+            // Kalo udah 15 hari, bikin section baru
+            if (count($weekDates) >= 15) {
+                $sections[] = [
+                    'month' => $current->translatedFormat('F Y'),
+                    'week' => $weekNumber,
+                    'dates' => $weekDates,
+                ];
+
+                $weekDates = [];
+                $weekNumber++;
+            }
+
+            $current->addDay();
+        }
+
+        // Simpan sisa tanggal terakhir
+        if (!empty($weekDates)) {
+            $sections[] = [
+                'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
+                'week' => $weekNumber,
+                'dates' => $weekDates,
+            ];
+        }
+
+        return $sections;
     }
 
     private function detectKategori(User $user): string
     {
         $idKaryawan = $user->id_karyawan ?? '';
 
-        // 🔥 KOMPATIBEL PHP 7.x & 8.x
         if (strpos($idKaryawan, 'CS-AMB') === 0) {
             return 'borongan';
         }
