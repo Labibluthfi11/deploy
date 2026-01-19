@@ -67,7 +67,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $categoryLabel = 'Semua Karyawan';
         }
 
-        // 🔥 SPLIT TANGGAL PER 15 HARI & PER BULAN
+        // 🔥 SPLIT TANGGAL PER 16 HARI & PER BULAN
         $dateGroups = $this->splitDatesByMonth($allDates);
 
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
@@ -82,7 +82,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
     }
 
     /**
-     * Split tanggal per bulan, lalu per 15 hari
+     * Split tanggal per bulan, lalu per 16 hari
      */
     private function splitDatesByMonth(array $allDates): array
     {
@@ -101,10 +101,10 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $grouped[$monthYear]['chunks'][] = $date;
         }
 
-        // Split setiap bulan jadi chunk 15 hari
+        // Split setiap bulan jadi chunk 16 hari
         $result = [];
         foreach ($grouped as $monthYear => $data) {
-            $chunks = array_chunk($data['chunks'], 15);
+            $chunks = array_chunk($data['chunks'], 16);
 
             foreach ($chunks as $index => $chunk) {
                 $result[] = [

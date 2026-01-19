@@ -1,167 +1,163 @@
 {{-- resources/views/exports/bulk_simple.blade.php --}}
 
-@foreach($users as $userIndex => $user)
-    @php
-        // Ambil absensi user ini aja
-        $userAbsensi = $absensiData->where('user_id', $user->id);
-    @endphp
+@foreach($dateGroups as $groupIndex => $group)
+    <table>
+        {{-- HEADER KUNING --}}
+        <thead>
+            <tr>
+                <td colspan="{{ count($group['dates']) + 4 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
+                    ABSENSI {{ strtoupper($categoryLabel) }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="{{ count($group['dates']) + 4 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
+                    {{ $group['month_label'] }} - {{ $group['week_label'] }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="{{ count($group['dates']) + 4 }}" style="text-align: center; border: 1px solid #000000;">
+                    {{ $periodeStr }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="{{ count($group['dates']) + 4 }}"></td> {{-- Spasi --}}
+            </tr>
 
-    @foreach($dateGroups as $groupIndex => $group)
-        <table>
-            {{-- HEADER KUNING --}}
-            <thead>
-                <tr>
-                    <td colspan="6" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
-                        ABSENSI {{ strtoupper($categoryLabel) }}
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
-                        {{ $group['month_label'] }} - {{ $group['week_label'] }}
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="text-align: center; border: 1px solid #000000;">
-                        {{ $periodeStr }}
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="font-weight: bold; text-align: center; background-color: #D9D9D9; border: 1px solid #000000; font-size: 14px;">
-                        {{ $user->name }}
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="6"></td> {{-- Spasi --}}
-                </tr>
-
-                {{-- HEADER TABEL --}}
-                <tr style="background-color: #D9D9D9;">
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Tanggal</th>
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Hari</th>
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 150px;">Jam Masuk - Keluar</th>
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Telat</th>
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Lembur</th>
-                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 150px;">Keterangan</th>
-                </tr>
-            </thead>
-
-            {{-- BODY TABEL --}}
-            <tbody>
-                @php
-                    $totalTelatChunk = 0;
-                    $totalLemburChunk = 0;
-                @endphp
-
+            {{-- HEADER TABEL --}}
+            <tr style="background-color: #D9D9D9;">
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 50px;">NO</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px;">Nama</th>
                 @foreach($group['dates'] as $date)
-                    @php
-                        // Data untuk baris ini
-                        $dayName = $date->translatedFormat('l');
-                        $dateStr = $date->format('d-M-Y');
-                        $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
+                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">
+                        {{ $date->format('d-M') }}
+                    </th>
+                @endforeach
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Total Telat</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Lembur</th>
+            </tr>
+        </thead>
 
-                        // Cari absensi user ini di tanggal ini
+        {{-- BODY TABEL --}}
+        <tbody>
+            @php $no = 1; @endphp
+            @foreach($users as $user)
+                @php
+                    // Ambil absensi user ini
+                    $userAbsensi = $absensiData->where('user_id', $user->id);
+
+                    // Hitung total telat & lembur UNTUK CHUNK INI
+                    $totalTelat = 0;
+                    $totalMenitLembur = 0;
+
+                    foreach ($group['dates'] as $date) {
                         $absen = $userAbsensi->first(function($item) use ($date) {
                             return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                         });
 
-                        $jamMasukKeluar = '-';
-                        $telatStr = '-';
-                        $lemburStr = '-';
-                        $keterangan = '-';
-                        $rowStyle = '';
-
                         if ($absen) {
-                            // Ada absensi
-                            $checkIn = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
-                            $checkOut = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
-
-                            if (strtolower($absen->status) === 'hadir') {
-                                $jamMasukKeluar = "$checkIn - $checkOut";
-
-                                // Hitung telat
-                                $telatMenit = $absen->late_minutes ?? 0;
-                                if ($telatMenit > 0) {
-                                    $totalTelatChunk++;
-                                    $telatJam = floor($telatMenit / 60);
-                                    $telatSisa = $telatMenit % 60;
-                                    if ($telatJam > 0) {
-                                        $telatStr = sprintf('%dj %dm', $telatJam, $telatSisa);
-                                    } else {
-                                        $telatStr = sprintf('%dm', $telatSisa);
-                                    }
-                                } else {
-                                    $telatStr = '-';
-                                }
-
-                                // Hitung lembur
-                                $lemburMenit = $absen->overtime_minutes ?? 0;
-                                if ($lemburMenit > 0) {
-                                    $totalLemburChunk += $lemburMenit;
-                                    $lemburJam = floor($lemburMenit / 60);
-                                    $lemburSisa = $lemburMenit % 60;
-                                    $lemburStr = sprintf('%dj %dm', $lemburJam, $lemburSisa);
-                                } else {
-                                    $lemburStr = '-';
-                                }
-
-                                $keterangan = 'Hadir';
-                            } elseif (strtolower($absen->status) === 'izin') {
-                                $keterangan = 'Izin';
-                            } elseif (strtolower($absen->status) === 'sakit') {
-                                $keterangan = 'Sakit';
-                            } else {
-                                $keterangan = ucfirst($absen->status);
+                            if (($absen->late_minutes ?? 0) > 0) {
+                                $totalTelat++;
                             }
-                        } else {
-                            // Ga ada absensi
-                            if ($isWeekday) {
-                                // Hari kerja tapi ga masuk
-                                $keterangan = 'Tidak Masuk';
-                                $rowStyle = 'background-color: #FFB6C1;';
-                            } else {
-                                // Weekend
-                                $keterangan = 'Libur';
-                            }
+                            $totalMenitLembur += $absen->overtime_minutes ?? 0;
                         }
-                    @endphp
+                    }
 
-                    <tr style="{{ $rowStyle }}">
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $dateStr }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $dayName }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $jamMasukKeluar }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $telatStr }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $lemburStr }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $keterangan }}</td>
-                    </tr>
-                @endforeach
-
-                {{-- SUMMARY ROW --}}
-                @php
-                    $lemburJamTotal = floor($totalLemburChunk / 60);
-                    $lemburMenitTotal = $totalLemburChunk % 60;
-                    $lemburTotalStr = $totalLemburChunk > 0 ? sprintf('%dj %dm', $lemburJamTotal, $lemburMenitTotal) : '-';
+                    // Format total lembur
+                    $lemburJam = floor($totalMenitLembur / 60);
+                    $lemburMenit = $totalMenitLembur % 60;
+                    $totalLemburStr = $totalMenitLembur > 0 ? sprintf('%dj %dm', $lemburJam, $lemburMenit) : '-';
                 @endphp
-                <tr style="background-color: #FFFFCC;">
-                    <td colspan="3" style="font-weight: bold; text-align: center; border: 1px solid #000000;">TOTAL</td>
-                    <td style="font-weight: bold; text-align: center; border: 1px solid #000000;">{{ $totalTelatChunk }}x</td>
-                    <td style="font-weight: bold; text-align: center; border: 1px solid #000000;">{{ $lemburTotalStr }}</td>
-                    <td style="text-align: center; border: 1px solid #000000;">-</td>
+
+                <tr>
+                    {{-- NO --}}
+                    <td style="text-align: center; border: 1px solid #000000; vertical-align: middle;">{{ $no++ }}</td>
+
+                    {{-- NAMA --}}
+                    <td style="text-align: left; border: 1px solid #000000; padding-left: 5px; vertical-align: middle;">{{ $user->name }}</td>
+
+                    {{-- LOOP TANGGAL --}}
+                    @foreach($group['dates'] as $date)
+                        @php
+                            // Cari absensi di tanggal ini
+                            $absen = $userAbsensi->first(function($item) use ($date) {
+                                return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                            });
+
+                            $cellContent = '-';
+                            $cellStyle = 'text-align: center; border: 1px solid #000000; vertical-align: middle; font-size: 10px;';
+
+                            if ($absen) {
+                                // Ada absensi
+                                $checkIn = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
+                                $checkOut = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
+
+                                if (strtolower($absen->status) === 'hadir') {
+                                    $cellContent = "$checkIn - $checkOut";
+
+                                    // 🔥 TELAT INFO
+                                    $telatMenit = $absen->late_minutes ?? 0;
+                                    if ($telatMenit > 0) {
+                                        $telatJam = floor($telatMenit / 60);
+                                        $telatSisa = $telatMenit % 60;
+                                        if ($telatJam > 0) {
+                                            $telatStr = sprintf('Telat: %dj %dm', $telatJam, $telatSisa);
+                                        } else {
+                                            $telatStr = sprintf('Telat: %dm', $telatSisa);
+                                        }
+                                        $cellContent .= "\n$telatStr";
+                                    }
+
+                                    // 🔥 LEMBUR INFO
+                                    $lemburMenit = $absen->overtime_minutes ?? 0;
+                                    if ($lemburMenit > 0) {
+                                        $lemburJam = floor($lemburMenit / 60);
+                                        $lemburSisa = $lemburMenit % 60;
+                                        $lemburStr = sprintf('Lembur: %dj %dm', $lemburJam, $lemburSisa);
+                                        $cellContent .= "\n$lemburStr";
+                                    }
+                                } elseif (strtolower($absen->status) === 'izin') {
+                                    $cellContent = 'Izin';
+                                } elseif (strtolower($absen->status) === 'sakit') {
+                                    $cellContent = 'Sakit';
+                                } else {
+                                    $cellContent = ucfirst($absen->status);
+                                }
+                            } else {
+                                // Ga ada absensi
+                                $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
+
+                                if ($isWeekday) {
+                                    // Hari kerja tapi ga masuk
+                                    $cellContent = 'Tidak Masuk';
+                                    $cellStyle = 'text-align: center; border: 1px solid #000000; background-color: #FFB6C1; vertical-align: middle; font-size: 10px;';
+                                } else {
+                                    // Weekend
+                                    $cellContent = '-';
+                                }
+                            }
+                        @endphp
+
+                        <td style="{{ $cellStyle }}">{{ $cellContent }}</td>
+                    @endforeach
+
+                    {{-- TOTAL TELAT --}}
+                    <td style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: middle;">
+                        {{ $totalTelat > 0 ? $totalTelat . 'x' : '-' }}
+                    </td>
+
+                    {{-- TOTAL LEMBUR --}}
+                    <td style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: middle;">
+                        {{ $totalLemburStr }}
+                    </td>
                 </tr>
-            </tbody>
-        </table>
+            @endforeach
+        </tbody>
+    </table>
 
-        {{-- Spasi antar chunk --}}
-        @if($groupIndex < count($dateGroups) - 1)
-            <table>
-                <tr><td colspan="10" style="height: 30px;"></td></tr>
-            </table>
-        @endif
-    @endforeach
-
-    {{-- Page break antar user --}}
-    @if($userIndex < count($users) - 1)
+    {{-- Spasi antar tabel --}}
+    @if($groupIndex < count($dateGroups) - 1)
         <table>
-            <tr><td colspan="10" style="height: 50px; page-break-after: always;"></td></tr>
+            <tr><td colspan="50" style="height: 30px;"></td></tr>
         </table>
     @endif
 @endforeach
