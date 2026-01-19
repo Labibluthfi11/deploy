@@ -25,15 +25,15 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
     public function view(): View
     {
-        // Ambil users yang dipilih, urutkan by name
-        $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
-
-        // Ambil semua absensi di range (approved + rejected yang ada gaji)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
-            ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
-            ->whereIn('status_approval', ['approved', 'rejected'])
-            ->orderBy('check_in_at', 'asc')
-            ->get();
+    ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
+    ->orderBy('check_in_at', 'asc')
+    ->get();
+
+\Log::info('📊 Total Absensi Found:', [
+    'count' => $absensiData->count(),
+    'users' => $users->pluck('name'),
+]);
 
         // 🔥 PECAH TANGGAL PER BULAN & PER MINGGU (max 15 hari per section)
         $sections = $this->splitDatesByMonth($this->startDate, $this->endDate);
