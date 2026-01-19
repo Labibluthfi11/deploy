@@ -1,188 +1,195 @@
-{{-- resources/views/exports/bulk_fix.blade.php --}}
+{{-- resources/views/exports/bulk_simple.blade.php --}}
 
-<table>
-    {{-- HEADER JUDUL KUNING (SAMA KEK YG LU PUNYA) --}}
-    <thead>
-        <tr>
-            <td colspan="15" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
-                ABSENSI KARYAWAN FREELANCE
-            </td>
-        </tr>
-        <tr>
-            <td colspan="15" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
-                {{ $monthLabel ?? 'Bulan Ini' }}
-            </td>
-        </tr>
-        <tr>
-            <td colspan="15" style="text-align: center; border: 1px solid #000000;">
-                {{ $periodeStr ?? '' }}
-            </td>
-        </tr>
-        <tr><td colspan="15"></td></tr>
+@foreach($dateGroups as $groupIndex => $group)
+    <table>
+        {{-- HEADER JUDUL (BAGIAN KUNING) --}}
+        <thead>
+            <tr>
+                <td colspan="15" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
+                    ABSENSI {{ strtoupper($categoryLabel ?? 'KARYAWAN') }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="15" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
+                    {{ $group['month_label'] }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="15" style="text-align: center; border: 1px solid #000000;">
+                    {{ $periodeStr ?? '' }}
+                </td>
+            </tr>
+            <tr><td colspan="15"></td></tr> {{-- Spasi Kosong --}}
 
-        {{-- HEADER TABEL UTAMA (GREY) --}}
-        {{-- Ini header untuk 11 hari pertama (01-Jan s/d 11-Jan) --}}
-        <tr style="background-color: #D9D9D9;">
-            <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px; vertical-align: middle;">Nama</th>
+            {{-- HEADER KOLOM UTAMA (NO, NAMA, TANGGAL 1-11, TOTAL) --}}
+            <tr style="background-color: #D9D9D9;">
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 50px; vertical-align: middle;">NO</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px; vertical-align: middle;">Nama</th>
 
-            {{-- Ambil 11 tanggal pertama untuk Header Utama --}}
-            @php
-                // Pastikan $dates adalah array/collection semua tanggal dalam periode (1-31)
-                $firstChunk = collect($dates)->take(11);
-            @endphp
+                {{-- Ambil 11 Tanggal Pertama untuk Header --}}
+                @php
+                    $allDates = $group['dates']; // Array tanggal
+                    $first11 = array_slice($allDates, 0, 11);
+                @endphp
 
-            @foreach($firstChunk as $date)
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">
-                    {{ \Carbon\Carbon::parse($date)->format('d-M') }}
-                </th>
-            @endforeach
+                @foreach($first11 as $date)
+                    <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">
+                        {{ \Carbon\Carbon::parse($date)->format('d-M') }}
+                    </th>
+                @endforeach
 
-            {{-- Kalau tanggal kurang dari 11, isi cell kosong biar rapi --}}
-            @for($i = $firstChunk->count(); $i < 11; $i++)
-                <th style="border: 1px solid #000000; background-color: #D9D9D9;"></th>
-            @endfor
+                {{-- Isi sisa header jika tanggal kurang dari 11 (biar tabel rapi) --}}
+                @for($i = count($first11); $i < 11; $i++)
+                    <th style="border: 1px solid #000000; background-color: #D9D9D9;"></th>
+                @endfor
 
-            <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px; vertical-align: middle;">Total Telat</th>
-            <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px; vertical-align: middle;">Total Lembur</th>
-        </tr>
-    </thead>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px; vertical-align: middle;">Total Telat</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px; vertical-align: middle;">Total Lembur</th>
+            </tr>
+        </thead>
 
-    {{-- BODY DATA --}}
-    <tbody>
-        @foreach($users as $user)
-            @php
-                // 1. FILTER DATA ABSENSI USER INI
-                $userAbsensi = $absensiData->where('user_id', $user->id);
+        {{-- BODY DATA --}}
+        <tbody>
+            @php $no = 1; @endphp
+            @foreach($users as $user)
+                @php
+                    // 1. SIAPKAN DATA
+                    $userAbsensi = $absensiData->where('user_id', $user->id);
+                    $dateChunks = array_chunk($allDates, 11); // Potong array tanggal per 11 biji
 
-                // 2. HITUNG TOTAL DULU (BIAR BISA DI ROWSPAN DI KANAN)
-                $totalTelat = 0; // dalam jumlah hari/kali
-                $totalMenitLembur = 0;
+                    // 2. HITUNG TOTAL (Kalkulasi dulu di awal biar bisa ditaruh di merged cell)
+                    $totalTelat = 0;
+                    $totalMenitLembur = 0;
 
-                foreach ($dates as $date) {
-                    $absen = $userAbsensi->first(function($item) use ($date) {
-                        return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
-                    });
-                    if ($absen) {
-                        if (($absen->late_minutes ?? 0) > 0) $totalTelat++;
-                        $totalMenitLembur += $absen->overtime_minutes ?? 0;
+                    foreach ($allDates as $date) {
+                        $absen = $userAbsensi->first(function($item) use ($date) {
+                            return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                        });
+                        if ($absen) {
+                            if (($absen->late_minutes ?? 0) > 0) $totalTelat++;
+                            $totalMenitLembur += $absen->overtime_minutes ?? 0;
+                        }
                     }
-                }
 
-                // Format String Lembur
-                $lemburJam = floor($totalMenitLembur / 60);
-                $lemburMenit = $totalMenitLembur % 60;
-                $totalLemburStr = $totalMenitLembur > 0 ? sprintf('%dj %dm', $lemburJam, $lemburMenit) : '';
+                    $lemburJam = floor($totalMenitLembur / 60);
+                    $lemburMenit = $totalMenitLembur % 60;
+                    $totalLemburStr = $totalMenitLembur > 0 ? sprintf('%dj %dm', $lemburJam, $lemburMenit) : '-';
 
-                // 3. BAGI TANGGAL JADI CHUNK (KELOMPOK) ISI 11
-                $dateChunks = collect($dates)->chunk(11);
+                    // 3. HITUNG ROWSPAN
+                    // Rumus: Chunk pertama butuh 1 baris (karena headernya ikut <thead>)
+                    // Chunk sisanya butuh 2 baris (1 baris Judul Tanggal + 1 baris Data)
+                    $totalChunks = count($dateChunks);
+                    $rowSpan = 1 + (($totalChunks - 1) * 2);
+                @endphp
 
-                // 4. HITUNG ROWSPAN
-                // Rumus: Chunk pertama butuh 1 baris (karena headernya ikut Header Utama tabel)
-                // Chunk selanjutnya butuh 2 baris (1 baris header tanggal, 1 baris data)
-                // Jadi: 1 + ((TotalChunk - 1) * 2)
-                $rowSpan = 1 + (($dateChunks->count() - 1) * 2);
-            @endphp
+                @foreach($dateChunks as $chunkIndex => $chunk)
 
-            {{-- LOOP SETIAP CHUNK TANGGAL (1-11, 12-22, 23-31) --}}
-            @foreach($dateChunks as $chunkIndex => $chunk)
+                    {{-- JIKA CHUNK > 0 (Artinya tanggal 12-22, 23-31, dst), KITA BUTUH HEADER TANGGAL --}}
+                    @if($chunkIndex > 0)
+                        <tr>
+                            {{-- Header Tanggal Lanjutan --}}
+                            @foreach($chunk as $date)
+                                <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #f2f2f2;">
+                                    {{ \Carbon\Carbon::parse($date)->format('d-M') }}
+                                </td>
+                            @endforeach
 
-                {{-- LOGIC BARIS HEADER TANGGAL (Hanya untuk chunk ke-2 dst, karena chunk 1 pake header tabel utama) --}}
-                @if($chunkIndex > 0)
+                            {{-- Isi kosong jika chunk terakhir gak sampe 11 kolom --}}
+                            @for($k = count($chunk); $k < 11; $k++)
+                                <td style="border: 1px solid #000000; background-color: #eaeaea;"></td>
+                            @endfor
+                        </tr>
+                    @endif
+
+                    {{-- BARIS DATA --}}
                     <tr>
-                        {{-- Header Tanggal (01-Jan, dll) --}}
+                        {{-- NO & NAMA (Cuma dirender pas chunk pertama, terus di-rowspan ke bawah) --}}
+                        @if($chunkIndex === 0)
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; vertical-align: top; font-weight: bold; padding-top: 10px;">{{ $no }}</td>
+                            <td rowspan="{{ $rowSpan }}" style="text-align: left; border: 1px solid #000000; vertical-align: top; font-weight: bold; padding: 10px 5px;">{{ $user->name }}</td>
+                        @endif
+
+                        {{-- ISI CELL DATA ABSENSI --}}
                         @foreach($chunk as $date)
-                            <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #f2f2f2;">
-                                {{ \Carbon\Carbon::parse($date)->format('d-M') }}
+                            @php
+                                $absen = $userAbsensi->first(function($item) use ($date) {
+                                    return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
+                                });
+
+                                $cellContent = '';
+                                $bgStyle = ''; // Default putih
+
+                                // Cek Weekend
+                                $d = \Carbon\Carbon::parse($date);
+                                $isWeekend = $d->isWeekend();
+
+                                if ($absen) {
+                                    $in = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
+                                    $out = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
+
+                                    $status = strtolower($absen->status);
+
+                                    if ($status == 'hadir') {
+                                        $cellContent = "$in - $out";
+
+                                        // Detail Telat/Lembur di dalam cell
+                                        if (($absen->late_minutes ?? 0) > 0) {
+                                            $cellContent .= " (T: {$absen->late_minutes}m)";
+                                        }
+                                        if (($absen->overtime_minutes ?? 0) > 0) {
+                                            $jam = floor($absen->overtime_minutes / 60);
+                                            $mnt = $absen->overtime_minutes % 60;
+                                            $cellContent .= " (L: {$jam}j {$mnt}m)";
+                                        }
+                                    } elseif ($status == 'izin') {
+                                        $cellContent = 'Izin';
+                                        $bgStyle = 'background-color: #FFFACD;'; // Kuning muda
+                                    } elseif ($status == 'sakit') {
+                                        $cellContent = 'Sakit';
+                                        $bgStyle = 'background-color: #FFFACD;';
+                                    } else {
+                                        $cellContent = ucfirst($status);
+                                    }
+                                } else {
+                                    // GAK ABSEN
+                                    if (!$isWeekend) {
+                                        $cellContent = 'Tidak Masuk';
+                                        $bgStyle = 'background-color: #FFB6C1; color: #8B0000;'; // Merah muda
+                                    } else {
+                                        $cellContent = '-';
+                                    }
+                                }
+                            @endphp
+
+                            <td style="text-align: center; border: 1px solid #000000; font-size: 10px; vertical-align: middle; {{ $bgStyle }}">
+                                {{ $cellContent }}
                             </td>
                         @endforeach
 
-                        {{-- Isi sisa kolom jika chunk terakhir kurang dari 11 hari --}}
-                        @for($k = $chunk->count(); $k < 11; $k++)
-                            <td style="border: 1px solid #000000; background-color: #f2f2f2;"></td>
+                        {{-- Isi cell kosong jika data di baris ini kurang dari 11 kolom --}}
+                        @for($k = count($chunk); $k < 11; $k++)
+                            <td style="border: 1px solid #000000; background-color: #eaeaea;"></td>
                         @endfor
+
+                        {{-- TOTAL (Cuma dirender pas chunk pertama, rowspan ke bawah) --}}
+                        @if($chunkIndex === 0)
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top; padding-top: 10px;">
+                                {{ $totalTelat > 0 ? $totalTelat : '-' }}
+                            </td>
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top; padding-top: 10px;">
+                                {{ $totalLemburStr }}
+                            </td>
+                        @endif
                     </tr>
-                @endif
+                @endforeach
 
-                {{-- LOGIC BARIS DATA --}}
-                <tr>
-                    {{-- KOLOM NAMA (Cuma muncul di baris pertama chunk pertama, lalu di-rowspan) --}}
-                    @if($chunkIndex === 0)
-                        <td rowspan="{{ $rowSpan }}" style="border: 1px solid #000000; vertical-align: top; padding: 5px; font-weight: bold;">
-                            {{ $user->name }}
-                        </td>
-                    @endif
-
-                    {{-- LOOP DATA ABSEN PER HARI DI CHUNK INI --}}
-                    @foreach($chunk as $date)
-                        @php
-                            $absen = $userAbsensi->first(function($item) use ($date) {
-                                return \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
-                            });
-
-                            $cellText = '-';
-                            $bgStyle = ''; // Default putih
-
-                            $isWeekend = \Carbon\Carbon::parse($date)->isWeekend(); // Sabtu/Minggu
-
-                            if ($absen) {
-                                // JAM MASUK - PULANG
-                                $in = \Carbon\Carbon::parse($absen->check_in_at)->format('H:i');
-                                $out = $absen->check_out_at ? \Carbon\Carbon::parse($absen->check_out_at)->format('H:i') : '-';
-
-                                // STATUS LOGIC
-                                $status = strtolower($absen->status);
-                                if ($status == 'hadir') {
-                                    $cellText = "$in - $out";
-
-                                    // Append Telat
-                                    if (($absen->late_minutes ?? 0) > 0) {
-                                        $cellText .= " Telat: {$absen->late_minutes}m";
-                                    }
-                                    // Append Lembur
-                                    if (($absen->overtime_minutes ?? 0) > 0) {
-                                        $j = floor($absen->overtime_minutes / 60);
-                                        $m = $absen->overtime_minutes % 60;
-                                        $cellText .= " Lembur: {$j}j {$m}m";
-                                    }
-                                } elseif ($status == 'izin') {
-                                    $cellText = 'Izin';
-                                    $bgStyle = 'background-color: #FFFACD;'; // Kuning muda
-                                } elseif ($status == 'sakit') {
-                                    $cellText = 'Sakit';
-                                    $bgStyle = 'background-color: #FFFACD;';
-                                } else {
-                                    $cellText = ucfirst($status);
-                                }
-                            } else {
-                                // TIDAK ADA DATA ABSEN
-                                if (!$isWeekend) {
-                                    $cellText = 'Tidak Masuk';
-                                    $bgStyle = 'background-color: #FFC7CE; color: #9C0006;'; // Pink Merah text
-                                }
-                            }
-                        @endphp
-
-                        <td style="border: 1px solid #000000; text-align: center; vertical-align: middle; font-size: 10px; {{ $bgStyle }}">
-                            {{ $cellText }}
-                        </td>
-                    @endforeach
-
-                    {{-- Isi Sisa Kolom Data Kosong (biar tabel rapi 11 kolom) --}}
-                    @for($k = $chunk->count(); $k < 11; $k++)
-                        <td style="border: 1px solid #000000; background-color: #eaeaea;"></td>
-                    @endfor
-
-                    {{-- KOLOM TOTAL (Cuma muncul di baris pertama chunk pertama, lalu di-rowspan) --}}
-                    @if($chunkIndex === 0)
-                        <td rowspan="{{ $rowSpan }}" style="border: 1px solid #000000; text-align: center; vertical-align: top; font-weight: bold;">
-                            {{ $totalTelat > 0 ? "Total Telat: " . $totalTelat : '' }}
-                        </td>
-                        <td rowspan="{{ $rowSpan }}" style="border: 1px solid #000000; text-align: center; vertical-align: top; font-weight: bold;">
-                            {{ $totalLemburStr }}
-                        </td>
-                    @endif
-                </tr>
+                @php $no++; @endphp
             @endforeach
-        @endforeach
-    </tbody>
-</table>
+        </tbody>
+    </table>
+
+    {{-- Spasi antar Group (misal antar departemen/bulan) --}}
+    @if($groupIndex < count($dateGroups) - 1)
+        <table><tr><td colspan="15" style="height: 30px;"></td></tr></table>
+    @endif
+@endforeach
