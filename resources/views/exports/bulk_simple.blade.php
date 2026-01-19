@@ -5,29 +5,28 @@
         {{-- HEADER KUNING --}}
         <thead>
             <tr>
-                <td colspan="{{ count($users) + 4 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 3 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
                     ABSENSI {{ strtoupper($categoryLabel) }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 4 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 3 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
                     {{ $group['month_label'] }} - {{ $group['week_label'] }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 4 }}" style="text-align: center; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 3 }}" style="text-align: center; border: 1px solid #000000;">
                     {{ $periodeStr }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 4 }}"></td> {{-- Spasi --}}
+                <td colspan="{{ count($users) + 3 }}"></td> {{-- Spasi --}}
             </tr>
 
             {{-- HEADER TABEL --}}
             <tr style="background-color: #D9D9D9;">
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Tanggal</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Hari</th>
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Lembur per hari</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Telat Per Hari</th>
                 @foreach($users as $user)
                     <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 150px;">
@@ -46,8 +45,7 @@
                     $dateStr = $date->format('d-M-Y');
                     $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
 
-                    // Hitung total lembur & telat untuk HARI ini (semua user)
-                    $totalLemburHari = 0;
+                    // Hitung total telat untuk HARI ini (semua user)
                     $totalTelatHari = 0;
 
                     foreach ($users as $user) {
@@ -56,18 +54,10 @@
                                    \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
                         });
 
-                        if ($absen) {
-                            $totalLemburHari += $absen->overtime_minutes ?? 0;
-                            if (($absen->late_minutes ?? 0) > 0) {
-                                $totalTelatHari++;
-                            }
+                        if ($absen && ($absen->late_minutes ?? 0) > 0) {
+                            $totalTelatHari++;
                         }
                     }
-
-                    // Format total lembur hari ini
-                    $lemburJam = floor($totalLemburHari / 60);
-                    $lemburMenit = $totalLemburHari % 60;
-                    $lemburStr = $totalLemburHari > 0 ? sprintf('%d jam %d menit', $lemburJam, $lemburMenit) : '-';
                 @endphp
 
                 <tr>
@@ -76,9 +66,6 @@
 
                     {{-- HARI --}}
                     <td style="text-align: center; border: 1px solid #000000;">{{ $dayName }}</td>
-
-                    {{-- TOTAL LEMBUR HARI INI --}}
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $lemburStr }}</td>
 
                     {{-- TOTAL TELAT HARI INI --}}
                     <td style="text-align: center; border: 1px solid #000000;">{{ $totalTelatHari > 0 ? $totalTelatHari : '-' }}</td>
@@ -93,7 +80,7 @@
                             });
 
                             $cellContent = '-';
-                            $cellStyle = 'text-align: center; border: 1px solid #000000;';
+                            $cellStyle = 'text-align: center; border: 1px solid #000000; vertical-align: middle;';
 
                             if ($absen) {
                                 // Ada absensi
@@ -102,6 +89,15 @@
 
                                 if (strtolower($absen->status) === 'hadir') {
                                     $cellContent = "$checkIn - $checkOut";
+
+                                    // 🔥 TAMPILIN LEMBUR PER USER
+                                    $lemburMenit = $absen->overtime_minutes ?? 0;
+                                    if ($lemburMenit > 0) {
+                                        $lemburJam = floor($lemburMenit / 60);
+                                        $lemburSisa = $lemburMenit % 60;
+                                        $lemburStr = sprintf('%dj %dm', $lemburJam, $lemburSisa);
+                                        $cellContent .= "\nLembur: $lemburStr";
+                                    }
                                 } elseif (strtolower($absen->status) === 'izin') {
                                     $cellContent = 'Izin';
                                 } elseif (strtolower($absen->status) === 'sakit') {
@@ -114,7 +110,7 @@
                                 if ($isWeekday) {
                                     // Hari kerja tapi ga masuk = TIDAK MASUK (background merah muda)
                                     $cellContent = 'Tidak Masuk';
-                                    $cellStyle = 'text-align: center; border: 1px solid #000000; background-color: #FFB6C1;';
+                                    $cellStyle = 'text-align: center; border: 1px solid #000000; background-color: #FFB6C1; vertical-align: middle;';
                                 } else {
                                     // Weekend = strip biasa
                                     $cellContent = '-';
