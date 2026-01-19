@@ -5,29 +5,28 @@
         {{-- HEADER KUNING --}}
         <thead>
             <tr>
-                <td colspan="{{ count($users) + 3 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 2 }}" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
                     ABSENSI {{ strtoupper($categoryLabel) }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 3 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 2 }}" style="font-weight: bold; text-align: center; background-color: #FFFF00; border: 1px solid #000000;">
                     {{ $group['month_label'] }} - {{ $group['week_label'] }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 3 }}" style="text-align: center; border: 1px solid #000000;">
+                <td colspan="{{ count($users) + 2 }}" style="text-align: center; border: 1px solid #000000;">
                     {{ $periodeStr }}
                 </td>
             </tr>
             <tr>
-                <td colspan="{{ count($users) + 3 }}"></td> {{-- Spasi --}}
+                <td colspan="{{ count($users) + 2 }}"></td> {{-- Spasi --}}
             </tr>
 
             {{-- HEADER TABEL --}}
             <tr style="background-color: #D9D9D9;">
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Tanggal</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Hari</th>
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px;">Total Telat Per Hari</th>
                 @foreach($users as $user)
                     <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 150px;">
                         {{ $user->name }}
@@ -44,20 +43,6 @@
                     $dayName = $date->translatedFormat('l'); // Monday, Tuesday, dst
                     $dateStr = $date->format('d-M-Y');
                     $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
-
-                    // Hitung total telat untuk HARI ini (semua user)
-                    $totalTelatHari = 0;
-
-                    foreach ($users as $user) {
-                        $absen = $absensiData->first(function($item) use ($user, $date) {
-                            return $item->user_id == $user->id &&
-                                   \Carbon\Carbon::parse($item->check_in_at)->isSameDay($date);
-                        });
-
-                        if ($absen && ($absen->late_minutes ?? 0) > 0) {
-                            $totalTelatHari++;
-                        }
-                    }
                 @endphp
 
                 <tr>
@@ -66,9 +51,6 @@
 
                     {{-- HARI --}}
                     <td style="text-align: center; border: 1px solid #000000;">{{ $dayName }}</td>
-
-                    {{-- TOTAL TELAT HARI INI --}}
-                    <td style="text-align: center; border: 1px solid #000000;">{{ $totalTelatHari > 0 ? $totalTelatHari : '-' }}</td>
 
                     {{-- LOOP SEMUA USER --}}
                     @foreach($users as $user)
@@ -89,6 +71,19 @@
 
                                 if (strtolower($absen->status) === 'hadir') {
                                     $cellContent = "$checkIn - $checkOut";
+
+                                    // 🔥 TAMPILIN TELAT PER USER
+                                    $telatMenit = $absen->late_minutes ?? 0;
+                                    if ($telatMenit > 0) {
+                                        $telatJam = floor($telatMenit / 60);
+                                        $telatSisa = $telatMenit % 60;
+                                        if ($telatJam > 0) {
+                                            $telatStr = sprintf('%dj %dm', $telatJam, $telatSisa);
+                                        } else {
+                                            $telatStr = sprintf('%dm', $telatSisa);
+                                        }
+                                        $cellContent .= "\nTelat: $telatStr";
+                                    }
 
                                     // 🔥 TAMPILIN LEMBUR PER USER
                                     $lemburMenit = $absen->overtime_minutes ?? 0;
