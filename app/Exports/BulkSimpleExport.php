@@ -62,7 +62,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
-        return view('exports.bulk_simple_vertical', [
+        return view('exports.bulk_simple', [
             'users' => $users,
             'absensiData' => $absensiData,
             'sections' => $sections, // 🔥 Array of sections (per bulan & minggu)
