@@ -2,8 +2,8 @@
 
 @foreach($dateGroups as $groupIndex => $group)
     <table>
-        {{-- HEADER JUDUL (KUNING) --}}
         <thead>
+            {{-- 1. JUDUL ATAS (KUNING) --}}
             <tr>
                 <td colspan="15" style="font-weight: bold; font-size: 16px; text-align: center; height: 40px; vertical-align: middle; background-color: #FFFF00; border: 1px solid #000000;">
                     ABSENSI {{ strtoupper($categoryLabel ?? 'KARYAWAN') }}
@@ -19,17 +19,16 @@
                     {{ $periodeStr ?? '' }}
                 </td>
             </tr>
-            <tr><td colspan="15"></td></tr> {{-- Spasi Kosong --}}
+            <tr><td colspan="15"></td></tr>
 
-            {{-- HEADER KOLOM UTAMA (NO, NAMA, TANGGAL 1-11, TOTAL) --}}
-            {{-- Ini cuma buat Header baris pertama (tanggal 1-11) --}}
+            {{-- 2. HEADER UTAMA (Cuma buat Tanggal 1-11) --}}
             <tr style="background-color: #D9D9D9;">
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 50px; vertical-align: middle;">NO</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 200px; vertical-align: middle;">Nama</th>
 
                 @php
                     $allDates = $group['dates'];
-                    // Ambil 11 tanggal pertama buat header utama
+                    // Ambil 11 tanggal pertama
                     $first11 = array_slice($allDates, 0, 11);
                 @endphp
 
@@ -39,7 +38,7 @@
                     </th>
                 @endforeach
 
-                {{-- Padding header kalau < 11 hari (jarang terjadi tapi buat jaga2) --}}
+                {{-- Kalau tanggal kurang dari 11, isi kotak kosong biar rapi --}}
                 @for($i = count($first11); $i < 11; $i++)
                     <th style="border: 1px solid #000000; background-color: #D9D9D9;"></th>
                 @endfor
@@ -49,17 +48,17 @@
             </tr>
         </thead>
 
-        {{-- BODY DATA --}}
         <tbody>
             @php $no = 1; @endphp
             @foreach($users as $user)
                 @php
                     // SIAPKAN DATA
                     $userAbsensi = $absensiData->where('user_id', $user->id);
-                    // Potong tanggal jadi per 11 biji (1-11, 12-22, 23-31)
+
+                    // PECAH TANGGAL JADI PER 11 BIJI (Chunking)
                     $dateChunks = array_chunk($allDates, 11);
 
-                    // HITUNG TOTAL DULU
+                    // HITUNG TOTAL (Lakukan di awal untuk rowspan)
                     $totalTelat = 0;
                     $totalMenitLembur = 0;
 
@@ -76,44 +75,43 @@
                     $lemburMenit = $totalMenitLembur % 60;
                     $totalLemburStr = $totalMenitLembur > 0 ? sprintf('%dj %dm', $lemburJam, $lemburMenit) : '-';
 
-                    // HITUNG ROWSPAN
-                    // Chunk pertama = 1 baris (Data)
-                    // Chunk selanjutnya = 2 baris (Header Tanggal + Data)
+                    // RUMUS ROWSPAN (PENTING BIAR GAK PECAH)
+                    // Chunk 1 (1-11) = 1 baris data.
+                    // Chunk 2 dst (12-22, 23-31) = Butuh 2 baris (1 baris Header Tanggal + 1 baris Data).
                     // Rumus: 1 + ((JumlahChunk - 1) * 2)
                     $totalChunks = count($dateChunks);
                     $rowSpan = 1 + (($totalChunks - 1) * 2);
                 @endphp
 
+                {{-- LOOP SETIAP POTONGAN TANGGAL (1-11, 12-22, dst) --}}
                 @foreach($dateChunks as $chunkIndex => $chunk)
 
-                    {{-- == LOGIC HEADER SELIPAN (TANGGAL 12 KE ATAS) == --}}
+                    {{-- A. JIKA INI CHUNK KE-2 KEATAS (Tgl 12++), BIKIN BARIS HEADER DULU --}}
                     @if($chunkIndex > 0)
                         <tr>
-                            {{-- Perhatikan: Tidak ada <td> Nama/No disini karena sudah ke-cover Rowspan dari atas --}}
+                            {{-- Rowspan Nama & No sudah cover ini, jadi langsung loop tanggal --}}
                             @foreach($chunk as $date)
                                 <td style="font-weight: bold; text-align: center; border: 1px solid #000000; background-color: #f2f2f2;">
                                     {{ \Carbon\Carbon::parse($date)->format('d-M') }}
                                 </td>
                             @endforeach
 
-                            {{-- Isi kotak kosong sisa header (biar excel ga geser) --}}
+                            {{-- Isi sisa kosong kalo tanggal abis --}}
                             @for($k = count($chunk); $k < 11; $k++)
                                 <td style="border: 1px solid #000000; background-color: #eaeaea;"></td>
                             @endfor
-
-                            {{-- Tidak ada <td> Total disini karena sudah ke-cover Rowspan --}}
                         </tr>
                     @endif
 
-                    {{-- == BARIS DATA == --}}
+                    {{-- B. BARIS DATA ABSENSI --}}
                     <tr>
-                        {{-- KOLOM KIRI (NO & NAMA) - Cuma diprint pas chunk pertama --}}
+                        {{-- 1. NO & NAMA (Cuma render SEKALI di chunk pertama, terus rowspan ke bawah) --}}
                         @if($chunkIndex === 0)
-                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; vertical-align: top; font-weight: bold;">{{ $no }}</td>
-                            <td rowspan="{{ $rowSpan }}" style="text-align: left; border: 1px solid #000000; vertical-align: top; font-weight: bold; padding-left: 5px;">{{ $user->name }}</td>
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; vertical-align: top; font-weight: bold; padding-top:10px;">{{ $no }}</td>
+                            <td rowspan="{{ $rowSpan }}" style="text-align: left; border: 1px solid #000000; vertical-align: top; font-weight: bold; padding:10px 5px;">{{ $user->name }}</td>
                         @endif
 
-                        {{-- ISI DATA ABSEN --}}
+                        {{-- 2. ISI KOTAK ABSEN --}}
                         @foreach($chunk as $date)
                             @php
                                 $absen = $userAbsensi->first(function($item) use ($date) {
@@ -131,22 +129,22 @@
 
                                     if ($status == 'hadir') {
                                         $cellContent = "$in - $out";
-                                        // Info tambahan (optional, sesuaikan kebutuhan)
-                                        if (($absen->late_minutes ?? 0) > 0) $cellContent .= " (Telat)";
+                                        // Tambah info telat/lembur di cell
+                                        if (($absen->late_minutes ?? 0) > 0) $cellContent .= " (T:{$absen->late_minutes}m)";
                                         if (($absen->overtime_minutes ?? 0) > 0) {
                                             $jam = floor($absen->overtime_minutes / 60);
                                             $cellContent .= " (L:{$jam}j)";
                                         }
                                     } elseif ($status == 'izin' || $status == 'sakit') {
                                         $cellContent = ucfirst($status);
-                                        $bgStyle = 'background-color: #FFFACD;';
+                                        $bgStyle = 'background-color: #FFFACD;'; // Kuning muda
                                     } else {
                                         $cellContent = ucfirst($status);
                                     }
                                 } else {
                                     if (!$isWeekend) {
                                         $cellContent = 'Tidak Masuk';
-                                        $bgStyle = 'background-color: #FFB6C1;';
+                                        $bgStyle = 'background-color: #FFB6C1;'; // Merah
                                     } else {
                                         $cellContent = '-';
                                     }
@@ -158,30 +156,30 @@
                             </td>
                         @endforeach
 
-                        {{-- Isi kotak kosong sisa data (biar layout kotak sempurna) --}}
+                        {{-- Isi sisa kosong --}}
                         @for($k = count($chunk); $k < 11; $k++)
                             <td style="border: 1px solid #000000; background-color: #eaeaea;"></td>
                         @endfor
 
-                        {{-- KOLOM KANAN (TOTAL) - Cuma diprint pas chunk pertama --}}
+                        {{-- 3. TOTAL (Cuma render SEKALI di chunk pertama) --}}
                         @if($chunkIndex === 0)
-                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top;">
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top; padding-top:10px;">
                                 {{ $totalTelat > 0 ? $totalTelat : '-' }}
                             </td>
-                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top;">
+                            <td rowspan="{{ $rowSpan }}" style="text-align: center; border: 1px solid #000000; font-weight: bold; vertical-align: top; padding-top:10px;">
                                 {{ $totalLemburStr }}
                             </td>
                         @endif
                     </tr>
 
-                @endforeach {{-- End Loop Chunk --}}
+                @endforeach {{-- End Loop Chunk (1-11, 12-22, dst) --}}
 
                 @php $no++; @endphp
-            @endforeach {{-- End Loop User --}}
+            @endforeach
         </tbody>
     </table>
 
-    {{-- Jarak kalau ada bulan berikutnya --}}
+    {{-- Jarak antar tabel bulan --}}
     @if($groupIndex < count($dateGroups) - 1)
         <table><tr><td colspan="15" style="height: 30px;"></td></tr></table>
     @endif
