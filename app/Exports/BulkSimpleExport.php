@@ -25,50 +25,27 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
     public function view(): View
     {
+        // Ambil users yang dipilih, urutkan by name
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // 🔥 DEBUG: LOG USER IDS
-        \Log::info('🔍 EXPORT USERS:', [
-            'user_ids' => $this->userIds,
-            'user_names' => $users->pluck('name', 'id')->toArray(),
-        ]);
+        // Generate semua tanggal di range
+        $allDates = [];
+        $current = Carbon::parse($this->startDate);
+        $end = Carbon::parse($this->endDate);
 
-        // 🔥 AMBIL SEMUA DATA
+        while ($current <= $end) {
+            $allDates[] = $current->copy();
+            $current->addDay();
+        }
+
+        // Ambil semua absensi di range (approved only)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->where('status_approval', 'approved')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // 🔥 DEBUG: LOG QUERY RESULT
-        \Log::info('🔍 EXPORT ABSENSI DATA:', [
-            'date_range' => [
-                'start' => $this->startDate,
-                'end' => $this->endDate,
-            ],
-            'total_data' => $absensiData->count(),
-            'sample_data' => $absensiData->take(5)->map(function($a) {
-                return [
-                    'user_id' => $a->user_id,
-                    'user_name' => $a->user->name ?? 'N/A',
-                    'check_in' => $a->check_in_at->format('Y-m-d H:i:s'),
-                    'status' => $a->status,
-                    'status_approval' => $a->status_approval,
-                ];
-            })->toArray(),
-        ]);
-
-        // 🔥 PECAH TANGGAL
-        $sections = $this->splitDatesByMonth($this->startDate, $this->endDate);
-
-        // 🔥 DEBUG: LOG SECTIONS
-        \Log::info('📅 SECTIONS:', [
-            'total_sections' => count($sections),
-            'first_section_dates' => isset($sections[0]) ? count($sections[0]['dates']) : 0,
-            'first_date' => isset($sections[0]['dates'][0]) ? $sections[0]['dates'][0]->format('Y-m-d') : null,
-        ]);
-
-        // Deteksi kategori
+        // Deteksi kategori (kayak di BulkDetailExport)
         $categories = [];
         foreach ($users as $user) {
             $kategori = $this->detectKategori($user);
@@ -95,68 +72,17 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
         return view('exports.bulk_simple', [
             'users' => $users,
             'absensiData' => $absensiData,
-            'sections' => $sections,
+            'allDates' => $allDates,
             'periodeStr' => $periodeStr,
             'categoryLabel' => $categoryLabel,
         ]);
-    }
-
-    private function splitDatesByMonth($start, $end)
-    {
-        $sections = [];
-        $current = Carbon::parse($start);
-        $endDate = Carbon::parse($end);
-
-        $currentMonth = $current->month;
-        $weekDates = [];
-        $weekNumber = 1;
-
-        while ($current <= $endDate) {
-            if ($current->month != $currentMonth) {
-                if (!empty($weekDates)) {
-                    $sections[] = [
-                        'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
-                        'week' => $weekNumber,
-                        'dates' => $weekDates,
-                    ];
-                }
-
-                $currentMonth = $current->month;
-                $weekDates = [];
-                $weekNumber = 1;
-            }
-
-            $weekDates[] = $current->copy();
-
-            if (count($weekDates) >= 15) {
-                $sections[] = [
-                    'month' => $current->translatedFormat('F Y'),
-                    'week' => $weekNumber,
-                    'dates' => $weekDates,
-                ];
-
-                $weekDates = [];
-                $weekNumber++;
-            }
-
-            $current->addDay();
-        }
-
-        if (!empty($weekDates)) {
-            $sections[] = [
-                'month' => Carbon::create(null, $currentMonth)->translatedFormat('F Y'),
-                'week' => $weekNumber,
-                'dates' => $weekDates,
-            ];
-        }
-
-        return $sections;
     }
 
     private function detectKategori(User $user): string
     {
         $idKaryawan = $user->id_karyawan ?? '';
 
+        // 🔥 KOMPATIBEL PHP 7.x & 8.x
         if (strpos($idKaryawan, 'CS-AMB') === 0) {
             return 'borongan';
         }
