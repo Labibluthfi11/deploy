@@ -25,10 +25,8 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
     public function view(): View
     {
-        // Ambil users yang dipilih, urutkan by name
         $users = User::whereIn('id', $this->userIds)->orderBy('name')->get();
 
-        // Generate semua tanggal di range
         $allDates = [];
         $current = Carbon::parse($this->startDate);
         $end = Carbon::parse($this->endDate);
@@ -38,14 +36,12 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $current->addDay();
         }
 
-        // Ambil semua absensi di range (approved only)
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->where('status_approval', 'approved')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
-        // Deteksi kategori
         $categories = [];
         foreach ($users as $user) {
             $kategori = $this->detectKategori($user);
@@ -67,56 +63,20 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
             $categoryLabel = 'Semua Karyawan';
         }
 
-        // 🔥 SPLIT TANGGAL PER 16 HARI & PER BULAN
-        $dateGroups = $this->splitDatesByMonth($allDates);
-
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
+
+        // 🔥 CHUNK TANGGAL JADI 11 HARI PER ROW
+        $dateChunks = array_chunk($allDates, 11);
 
         return view('exports.bulk_simple', [
             'users' => $users,
             'absensiData' => $absensiData,
-            'dateGroups' => $dateGroups,
+            'allDates' => $allDates,
+            'dateChunks' => $dateChunks,
             'periodeStr' => $periodeStr,
             'categoryLabel' => $categoryLabel,
         ]);
     }
-
-    /**
-     * Split tanggal per bulan, lalu per 16 hari
-     */
-   private function splitDatesByMonth(array $allDates): array
-{
-    $grouped = [];
-
-    foreach ($allDates as $date) {
-        $key = $date->format('Y-m');
-
-        if (!isset($grouped[$key])) {
-            $grouped[$key] = [
-                'month_label' => strtoupper($date->translatedFormat('F Y')),
-                'dates' => []
-            ];
-        }
-
-        $grouped[$key]['dates'][] = $date;
-    }
-
-    $result = [];
-
-    foreach ($grouped as $data) {
-        $chunks = array_chunk($data['dates'], 11);
-
-        foreach ($chunks as $chunk) {
-            $result[] = [
-                'month_label' => $data['month_label'],
-                'dates' => $chunk
-            ];
-        }
-    }
-
-    return $result;
-}
-
 
     private function detectKategori(User $user): string
     {

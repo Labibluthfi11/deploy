@@ -1,6 +1,5 @@
 {{-- resources/views/exports/bulk_simple.blade.php --}}
 
-@foreach($dateGroups as $groupIndex => $group)
 <table>
     {{-- ======================= --}}
     {{-- HEADER UTAMA --}}
@@ -13,7 +12,7 @@
         </tr>
         <tr>
             <td colspan="14" style="font-weight:bold; text-align:center; background:#FFFF00; border:1px solid #000;">
-                {{ $group['month_label'] }}
+                {{ strtoupper(\Carbon\Carbon::parse($allDates[0])->translatedFormat('F Y')) }}
             </td>
         </tr>
         <tr>
@@ -40,10 +39,8 @@
         @foreach($users as $userIndex => $user)
             @php
                 $userAbsensi = $absensiData->where('user_id', $user->id);
-                $allDates = $group['dates'];
-                $dateChunks = array_chunk($allDates, 11);
 
-                // Hitung total telat & lembur untuk dates di group ini
+                // Hitung total telat & lembur UNTUK SEMUA TANGGAL
                 $totalTelat = 0;
                 $totalMenitLembur = 0;
 
@@ -151,9 +148,3 @@
         @endforeach
     </tbody>
 </table>
-
-{{-- Spacing antar table group --}}
-@if($groupIndex < count($dateGroups)-1)
-<table><tr><td style="height:30px;"></td></tr></table>
-@endif
-@endforeach
