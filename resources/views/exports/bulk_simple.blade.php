@@ -6,29 +6,30 @@
     {{-- ======================= --}}
     <thead>
         <tr>
-            <td colspan="14" style="font-weight:bold; font-size:16px; text-align:center; height:40px; vertical-align:middle; background:#FFFF00; border:1px solid #000;">
+            <td colspan="16" style="font-weight:bold; font-size:16px; text-align:center; height:40px; vertical-align:middle; background:#FFFF00; border:1px solid #000;">
                 ABSENSI {{ strtoupper($categoryLabel ?? 'KARYAWAN') }}
             </td>
         </tr>
         <tr>
-            <td colspan="14" style="font-weight:bold; text-align:center; background:#FFFF00; border:1px solid #000;">
+            <td colspan="16" style="font-weight:bold; text-align:center; background:#FFFF00; border:1px solid #000;">
                 {{ strtoupper(\Carbon\Carbon::parse($allDates[0])->translatedFormat('F Y')) }}
             </td>
         </tr>
         <tr>
-            <td colspan="14" style="text-align:center; border:1px solid #000;">
+            <td colspan="16" style="text-align:center; border:1px solid #000;">
                 {{ $periodeStr ?? '' }}
             </td>
         </tr>
-        <tr><td colspan="14"></td></tr>
+        <tr><td colspan="16"></td></tr>
 
         {{-- HEADER KOLOM --}}
         <tr style="background:#D9D9D9;">
             <th style="border:1px solid #000; width:50px;">NO</th>
-            <th style="border:1px solid #000; width:200px;">Nama</th>
             <th colspan="11" style="border:1px solid #000; text-align:center;">Tanggal Dan Bulan</th>
-            <th style="border:1px solid #000; width:100px;">Total Telat</th>
-            <th style="border:1px solid #000; width:120px;">Total Lembur</th>
+            <th style="border:1px solid #000; width:50px;">Telat</th>
+            <th style="border:1px solid #000; width:50px;">Izin</th>
+            <th style="border:1px solid #000; width:50px;">Sakit</th>
+            <th style="border:1px solid #000; width:65px;">Lembur</th>
         </tr>
     </thead>
 
@@ -40,8 +41,10 @@
             @php
                 $userAbsensi = $absensiData->where('user_id', $user->id);
 
-                // Hitung total telat & lembur UNTUK SEMUA TANGGAL
+                // Hitung total telat, izin, sakit & lembur UNTUK SEMUA TANGGAL
                 $totalTelat = 0;
+                $totalIzin = 0;
+                $totalSakit = 0;
                 $totalMenitLembur = 0;
 
                 foreach ($allDates as $date) {
@@ -51,6 +54,8 @@
 
                     if ($absen) {
                         if (($absen->late_minutes ?? 0) > 0) $totalTelat++;
+                        if (strtolower($absen->status) == 'izin') $totalIzin++;
+                        if (strtolower($absen->status) == 'sakit') $totalSakit++;
                         $totalMenitLembur += $absen->overtime_minutes ?? 0;
                     }
                 }
@@ -59,23 +64,35 @@
                 $lemburMenit = $totalMenitLembur % 60;
                 $totalLemburStr = $totalMenitLembur ? "{$lemburJam}j {$lemburMenit}m" : '-';
 
-                // Rowspan = jumlah chunk * 2 (header tanggal + data)
-                $rowSpan = count($dateChunks) * 2;
+                // Rowspan = 1 (nama) + jumlah chunk * 2 (header tanggal + data)
+                $rowSpan = 1 + (count($dateChunks) * 2);
             @endphp
+
+            {{-- ROW NAMA USER (TENGAH ATAS) --}}
+            <tr>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-weight:bold;">
+                    {{ $userIndex + 1 }}
+                </td>
+                <td colspan="11" style="border:1px solid #000; font-weight:bold; padding:5px; background:#f9f9f9;">
+                    {{ $user->name }}
+                </td>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                    {{ $totalTelat ?: '' }}
+                </td>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                    {{ $totalIzin ?: '' }}
+                </td>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                    {{ $totalSakit ?: '' }}
+                </td>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                    {{ $totalLemburStr }}
+                </td>
+            </tr>
 
             @foreach($dateChunks as $chunkIndex => $chunk)
                 {{-- ROW HEADER TANGGAL --}}
                 <tr>
-                    {{-- NO & NAMA - Hanya di chunk pertama --}}
-                    @if($chunkIndex === 0)
-                        <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-weight:bold;">
-                            {{ $userIndex + 1 }}
-                        </td>
-                        <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; font-weight:bold; padding-left:5px;">
-                            {{ $user->name }}
-                        </td>
-                    @endif
-
                     {{-- HEADER TANGGAL (01-Jan, 02-Jan, dst) --}}
                     @foreach($chunk as $date)
                         <td style="border:1px solid #000; text-align:center; background:#f2f2f2; font-size:9px; font-weight:bold;">
@@ -87,16 +104,6 @@
                     @for($k = count($chunk); $k < 11; $k++)
                         <td style="border:1px solid #000; background:#eaeaea;"></td>
                     @endfor
-
-                    {{-- TOTAL TELAT & LEMBUR - Hanya di chunk pertama --}}
-                    @if($chunkIndex === 0)
-                        <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center;">
-                            {{ $totalTelat ?: '' }}
-                        </td>
-                        <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center;">
-                            {{ $totalLemburStr }}
-                        </td>
-                    @endif
                 </tr>
 
                 {{-- ROW DATA ABSENSI --}}
