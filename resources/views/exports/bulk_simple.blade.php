@@ -6,21 +6,21 @@
     {{-- ======================= --}}
     <thead>
         <tr>
-            <td colspan="16" style="font-weight:bold; font-size:16px; text-align:center; height:40px; vertical-align:middle; background:#FFFF00; border:1px solid #000;">
+            <td colspan="17" style="font-weight:bold; font-size:16px; text-align:center; height:40px; vertical-align:middle; background:#FFFF00; border:1px solid #000;">
                 ABSENSI {{ strtoupper($categoryLabel ?? 'KARYAWAN') }}
             </td>
         </tr>
         <tr>
-            <td colspan="16" style="font-weight:bold; text-align:center; background:#FFFF00; border:1px solid #000;">
+            <td colspan="17" style="font-weight:bold; text-align:center; background:#FFFF00; border:1px solid #000;">
                 {{ strtoupper(\Carbon\Carbon::parse($allDates[0])->translatedFormat('F Y')) }}
             </td>
         </tr>
         <tr>
-            <td colspan="16" style="text-align:center; border:1px solid #000;">
+            <td colspan="17" style="text-align:center; border:1px solid #000;">
                 {{ $periodeStr ?? '' }}
             </td>
         </tr>
-        <tr><td colspan="16"></td></tr>
+        <tr><td colspan="17"></td></tr>
 
         {{-- HEADER KOLOM --}}
         <tr style="background:#D9D9D9;">
@@ -29,6 +29,7 @@
             <th style="border:1px solid #000; width:45px;">Telat</th>
             <th style="border:1px solid #000; width:45px;">Izin</th>
             <th style="border:1px solid #000; width:45px;">Sakit</th>
+            <th style="border:1px solid #000; width:45px;">Alpha</th>
             <th style="border:1px solid #000; width:60px;">Lembur</th>
         </tr>
     </thead>
@@ -41,10 +42,11 @@
             @php
                 $userAbsensi = $absensiData->where('user_id', $user->id);
 
-                // Hitung total telat, izin, sakit & lembur UNTUK SEMUA TANGGAL
+                // Hitung total telat, izin, sakit, alpha & lembur UNTUK SEMUA TANGGAL
                 $totalTelat = 0;
                 $totalIzin = 0;
                 $totalSakit = 0;
+                $totalAlpha = 0;
                 $totalMenitLembur = 0;
 
                 foreach ($allDates as $date) {
@@ -57,6 +59,11 @@
                         if (strtolower($absen->status) == 'izin') $totalIzin++;
                         if (strtolower($absen->status) == 'sakit') $totalSakit++;
                         $totalMenitLembur += $absen->overtime_minutes ?? 0;
+                    } else {
+                        // Alpha = tidak ada absensi & bukan weekend
+                        if (!\Carbon\Carbon::parse($date)->isWeekend()) {
+                            $totalAlpha++;
+                        }
                     }
                 }
 
@@ -74,7 +81,7 @@
                     {{ $userIndex + 1 }}
                 </td>
                 <td colspan="11" style="border:1px solid #000; font-weight:bold; padding:5px; text-align:center; background:#f9f9f9;">
-                    {{ $user->name }}
+                    {{ strtoupper($user->name) }}
                 </td>
                 <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalTelat ?: '' }}
@@ -84,6 +91,9 @@
                 </td>
                 <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalSakit ?: '' }}
+                </td>
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
+                    {{ $totalAlpha ?: '' }}
                 </td>
                 <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalLemburStr }}
