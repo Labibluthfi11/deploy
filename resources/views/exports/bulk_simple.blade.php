@@ -26,10 +26,10 @@
         <tr style="background:#D9D9D9;">
             <th style="border:1px solid #000; width:50px;">NO</th>
             <th colspan="11" style="border:1px solid #000; text-align:center;">Tanggal Dan Bulan</th>
-            <th style="border:1px solid #000; width:50px;">Telat</th>
-            <th style="border:1px solid #000; width:50px;">Izin</th>
-            <th style="border:1px solid #000; width:50px;">Sakit</th>
-            <th style="border:1px solid #000; width:65px;">Lembur</th>
+            <th style="border:1px solid #000; width:45px;">Telat</th>
+            <th style="border:1px solid #000; width:45px;">Izin</th>
+            <th style="border:1px solid #000; width:45px;">Sakit</th>
+            <th style="border:1px solid #000; width:60px;">Lembur</th>
         </tr>
     </thead>
 
@@ -73,19 +73,19 @@
                 <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-weight:bold;">
                     {{ $userIndex + 1 }}
                 </td>
-                <td colspan="11" style="border:1px solid #000; font-weight:bold; padding:5px; background:#f9f9f9;">
+                <td colspan="11" style="border:1px solid #000; font-weight:bold; padding:5px; text-align:center; background:#f9f9f9;">
                     {{ $user->name }}
                 </td>
-                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalTelat ?: '' }}
                 </td>
-                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalIzin ?: '' }}
                 </td>
-                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalSakit ?: '' }}
                 </td>
-                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:top; text-align:center; font-size:10px;">
+                <td rowspan="{{ $rowSpan }}" style="border:1px solid #000; vertical-align:middle; text-align:center; font-size:10px;">
                     {{ $totalLemburStr }}
                 </td>
             </tr>
