@@ -17,6 +17,8 @@ use App\Exports\SlipGajiExport;
 use App\Exports\SlipGajiPdfExport;
 use App\Exports\BulkDetailExport;
 use App\Exports\BulkSimpleExport;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class AbsensiAdminController extends Controller
 {
@@ -842,7 +844,7 @@ public function bulkExportPdf(Request $request)
 
         } catch (\Exception $e) {
             // Kalo error lagi, baca pesannya
-            \Log::error("Error generating PDF for user {$user->name}: " . $e->getMessage());
+            Log::error("Error generating PDF for user {$user->name}: " . $e->getMessage());
             continue; // Skip user ini, lanjut ke user berikutnya
         }
     }
@@ -905,7 +907,7 @@ private function penyebut($nilai)
         $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
         $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
     } catch (\Exception $e) {
-        \Log::error('Simple Export Date Parse Error: ' . $e->getMessage());
+        Log::error('Simple Export Date Parse Error: ' . $e->getMessage());
         return redirect()->back()->with('error', 'Format tanggal tidak valid!');
     }
 
@@ -917,14 +919,14 @@ private function penyebut($nilai)
             $fileName
         );
     } catch (\Exception $e) {
-        \Log::error('Simple Export Error: ' . $e->getMessage());
+        Log::error('Simple Export Error: ' . $e->getMessage());
         return redirect()->back()->with('error', 'Gagal export: ' . $e->getMessage());
     }
 }
 
 public function updateCheckIn(Request $request, $id)
 {
-    \Log::info(' updateCheckIn called', [
+    Log::info(' updateCheckIn called', [
         'id' => $id,
         'request' => $request->all(),
     ]);
@@ -936,7 +938,7 @@ public function updateCheckIn(Request $request, $id)
     $absensi = Absensi::findOrFail($id);
     $inputTime = $request->input('new_check_in');
     $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
-    
+
     $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' 08:00:00');
 
     // Hitung telat
@@ -961,7 +963,7 @@ public function updateCheckIn(Request $request, $id)
     $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
 
     // Update database
-    \DB::table('absensis')
+    DB::table('absensis')
         ->where('id', $absensi->id)
         ->update([
             'check_in_at' => $newCheckIn,
@@ -972,7 +974,7 @@ public function updateCheckIn(Request $request, $id)
             'updated_at' => now(),
         ]);
 
-    \Log::info('✅ Check-in berhasil diubah!', [
+    Log::info('✅ Check-in berhasil diubah!', [
         'absensi_id' => $absensi->id,
         'new_check_in' => $newCheckIn,
         'late_minutes' => $lateMinutes,

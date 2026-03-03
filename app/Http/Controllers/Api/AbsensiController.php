@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Validator; // ⬅️ Pastiin ini ada
+use Illuminate\Support\Facades\Log;
 
 class AbsensiController extends Controller
 {
@@ -319,46 +320,63 @@ public function meAbsensi(Request $request)
 {
     $userId = Auth::id();
 
-    // Parse tanggal
-    $startDate = $request->input('start_date')
-        ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
-        : Carbon::now('Asia/Jakarta')->subMonths(3)->startOfDay();
-
-    $endDate = $request->input('end_date')
-        ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
-        : Carbon::now('Asia/Jakarta')->endOfDay();
-
-    \Log::info('📅 [ME ABSENSI] Date Range', [
-        'start' => $startDate->toDateTimeString(),
-        'end' => $endDate->toDateTimeString(),
-    ]);
-
-
-    $absensi = Absensi::with('user')
+    // 1. Inisialisasi Query Dasar
+    $query = Absensi::with('user')
         ->where('user_id', $userId)
-        ->whereBetween('check_in_at', [$startDate, $endDate])
-        ->whereNull('parent_id')
-        ->orderBy('check_in_at', 'desc')
-        ->orderBy('id', 'desc')
-        ->get();
+        ->whereNull('parent_id');
 
-    \Log::info('✅ [ME ABSENSI] Query Complete', [
-        'total_records' => $absensi->count(),
-    ]);
+    // 2. LOGIKA FILTER & PENCARIAN
+    if ($request->filled('search_date')) {
+        // Jika user mencari tanggal spesifik (Contoh: 2026-03-01)
+        $searchDate = Carbon::parse($request->input('search_date'))->toDateString();
+        $query->whereDate('check_in_at', $searchDate);
 
+        Log::info('🔍 [ME ABSENSI] Searching Date: ' . $searchDate);
+    }
+    elseif ($request->filled('month')) {
+        // Jika user filter per bulan (Contoh: month=1 untuk Januari)
+        $month = $request->input('month');
+        $year = $request->input('year', Carbon::now('Asia/Jakarta')->year);
+        $query->whereMonth('check_in_at', $month)
+              ->whereYear('check_in_at', $year);
 
-    $result = $absensi->map(function($item) {
+        Log::info("📅 [ME ABSENSI] Filter Month: $month, Year: $year");
+    }
+    else {
+        // DEFAULT: Ambil data tanpa limit 3 bulan (kita set 1 tahun biar lega)
+        $startDate = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
+            : Carbon::now('Asia/Jakarta')->subYears(1)->startOfDay();
+
+        $endDate = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
+            : Carbon::now('Asia/Jakarta')->endOfDay();
+
+        $query->whereBetween('check_in_at', [$startDate, $endDate]);
+
+        Log::info('📅 [ME ABSENSI] Default Range Used');
+    }
+
+    // 3. EKSEKUSI QUERY DENGAN PAGINATION (Ambil 20 data per halaman)
+    $absensi = $query->orderBy('check_in_at', 'desc')
+                     ->orderBy('id', 'desc')
+                     ->paginate(20);
+
+    // 4. MAPPING URL FOTO (Gunakan getCollection karena ini object Paginate)
+    $absensi->getCollection()->transform(function($item) {
         $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
         $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
         $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
-        return $item->toArray();
-    })->values();
+        return $item;
+    });
 
-    \Log::info('📤 [ME ABSENSI] Response Summary', [
-        'total_sent' => $result->count(),
+    Log::info('✅ [ME ABSENSI] Query Success', [
+        'total_all' => $absensi->total(),
+        'current_page' => $absensi->currentPage()
     ]);
 
-    return response()->json(['data' => $result]);
+    // 5. RETURN RESPONSE (Laravel otomatis kasih info pagination di sini)
+    return response()->json($absensi);
 }
 
     public function absenSakit(Request $request)
@@ -461,7 +479,7 @@ public function meAbsensi(Request $request)
         ]);
 
         // 🔥 LOG DEBUG: CEK DATA YANG BARU DIBUAT
-        \Log::info('🚀 [API SAKIT/IZIN] Data berhasil dibuat', [
+        Log::info('🚀 [API SAKIT/IZIN] Data berhasil dibuat', [
             'absensi_id' => $parentAbsensi->id,
             'user_id' => $user->id,
             'user_name' => $user->name,
@@ -477,7 +495,7 @@ public function meAbsensi(Request $request)
         ]);
 
         // 🔥 LOG DEBUG: CEK WORKFLOW TEMPLATE YANG DIPAKE
-        \Log::info('⚙️ [API SAKIT/IZIN] Workflow yang digunakan', [
+        Log::info('⚙️ [API SAKIT/IZIN] Workflow yang digunakan', [
             'employment' => $employment,
             'workflow' => $workflow,
             'workflow_json' => json_encode($workflow),
@@ -521,7 +539,7 @@ public function meAbsensi(Request $request)
             Absensi::insert($childRecords);
 
             // 🔥 LOG DEBUG: CEK CHILDREN
-            \Log::info('👶 [API SAKIT/IZIN] Child records created', [
+            Log::info('👶 [API SAKIT/IZIN] Child records created', [
                 'parent_id' => $parentAbsensi->id,
                 'child_count' => $childCount,
             ]);
@@ -543,7 +561,7 @@ public function meAbsensi(Request $request)
         DB::commit();
 
         // 🔥 LOG SUCCESS
-        \Log::info('✅ [API SAKIT/IZIN] Transaction committed successfully', [
+        Log::info('✅ [API SAKIT/IZIN] Transaction committed successfully', [
             'absensi_id' => $parentAbsensi->id,
         ]);
 
@@ -567,7 +585,7 @@ public function meAbsensi(Request $request)
     } catch (ValidationException $e) {
         DB::rollBack();
 
-        \Log::error('❌ [API SAKIT/IZIN] Validation Error', [
+        Log::error('❌ [API SAKIT/IZIN] Validation Error', [
             'errors' => $e->errors(),
         ]);
 
@@ -581,7 +599,7 @@ public function meAbsensi(Request $request)
         DB::rollBack();
 
         // 🔥 LOG ERROR LENGKAP
-        \Log::error('❌ [API SAKIT/IZIN] Exception Error', [
+        Log::error('❌ [API SAKIT/IZIN] Exception Error', [
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
@@ -784,8 +802,8 @@ public function meAbsensi(Request $request)
                 Storage::disk('public')->delete($fileBuktiPath);
             }
 
-            \Log::error('❌ [ABSEN IZIN] Error: ' . $e->getMessage());
-            \Log::error('❌ [ABSEN IZIN] Stack: ' . $e->getTraceAsString());
+            Log::error('❌ [ABSEN IZIN] Error: ' . $e->getMessage());
+            Log::error('❌ [ABSEN IZIN] Stack: ' . $e->getTraceAsString());
 
             return response()->json([
                 'success' => false,
