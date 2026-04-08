@@ -28,7 +28,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Freelance Pending</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Produksi Pending</p>
                             <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $freelanceHRGA->count() }}</p>
                             <p class="text-xs text-gray-500 mt-1">Menunggu approval</p>
                         </div>
@@ -44,7 +44,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 hover:-translate-y-0.5">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Organik Pending</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Office Pending</p>
                             <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $organikHRGA->count() }}</p>
                             <p class="text-xs text-gray-500 mt-1">Menunggu approval</p>
                         </div>
@@ -126,8 +126,8 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-bold text-white">Freelance Final Approval</h2>
-                                    <p class="text-sm text-blue-100 mt-0.5">Review pengajuan dari karyawan freelance</p>
+                                    <h2 class="text-xl font-bold text-white">Produksi Final Approval</h2>
+                                    <p class="text-sm text-blue-100 mt-0.5">Review pengajuan dari karyawan produksi</p>
                                 </div>
                             </div>
                         </div>
@@ -163,8 +163,8 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-bold text-white">Organik Final Approval</h2>
-                                    <p class="text-sm text-purple-100 mt-0.5">Review pengajuan dari karyawan organik</p>
+                                    <h2 class="text-xl font-bold text-white">Office Final Approval</h2>
+                                    <p class="text-sm text-purple-100 mt-0.5">Review pengajuan dari karyawan office</p>
                                 </div>
                             </div>
                         </div>

@@ -51,11 +51,17 @@ class ForgotPasswordController extends Controller
                 \Log::error('Failed to send OTP email: ' . $e->getMessage());
             }
 
-            return response()->json([
-                'message' => 'Kode OTP telah dikirim ke email Anda.',
-                // 🔥 BUAT TESTING DOANG - HAPUS DI PRODUCTION!
-                'otp_debug' => $otp,
-            ], 200);
+            // ✅ HANYA TAMPILKAN OTP DI LOCAL ENVIRONMENT
+                $response = [
+                    'message' => 'Kode OTP telah dikirim ke email Anda.',
+                ];
+
+                // ✅ Cuma kalo di local, baru tampilin OTP (untuk testing)
+                if (app()->environment('local')) {
+                    $response['otp_debug'] = $otp;
+                }
+
+                return response()->json($response, 200);
 
         } catch (ValidationException $e) {
             return response()->json([

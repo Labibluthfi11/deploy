@@ -187,7 +187,7 @@
 
                         {{-- BUKTI --}}
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin')
+                            @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat')
                                 @if ($submission->file_bukti)
                                     <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank"
                                        class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
@@ -216,6 +216,8 @@
                                         $mainKeterangan = $submission->keterangan_izin_sakit ?? 'Pengajuan Sakit';
                                     } elseif ($submission->tipe === 'izin') {
                                         $mainKeterangan = $submission->keterangan_izin ?? $submission->keterangan_izin_sakit ?? 'Pengajuan Izin';
+                                    } elseif ($submission->tipe === 'telat') {
+                                        $mainKeterangan = $submission->keterangan_izin_sakit ?? 'Pengajuan Keterangan Telat';
                                     } else {
                                         $mainKeterangan = 'Absensi Reguler';
                                     }

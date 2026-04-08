@@ -188,6 +188,7 @@
             </div>
 
             <!-- 🆕 KOTAK BARU: RINGKASAN GAJI (SESUAI REQUEST LO) -->
+            @if(!$isOrganikOrMagang)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 fade-in">
 
                 <!-- Card Potongan Telat -->
@@ -252,7 +253,7 @@
 
             </div>
             <!-- 🆕 END RINGKASAN GAJI -->
-
+            @endif
           {{-- Tombol Export --}}
 <div class="flex justify-end mb-4 gap-4">
 
@@ -317,12 +318,14 @@
                                 <th>Tanggal</th>
                                 <th>Check-in</th>
                                 <th>Telat</th>
+                              @if(!$isOrganikOrMagang)
                                 <th>Gaji Pokok</th>
                                 <th>Potongan</th>
                                 <th>Gaji Bersih</th>
                                 <!-- 🆕 TAMBAH 2 HEADER INI -->
                                 <th>Menit Lembur</th>
                                 <th>Gaji Lembur</th>
+                              @endif
                                 <!-- ------------------- -->
                                 <th>Check-out</th>
                                 <th>Status</th>
@@ -368,7 +371,7 @@
                                             <span class="text-ontime">Tepat Waktu</span>
                                         @endif
                                     </td>
-
+                                     @if(!$isOrganikOrMagang)
                                     {{-- Gaji Pokok --}}
                                     <td>
                                         @if($item->base_salary)
@@ -426,6 +429,7 @@
                                             <span class="text-gray-500 dark:text-gray-400 text-sm">-</span>
                                         @endif
                                     </td>
+                                  @endif
                                     <!-- ------------------- -->
 
                                     {{-- Check-out --}}

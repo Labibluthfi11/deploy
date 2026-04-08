@@ -115,7 +115,7 @@
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
 
-                    <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-7x100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                                 <span class="w-3 h-3 bg-green-500 rounded-full mr-3"></span> Karyawan Organik
@@ -151,13 +151,10 @@
                                     <th class="py-3 px-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nama</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin</th>
+                                  <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sisa Cuti</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
-                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Menit OT</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gaji OT</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total Gaji</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -178,6 +175,11 @@
                                                 {{ $data['total_izin'] }}
                                             </span>
                                         </td>
+                                      <td class="py-3 px-4 text-center">
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-500">
+        {{ $data['user']->sisa_cuti ?? 0 }} Hari
+    </span>
+</td>
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
@@ -192,18 +194,6 @@
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
                                                 {{ $data['total_telat'] ?? 0 }}x
                                             </span>
-                                        </td>
-                                        <td class="py-3 px-4 text-right text-sm font-medium text-red-600 dark:text-red-400">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-center text-sm text-gray-900 dark:text-gray-300">
-                                            {{ $data['total_menit_lembur'] ?? 0 }}'
-                                        </td>
-                                        <td class="py-3 px-4 text-right text-sm font-medium text-purple-600 dark:text-purple-400">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-right text-sm font-bold text-green-600 dark:text-green-400">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
@@ -221,12 +211,7 @@
                                 @endforelse
                                 @if(count($organikData) > 0)
                                     <tr class="bg-green-50 dark:bg-green-900/20">
-                                        <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
-                                            Total Gaji Organik
-                                        </td>
-                                        <td class="py-4 px-4 text-right text-base font-bold text-green-600 dark:text-green-400">
-                                            Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}
-                                        </td>
+                                       
                                         <td></td>
                                     </tr>
                                 @endif
@@ -536,10 +521,6 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
-                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Menit OT</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gaji OT</th>
-                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total Gaji</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -575,18 +556,12 @@
                                                 {{ $data['total_telat'] ?? 0 }}x
                                             </span>
                                         </td>
-                                        <td class="py-3 px-4 text-right text-sm font-medium text-red-600 dark:text-red-400">
-                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                       
                                         <td class="py-3 px-4 text-center text-sm text-gray-900 dark:text-gray-300">
                                             {{ $data['total_menit_lembur'] ?? 0 }}'
                                         </td>
-                                        <td class="py-3 px-4 text-right text-sm font-medium text-purple-600 dark:text-purple-400">
-                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
-                                        </td>
-                                        <td class="py-3 px-4 text-right text-sm font-bold text-green-600 dark:text-green-400">
-                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
-                                        </td>
+                                        
+                                        
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                                                 <i class="fas fa-eye mr-1"></i>
@@ -603,12 +578,7 @@
                                 @endforelse
                                 @if(count($magangData) > 0)
                                     <tr class="bg-blue-50 dark:bg-blue-900/20">
-                                        <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
-                                            Total Gaji Magang
-                                        </td>
-                                        <td class="py-4 px-4 text-right text-base font-bold text-blue-600 dark:text-blue-400">
-                                            Rp {{ number_format($totalGajiMagang, 0, ',', '.') }}
-                                        </td>
+                                        
                                         <td></td>
                                     </tr>
                                 @endif

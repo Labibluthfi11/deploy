@@ -8,22 +8,33 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminUserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
+        // Super Admin (akses penuh)
         User::updateOrCreate(
-            ['email' => 'admin@example.com'], // biar gak duplikat
+            ['email' => 'superadmin@example.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password'),
+                'role' => 'super_admin', // ✅
+                'is_admin' => 1,
+                'id_karyawan' => 'ADM002',
+                'departemen' => 'IT',
+                'employment_type' => 'organik',
+            ]
+        );
+
+        // Admin biasa (tidak bisa akses organik)
+        User::updateOrCreate(
+            ['email' => 'admin@example.com'],
             [
                 'name' => 'Admin',
                 'password' => Hash::make('password'),
-                'role' => 'admin',
-                'is_active' => true,
-                'id_karyawan' => 'ADM001',
-                'departemen' => 'IT',
+                'role' => 'admin', // ✅
+                'is_admin' => 1,
+                'id_karyawan' => 'ADM003',
+                'departemen' => 'HR',
                 'employment_type' => 'organik',
-                'is_admin' => 1, // ✅ WAJIB BANGET
             ]
         );
     }

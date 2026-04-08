@@ -25,6 +25,7 @@ class AuthController extends Controller
                 'id_karyawan' => 'required|string|max:255|unique:users',
                 'departemen' => 'required|string|max:255',
                 'employment_type' => 'required|in:organik,freelance',
+                'work_location' => 'required|in:office,produksi',
             ]);
 
             $user = User::create([
@@ -34,6 +35,7 @@ class AuthController extends Controller
                 'id_karyawan' => $request->id_karyawan,
                 'departemen' => $request->departemen,
                 'employment_type' => $request->employment_type,
+                'work_location' => $request->work_location,
             ]);
 
             $token = $user->createToken('authToken')->plainTextToken;
@@ -118,10 +120,34 @@ class AuthController extends Controller
     /**
      * Get the authenticated user.
      */
-    public function user(Request $request)
-    {
-        return response()->json($request->user());
+   public function user(Request $request)
+{
+    $user = $request->user();
+
+    // Reset cuti kalau tahun baru (khusus organik)
+    if ($user->employment_type === 'organik') {
+        $user->resetCutiTahunan();
+        $user->refresh();
     }
+
+    return response()->json([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'employment_type' => $user->employment_type,
+        'work_location' => $user->work_location,
+        'id_karyawan' => $user->id_karyawan,
+        'departemen' => $user->departemen,
+        'role' => $user->role,
+        'profile_photo_path' => $user->profile_photo_path,
+        'profile_photo_url' => $user->profile_photo_url ?? null,
+        'is_admin' => $user->is_admin,
+        // ✅ Data cuti (hanya organik, freelance null)
+        'sisa_cuti' => $user->employment_type === 'organik' ? ($user->sisa_cuti ?? 12) : null,
+        'total_cuti_diambil' => $user->employment_type === 'organik' ? ($user->total_cuti_diambil ?? 0) : null,
+        'tahun_cuti' => $user->tahun_cuti ?? date('Y'),
+    ]);
+}
 
     /**
      * Update the user's employment type (organik/freelance).

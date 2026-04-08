@@ -11,6 +11,7 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens;
 
+    
     protected $fillable = [
         'name',
         'email',
@@ -19,7 +20,17 @@ class User extends Authenticatable
         'id_karyawan',
         'departemen',
         'employment_type',
-        'is_admin', // <--- FIX 1: Tambahkan is_admin ke fillable
+        'work_location',
+        'role',
+        'sisa_cuti',           
+        'total_cuti_diambil',  
+        'tahun_cuti',
+        
+    ];
+
+    
+    protected $guarded = [
+        'is_admin',
     ];
 
     protected $hidden = [
@@ -32,13 +43,45 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_admin' => 'boolean', // <--- FIX 2: Casting agar dibaca True/False
+            'is_admin' => 'boolean', 
         ];
     }
 
-    // ✅ Relasi ke Absensi
+public function resetCutiTahunan(): void
+{
+    $tahunSekarang = (int) date('Y');
+    if ((int) $this->tahun_cuti !== $tahunSekarang) {
+        $this->update([
+            'sisa_cuti' => 12,
+            'total_cuti_diambil' => 0,
+            'tahun_cuti' => $tahunSekarang,
+        ]);
+    }
+}
+
+public static function cutiYangMemotong(): array
+{
+    return ['cuti_tahunan', 'cuti_haji', 'cuti_umroh'];
+}
+    
     public function absensis()
     {
         return $this->hasMany(Absensi::class);
     }
+
+    public function isSuperAdmin(): bool
+{
+    return $this->role === 'super_admin';
+}
+
+public function isAdminOnly(): bool
+{
+    return $this->role === 'admin';
+}
+
+public function isAnyAdmin(): bool
+{
+    return in_array($this->role, ['super_admin', 'admin']);
+}
+
 }

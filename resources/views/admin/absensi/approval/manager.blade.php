@@ -32,7 +32,7 @@
                     <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div class="relative flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Freelance Pending</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Produksi Pending</p>
                             <p class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ $freelanceManager->count() }}</p>
                             <p class="text-xs text-gray-500 flex items-center gap-1">
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -54,7 +54,7 @@
                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div class="relative flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Organik Pending</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Office Pending</p>
                             <p class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ $organikManager->count() }}</p>
                             <p class="text-xs text-gray-500 flex items-center gap-1">
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -152,8 +152,8 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-bold text-white">Freelance - Level Manager</h2>
-                                    <p class="text-sm text-cyan-100 mt-0.5">Review pengajuan dari karyawan freelance</p>
+                                    <h2 class="text-xl font-bold text-white">Produksi - Level Manager</h2>
+                                    <p class="text-sm text-cyan-100 mt-0.5">Review pengajuan dari karyawan produksi</p>
                                 </div>
                             </div>
                         </div>
@@ -189,8 +189,8 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-bold text-white">Organik - Level Manager</h2>
-                                    <p class="text-sm text-emerald-100 mt-0.5">Review pengajuan dari karyawan organik</p>
+                                    <h2 class="text-xl font-bold text-white">Office - Level Manager</h2>
+                                    <p class="text-sm text-emerald-100 mt-0.5">Review pengajuan dari karyawan office</p>
                                 </div>
                             </div>
                             @if($organikManager->count() > 0)

@@ -27,12 +27,12 @@ class AuthenticatedSessionController extends Controller
     $request->authenticate();
     $request->session()->regenerate();
 
-    if (auth()->user()->role == 'admin') {
-    return redirect()->route('admin.absensi.index');
-} else {
-    auth()->logout();
-    return redirect('/')->with('error', 'Hanya admin yang bisa akses web!');
-}
+    if (auth()->user()->isAnyAdmin()) { 
+        return redirect()->route('admin.absensi.index');
+    } else {
+        auth()->logout();
+        return redirect('/')->with('error', 'Hanya admin yang bisa akses web!');
+    }
 }
 
     /**

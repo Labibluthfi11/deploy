@@ -16,16 +16,16 @@ use Illuminate\Support\Facades\Validator; // ⬅️ Pastiin ini ada
 class AbsensiController extends Controller
 {
     private $workflowTemplates = [
-        'freelance' => [
-            'mas_yuli' => 'pending',
-            'mas_nu'   => 'pending',
-            'mba_nadya'=> 'pending',
-        ],
-        'organik' => [
-            'mas_nu'   => 'pending',
-            'mba_nadya'=> 'pending',
-        ],
-    ];
+    'produksi' => [
+        'supervisor' => 'pending',
+        'manager'    => 'pending',
+        'hrga'       => 'pending',
+    ],
+    'office' => [
+        'manager' => 'pending',
+        'hrga'    => 'pending',
+    ],
+];
 
     private function determineResubmitLevel($rejectedBy, $workflowStatus)
     {
@@ -106,13 +106,13 @@ class AbsensiController extends Controller
         $user = Auth::user();
         $today = Carbon::today();
 
-        // 🔥 FIX #1: CEK SEMUA STATUS (termasuk REJECTED)
+        //  FIX #1: CEK SEMUA STATUS (termasuk REJECTED)
         $existingAbsensi = Absensi::where('user_id', $user->id)
             ->whereDate('check_in_at', $today)
             ->first();
 
         if ($existingAbsensi) {
-            // 🟢 CASE 1: Izin APPROVED (Disetujui) → BLOKIR
+            //  CASE 1: Izin APPROVED (Disetujui) → BLOKIR
             if (in_array($existingAbsensi->status_approval, ['approved', 'pending'])
                 && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
 
@@ -125,7 +125,7 @@ class AbsensiController extends Controller
                 ], 409);
             }
 
-            // 🟡 CASE 2: Izin REJECTED → UPDATE jadi HADIR
+            //  CASE 2: Izin REJECTED → UPDATE jadi HADIR
             if ($existingAbsensi->status_approval == 'rejected'
                 && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
 
@@ -148,7 +148,7 @@ class AbsensiController extends Controller
                     null
                 );
 
-                // ⚡ UPDATE record yang REJECTED jadi HADIR
+                //  UPDATE record yang REJECTED jadi HADIR
                 $existingAbsensi->update([
                     'check_in_at' => $checkInTime,
                     'foto_masuk' => $fotoPath,
@@ -176,7 +176,7 @@ class AbsensiController extends Controller
                 ], 200);
             }
 
-            // 🔵 CASE 3: Udah Hadir Sebelumnya
+            //  CASE 3: Udah Hadir Sebelumnya
             if ($existingAbsensi->status == 'hadir' && $existingAbsensi->check_in_at) {
                 return response()->json([
                     'message' => 'Anda sudah absen masuk hari ini.'
@@ -184,11 +184,11 @@ class AbsensiController extends Controller
             }
         }
 
-        // 🟢 CASE 4: Belum Ada Data → CREATE BARU (Normal Flow)
+        //  CASE 4: Belum Ada Data → CREATE BARU (Normal Flow)
         $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
         $lokasiMasuk = $request->lat . ',' . $request->lng; // ✅ FIX: Quote lurus
         $checkInTime = now();
-        $employment = strtolower($user->employment_type ?? 'organik');
+        $employment = strtolower($user->work_location ?? 'office');
         $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
         $isWeekend = Absensi::isWeekend($checkInTime);
         $lateMinutes = 0;
@@ -197,7 +197,14 @@ class AbsensiController extends Controller
             $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
         }
 
-        $salaryData = Absensi::calculateSalary($lateMinutes, $request->status, null, $isWeekend);
+        $salaryData = Absensi::calculateSalary(
+    $lateMinutes, 
+    $request->status, 
+    null, 
+    $isWeekend,
+    $checkInTime,  
+    null           
+);
 
         $absensi = Absensi::create([
             'user_id' => $user->id,
@@ -282,7 +289,7 @@ class AbsensiController extends Controller
 
             if ($request->tipe === 'lembur') {
                 $statusApproval = 'pending';
-                $employment = strtolower($user->employment_type ?? 'organik');
+                $employment = strtolower($user->work_location ?? 'office');
                 $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
                 $currentLevel = 1;
             } else {
@@ -319,55 +326,72 @@ public function meAbsensi(Request $request)
 {
     $userId = Auth::id();
 
-    // Parse tanggal
-    $startDate = $request->input('start_date')
-        ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
-        : Carbon::now('Asia/Jakarta')->subMonths(3)->startOfDay();
+    // 1. Inisialisasi Query Dasar
+    $query = Absensi::with('user')
+        ->where('user_id', $userId);
+        
 
-    $endDate = $request->input('end_date')
-        ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
-        : Carbon::now('Asia/Jakarta')->endOfDay();
+    // 2. LOGIKA FILTER & PENCARIAN
+    if ($request->filled('search_date')) {
+        // Jika user mencari tanggal spesifik (Contoh: 2026-03-01)
+        $searchDate = Carbon::parse($request->input('search_date'))->toDateString();
+        $query->whereDate('check_in_at', $searchDate);
 
-    \Log::info('📅 [ME ABSENSI] Date Range', [
-        'start' => $startDate->toDateTimeString(),
-        'end' => $endDate->toDateTimeString(),
-    ]);
+        \Log::info('🔍 [ME ABSENSI] Searching Date: ' . $searchDate);
+    }
+    elseif ($request->filled('month')) {
+        // Jika user filter per bulan (Contoh: month=1 untuk Januari)
+        $month = $request->input('month');
+        $year = $request->input('year', Carbon::now('Asia/Jakarta')->year);
+        $query->whereMonth('check_in_at', $month)
+              ->whereYear('check_in_at', $year);
 
+        \Log::info("📅 [ME ABSENSI] Filter Month: $month, Year: $year");
+    }
+    else {
+        $startDate = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()->setTimezone('Asia/Jakarta')
+            : Carbon::now('Asia/Jakarta')->subYears(1)->startOfDay();
 
-    $absensi = Absensi::with('user')
-        ->where('user_id', $userId)
-        ->whereBetween('check_in_at', [$startDate, $endDate])
-        ->whereNull('parent_id')
-        ->orderBy('check_in_at', 'desc')
-        ->orderBy('id', 'desc')
-        ->get();
+        // JANGAN dibatasi sampai endOfDay() hari ini
+        $endDate = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()->setTimezone('Asia/Jakarta')
+            : Carbon::now('Asia/Jakarta')->addMonths(1)->endOfDay(); // Tambahin 1 bulan ke depan
 
-    \Log::info('✅ [ME ABSENSI] Query Complete', [
-        'total_records' => $absensi->count(),
-    ]);
+        $query->whereBetween('check_in_at', [$startDate, $endDate]);
 
+        \Log::info('📅 [ME ABSENSI] Default Range Used');
+    }
 
-    $result = $absensi->map(function($item) {
+    // 3. EKSEKUSI QUERY DENGAN PAGINATION (Ambil 20 data per halaman)
+    $absensi = $query->orderBy('check_in_at', 'desc')
+                     ->orderBy('id', 'desc')
+                     ->paginate(30);
+
+    // 4. MAPPING URL FOTO (Gunakan getCollection karena ini object Paginate)
+    $absensi->getCollection()->transform(function($item) {
         $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
         $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
         $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
-        return $item->toArray();
-    })->values();
+        return $item;
+    });
 
-    \Log::info('📤 [ME ABSENSI] Response Summary', [
-        'total_sent' => $result->count(),
+    \Log::info('✅ [ME ABSENSI] Query Success', [
+        'total_all' => $absensi->total(),
+        'current_page' => $absensi->currentPage()
     ]);
 
-    return response()->json(['data' => $result]);
+    // 5. RETURN RESPONSE (Laravel otomatis kasih info pagination di sini)
+    return response()->json($absensi);
 }
 
     public function absenSakit(Request $request)
 {
-    // ✅ START TRANSACTION
+    //  START TRANSACTION
     DB::beginTransaction();
 
     try {
-        // ✅ VALIDASI INPUT
+        //  VALIDASI INPUT
         $request->validate([
             'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'keterangan_izin_sakit' => 'required|string|max:500',
@@ -378,7 +402,7 @@ public function meAbsensi(Request $request)
 
         $user = Auth::user();
 
-        // ✅ PARSE TANGGAL
+        //  PARSE TANGGAL
         $startDate = $request->start_date
             ? Carbon::parse($request->start_date)->startOfDay()
             : Carbon::today()->startOfDay();
@@ -390,7 +414,7 @@ public function meAbsensi(Request $request)
         // Hitung total hari
         $totalDays = $startDate->diffInDays($endDate) + 1;
 
-        // ✅ VALIDASI: Max 30 hari
+        //  VALIDASI: Max 30 hari
         if ($totalDays > 30) {
             DB::rollBack();
             return response()->json([
@@ -399,7 +423,7 @@ public function meAbsensi(Request $request)
             ], 422);
         }
 
-        // ✅ VALIDASI: Cek overlap dengan pengajuan lain (TERMASUK REJECTED!)
+        //  VALIDASI: Cek overlap dengan pengajuan lain (TERMASUK REJECTED!)
         $existingAbsensi = Absensi::where('user_id', $user->id)
             ->where(function($query) use ($startDate, $endDate) {
                 $query->whereBetween('check_in_at', [$startDate, $endDate])
@@ -427,21 +451,21 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
-            // ✅ KALO PENDING/APPROVED (biasa)
+            //  KALO PENDING/APPROVED (biasa)
             return response()->json([
                 'success' => false,
                 'message' => "Anda sudah memiliki pengajuan {$existingAbsensi->tipe} pada tanggal {$conflictDate}."
             ], 409);
         }
 
-        // ✅ UPLOAD FILE
+        //  UPLOAD FILE
         $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
 
-        // ✅ GET WORKFLOW
-        $employment = strtolower($user->employment_type ?? 'organik');
+        //  GET WORKFLOW
+        $employment = strtolower($user->work_location ?? 'office');
         $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-        // ✅ CREATE PARENT RECORD
+        //  CREATE PARENT RECORD
         $parentAbsensi = Absensi::create([
             'user_id' => $user->id,
             'check_in_at' => $startDate,
@@ -460,7 +484,7 @@ public function meAbsensi(Request $request)
             'final_salary' => 0,
         ]);
 
-        // 🔥 LOG DEBUG: CEK DATA YANG BARU DIBUAT
+        //  LOG DEBUG: CEK DATA YANG BARU DIBUAT
         \Log::info('🚀 [API SAKIT/IZIN] Data berhasil dibuat', [
             'absensi_id' => $parentAbsensi->id,
             'user_id' => $user->id,
@@ -476,24 +500,25 @@ public function meAbsensi(Request $request)
             'total_days' => $totalDays,
         ]);
 
-        // 🔥 LOG DEBUG: CEK WORKFLOW TEMPLATE YANG DIPAKE
-        \Log::info('⚙️ [API SAKIT/IZIN] Workflow yang digunakan', [
+        //  LOG DEBUG: CEK WORKFLOW TEMPLATE YANG DIPAKE
+        \Log::info(' [API SAKIT/IZIN] Workflow yang digunakan', [
             'employment' => $employment,
             'workflow' => $workflow,
             'workflow_json' => json_encode($workflow),
         ]);
 
-        // ✅ BULK INSERT CHILDREN
+        //  BULK INSERT CHILDREN
         $currentDate = $startDate->copy();
         $childRecords = [];
         $childCount = 0;
 
         while ($currentDate->lte($endDate)) {
             if (!$currentDate->isSameDay($startDate)) {
+              $dateTimeIzin = $currentDate->copy()->setTime(8, 0, 0)->toDateTimeString();
                 $childRecords[] = [
                     'user_id' => $user->id,
                     'parent_id' => $parentAbsensi->id,
-                    'check_in_at' => $currentDate->copy()->toDateTimeString(),
+                    'check_in_at' => $dateTimeIzin,
                     'end_date' => null,
                     'total_days' => 1,
                     'status' => $request->status,
@@ -520,8 +545,8 @@ public function meAbsensi(Request $request)
         if (!empty($childRecords)) {
             Absensi::insert($childRecords);
 
-            // 🔥 LOG DEBUG: CEK CHILDREN
-            \Log::info('👶 [API SAKIT/IZIN] Child records created', [
+            //  LOG DEBUG: CEK CHILDREN
+            \Log::info(' [API SAKIT/IZIN] Child records created', [
                 'parent_id' => $parentAbsensi->id,
                 'child_count' => $childCount,
             ]);
@@ -529,7 +554,7 @@ public function meAbsensi(Request $request)
 
         $createdRecords = 1 + $childCount;
 
-        // ✅ CREATE NOTIFICATION
+        //  CREATE NOTIFICATION
         Notification::create([
             'user_id' => $user->id,
             'title' => "Pengajuan " . ucfirst($request->status) . " Berhasil",
@@ -539,15 +564,17 @@ public function meAbsensi(Request $request)
             'target_id' => $parentAbsensi->id,
         ]);
 
-        // ✅ COMMIT TRANSACTION
+        
+
+        //  COMMIT TRANSACTION
         DB::commit();
 
-        // 🔥 LOG SUCCESS
+        //  LOG SUCCESS
         \Log::info('✅ [API SAKIT/IZIN] Transaction committed successfully', [
             'absensi_id' => $parentAbsensi->id,
         ]);
 
-        // ✅ LOAD RELASI & FORMAT URL
+        //  LOAD RELASI & FORMAT URL
         $parentAbsensi->load('user');
         $parentAbsensi->file_bukti_url = Storage::url($parentAbsensi->file_bukti);
 
@@ -674,7 +701,7 @@ public function meAbsensi(Request $request)
             $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
 
             // ✅ GET WORKFLOW
-            $employment = strtolower($user->employment_type ?? 'organik');
+            $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
             // ✅ CREATE PARENT
@@ -859,7 +886,7 @@ public function meAbsensi(Request $request)
                 now()
             );
 
-            $employment = strtolower($user->employment_type ?? 'organik');
+            $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
             $absensi->update([
@@ -906,13 +933,22 @@ public function meAbsensi(Request $request)
 
     public function resubmitSakit(Request $request, $id)
 {
-    DB::beginTransaction(); // Pake transaction biar aman
+    DB::beginTransaction();
 
     try {
+        //  VALIDASI ID DULU (TAMBAH INI)
+        if (!is_numeric($id) || $id <= 0) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'ID tidak valid.'
+            ], 400);
+        }
+
         $request->validate([
-            'file_bukti' => 'required|file|max:2048',
-            'keterangan_izin_sakit' => 'nullable|string|max:500',
-        ]);
+    'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',  
+    'keterangan_izin_sakit' => 'nullable|string|max:500',
+]);
 
         //  AMBIL RECORD YANG MAU DI-RESUBMIT
         $absensi = Absensi::find($id);
@@ -921,6 +957,7 @@ public function meAbsensi(Request $request)
             return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
         }
 
+        //  VALIDASI OWNERSHIP 
         if ($absensi->user_id !== Auth::id()) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
@@ -940,7 +977,7 @@ public function meAbsensi(Request $request)
         $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
 
         //  GET WORKFLOW
-        $employment = strtolower($absensi->user->employment_type ?? 'organik');
+        $employment = strtolower($absensi->user->work_location ?? 'office');
         $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
         $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
         $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
@@ -1005,11 +1042,18 @@ public function meAbsensi(Request $request)
     DB::beginTransaction();
 
     try {
+        if (!is_numeric($id) || $id <= 0) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'ID tidak valid.'
+            ], 400);
+        }
         $request->validate([
-            'file_bukti' => 'required|file|max:2048',
-            'catatan' => 'nullable|string|max:500',
-            'catatan_panggilan' => 'nullable|string|max:255',
-        ]);
+    'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',  
+    'catatan' => 'nullable|string|max:500',
+    'catatan_panggilan' => 'nullable|string|max:255',
+]);
 
         $absensi = Absensi::find($id);
         if (!$absensi) {
@@ -1032,7 +1076,7 @@ public function meAbsensi(Request $request)
         }
 
         $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
-        $employment = strtolower($absensi->user->employment_type ?? 'organik');
+        $employment = strtolower($absensi->user->work_location ?? 'office');
         $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
         $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
         $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
@@ -1091,133 +1135,147 @@ public function meAbsensi(Request $request)
 }
 
     public function resubmitLembur(Request $request, $id)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'foto'        => 'required|image|max:2048',
-                'lat'         => 'required|numeric',
-                'lng'         => 'required|numeric',
-                'jam_mulai'   => 'required|date_format:H:i',
-                'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-                'istirahat'   => 'required|boolean',
-                'keterangan'  => 'required|string|max:500',
-                'is_weekend'  => 'nullable|boolean', // 🆕
-            ]);
+{
+    try {
+        // ✅ VALIDASI ID
+        if (!is_numeric($id) || $id <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID tidak valid.'
+            ], 400);
+        }
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $validator->errors()->first()
-                ], 422);
-            }
+        $validator = Validator::make($request->all(), [
+            'foto'        => 'required|image|max:2048',
+            'lat'         => 'required|numeric',
+            'lng'         => 'required|numeric',
+            'jam_mulai'   => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'istirahat'   => 'required|boolean',
+            'keterangan'  => 'required|string|max:500',
+            'is_weekend'  => 'nullable|boolean',
+        ]);
 
-            $absensi = Absensi::find($id);
-            if (!$absensi) {
-                return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
-            }
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
 
-            if ($absensi->user_id != Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
-            }
+        $absensi = Absensi::find($id);
+        if (!$absensi) {
+            return response()->json(['success' => false, 'message' => 'Record tidak ditemukan.'], 404);
+        }
 
-            if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
-                return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
-            }
+        if ($absensi->user_id != Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
 
-            // Hapus foto lama
-            if ($absensi->foto_pulang && Storage::disk('public')->exists($absensi->foto_pulang)) {
-                Storage::disk('public')->delete($absensi->foto_pulang);
-            }
+        if ($absensi->status_approval !== 'rejected' && $absensi->status_approval !== 'ditolak') {
+            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+        }
 
-            $filePath = $request->file('foto')->store('absensi_foto', 'public');
-            $lokasiPulang = $request->lat . ',' . $request->lng;
+        // Hapus foto lama
+        if ($absensi->foto_pulang && Storage::disk('public')->exists($absensi->foto_pulang)) {
+            Storage::disk('public')->delete($absensi->foto_pulang);
+        }
 
-            $baseDate = $absensi->check_in_at
-                ? Carbon::parse($absensi->check_in_at)->format('Y-m-d')
-                : Carbon::today()->format('Y-m-d');
+        $filePath = $request->file('foto')->store('absensi_foto', 'public');
+        $lokasiPulang = $request->lat . ',' . $request->lng;
 
-            $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
-            $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
+        $baseDate = $absensi->check_in_at
+            ? Carbon::parse($absensi->check_in_at)->format('Y-m-d')
+            : Carbon::today()->format('Y-m-d');
 
-            // 🆕 CEK WEEKEND
-            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+        $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
+        $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
 
-            // Workflow
-            $employment = strtolower($absensi->user->employment_type ?? 'organik');
-            $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
-            $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-            $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+        $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
 
-            // 🆕 Kalkulasi dengan weekend multiplier
-            $overtimeData = Absensi::calculateOvertimeFromInput(
-                $lemburStart,
-                $lemburEnd,
-                $request->istirahat,
-                $isWeekendOvertime
-            );
-            $salaryData = Absensi::calculateSalary(
+        $employment = strtolower($absensi->user->work_location ?? 'office');
+        $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
+        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+        $overtimeData = Absensi::calculateOvertimeFromInput(
+            $lemburStart,
+            $lemburEnd,
+            $request->istirahat,
+            $isWeekendOvertime
+        );
+
+        $salaryData = Absensi::calculateSalary(
             $absensi->late_minutes ?? 0,
             $absensi->status,
             'lembur',
             $isWeekendOvertime,
-            $absensi->check_in_at,  // 🆕
-            now()                   // 🆕
+            $absensi->check_in_at,
+            now()
         );
-            // Update
-            $absensi->update([
-                'foto_pulang'           => $filePath,
-                'lokasi_pulang'         => $lokasiPulang,
-                'lembur_start'          => $lemburStart,
-                'lembur_end'            => $lemburEnd,
-                'lembur_rest'           => $request->istirahat,
-                'lembur_keterangan'     => $request->keterangan,
-                'tipe'                  => 'lembur',
-                'status_approval'       => 'pending',
-                'workflow_status'       => $workflow,
-                'current_approval_level'=> $startLevel,
-                'rejected_by'           => null,
-                'rejected_at'           => null,
-                'catatan_admin'         => null,
-                'check_out_at'          => now(),
-                'updated_at'            => now(),
-                'overtime_minutes'      => $overtimeData['minutes'],
-                'overtime_pay'          => $overtimeData['pay'],
-                'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
-                'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
-                'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
-                'is_weekend_overtime'   => $isWeekendOvertime, // 🆕
-            ]);
 
-            $absensi->load('user');
-            $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
+        $absensi->update([
+            'foto_pulang'           => $filePath,
+            'lokasi_pulang'         => $lokasiPulang,
+            'lembur_start'          => $lemburStart,
+            'lembur_end'            => $lemburEnd,
+            'lembur_rest'           => $request->istirahat,
+            'lembur_keterangan'     => $request->keterangan,
+            'tipe'                  => 'lembur',
+            'status_approval'       => 'pending',
+            'workflow_status'       => $workflow,
+            'current_approval_level'=> $startLevel,
+            'rejected_by'           => null,
+            'rejected_at'           => null,
+            'catatan_admin'         => null,
+            'check_out_at'          => now(),
+            'updated_at'            => now(),
+            'overtime_minutes'      => $overtimeData['minutes'],
+            'overtime_pay'          => $overtimeData['pay'],
+            'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
+            'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
+            'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
+            'is_weekend_overtime'   => $isWeekendOvertime,
+        ]);
 
-            Notification::create([
-                'user_id'     => $absensi->user_id,
-                'title'       => "Pengajuan Lembur Diajukan Ulang",
-                'message'     => "Pengajuan lembur kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
-                'type'        => "lembur_resubmitted",
-                'target_page' => '/lembur_detail',
-                'target_id'   => $absensi->id,
-            ]);
+        $absensi->load('user');
+        $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengajuan lembur berhasil diajukan ulang.' . ($isWeekendOvertime ? ' (Weekend Rate)' : ''),
-                'data'    => $absensi
-            ], 200);
+        Notification::create([
+            'user_id'     => $absensi->user_id,
+            'title'       => "Pengajuan Lembur Diajukan Ulang",
+            'message'     => "Pengajuan lembur kamu telah diajukan ulang dan akan direview oleh approver yang menolak sebelumnya.",
+            'type'        => "lembur_resubmitted",
+            'target_page' => '/lembur_detail',
+            'target_id'   => $absensi->id,
+        ]);
 
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan lembur berhasil diajukan ulang.' . ($isWeekendOvertime ? ' (Weekend Rate)' : ''),
+            'data'    => $absensi
+        ], 200);
+
+    } catch (ValidationException $e) {
+        return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
     }
+}
 
 
 
 public function getDetailAbsensi($id)
 {
     try {
+        // ✅ VALIDASI ID
+        if (!is_numeric($id) || $id <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID tidak valid.'
+            ], 400);
+        }
+
         $absensi = Absensi::find($id);
 
         if (!$absensi) {
@@ -1227,7 +1285,7 @@ public function getDetailAbsensi($id)
             ], 404);
         }
 
-        // ✅ SIMPLE CHECK (hapus semua log)
+        //  CEK OWNERSHIP
         if ($absensi->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
@@ -1235,55 +1293,51 @@ public function getDetailAbsensi($id)
             ], 403);
         }
 
-        // Pastikan import Carbon di atas: use Carbon\Carbon;
+        $formattedAbsensi = [
+            // --- 1. IDENTITAS & TANGGAL ---
+            'id' => $absensi->id,
+            'user_id' => $absensi->user_id,
+            'nama_karyawan' => $absensi->user->name ?? 'User Tidak Ditemukan',
+            'tanggal_absensi' => Carbon::parse($absensi->created_at)->translatedFormat('l, d F Y'),
 
-$formattedAbsensi = [
-    // --- 1. IDENTITAS & TANGGAL (Biar jelas ini punya siapa & kapan) ---
-    'id' => $absensi->id,
-    'user_id' => $absensi->user_id,
-    'nama_karyawan' => $absensi->user->name ?? 'User Tidak Ditemukan', // Ambil dari relasi
-    'tanggal_absensi' => Carbon::parse($absensi->created_at)->translatedFormat('l, d F Y'), // Contoh: "Senin, 18 Desember 2025"
+            // --- 2. JAM KERJA UTAMA ---
+            'jam_masuk' => $absensi->jam_masuk
+                ? Carbon::parse($absensi->jam_masuk)->format('H:i')
+                : '-',
 
-    // --- 2. JAM KERJA UTAMA (Diformat biar rapi) ---
-    'jam_masuk' => $absensi->jam_masuk
-        ? Carbon::parse($absensi->jam_masuk)->format('H:i')
-        : '-', // Kirim '-' atau null kalau belum absen
+            'jam_keluar' => $absensi->jam_keluar
+                ? Carbon::parse($absensi->jam_keluar)->format('H:i')
+                : '--:--',
 
-    'jam_keluar' => $absensi->jam_keluar
-        ? Carbon::parse($absensi->jam_keluar)->format('H:i')
-        : '--:--', // Penanda visual kalau belum pulang
+            // --- 3. STATUS & INDIKATOR ---
+            'status' => $absensi->status,
+            'is_late' => (bool) $absensi->is_late,
+            'keterangan_telat' => $absensi->late_reason ?? '-',
 
-    // --- 3. STATUS & INDIKATOR (Bantu Frontend kasih warna) ---
-    'status' => $absensi->status, // Contoh: 'Hadir', 'Izin', 'Sakit'
-    'is_late' => (bool) $absensi->is_late, // True/False (Bisa buat trigger warna merah di UI)
-    'keterangan_telat' => $absensi->late_reason ?? '-',
+            // --- 4. DATA LEMBUR ---
+            'lembur_start' => $absensi->lembur_start
+                ? Carbon::parse($absensi->lembur_start)->format('H:i')
+                : null,
+            'lembur_end' => $absensi->lembur_end
+                ? Carbon::parse($absensi->lembur_end)->format('H:i')
+                : null,
+            'durasi_lembur' => $absensi->lembur_start && $absensi->lembur_end
+                ? Carbon::parse($absensi->lembur_start)->diffInMinutes(Carbon::parse($absensi->lembur_end)) . ' Menit'
+                : '0 Menit',
 
-    // --- 4. DATA LEMBUR (Sesuai request kamu) ---
-    'lembur_start' => $absensi->lembur_start
-        ? Carbon::parse($absensi->lembur_start)->format('H:i')
-        : null,
-    'lembur_end' => $absensi->lembur_end
-        ? Carbon::parse($absensi->lembur_end)->format('H:i')
-        : null,
-    // Hitung durasi lembur otomatis di sini jika perlu
-    'durasi_lembur' => $absensi->lembur_start && $absensi->lembur_end
-        ? Carbon::parse($absensi->lembur_start)->diffInMinutes(Carbon::parse($absensi->lembur_end)) . ' Menit'
-        : '0 Menit',
+            // --- 5. BUKTI & LOKASI ---
+            'foto_masuk_url' => $absensi->foto_masuk ? url('storage/' . $absensi->foto_masuk) : null,
+            'foto_keluar_url' => $absensi->foto_keluar ? url('storage/' . $absensi->foto_keluar) : null,
 
-    // --- 5. BUKTI & LOKASI (Validasi) ---
-    'foto_masuk_url' => $absensi->foto_masuk ? url('storage/' . $absensi->foto_masuk) : null,
-    'foto_keluar_url' => $absensi->foto_keluar ? url('storage/' . $absensi->foto_keluar) : null,
+            'lokasi_masuk' => [
+                'lat' => $absensi->lat_masuk,
+                'long' => $absensi->long_masuk,
+                'alamat' => $absensi->alamat_masuk
+            ],
 
-    // Kelompokkan lokasi biar rapi (Nested JSON)
-    'lokasi_masuk' => [
-        'lat' => $absensi->lat_masuk,
-        'long' => $absensi->long_masuk,
-        'alamat' => $absensi->alamat_masuk // Jika ada
-    ],
-
-    // --- 6. META DATA (Info tambahan sistem) ---
-    'terakhir_update' => $absensi->updated_at->diffForHumans(), // Contoh: "2 menit yang lalu"
-];
+            // --- 6. META DATA ---
+            'terakhir_update' => $absensi->updated_at->diffForHumans(),
+        ];
 
         return response()->json([
             'success' => true,
@@ -1291,6 +1345,143 @@ $formattedAbsensi = [
         ]);
 
     } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan server: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+public function pengajuanTelat(Request $request)
+{
+    DB::beginTransaction();
+
+    try {
+        $request->validate([
+            'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'keterangan' => 'required|string|max:500',
+            'absensi_id' => 'required|integer|exists:absensis,id',
+        ]);
+
+        $user = Auth::user();
+
+        // Ambil absensi yang dimaksud
+        $absensi = Absensi::where('id', $request->absensi_id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$absensi) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Data absensi tidak ditemukan.'
+            ], 404);
+        }
+
+        // Pastikan sudah absen masuk
+        if (!$absensi->check_in_at) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda belum absen masuk.'
+            ], 400);
+        }
+
+        // Cek kalau sudah pernah ajukan telat untuk absensi ini
+        if ($absensi->tipe === 'telat' && in_array($absensi->status_approval, ['pending', 'approved'])) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda sudah mengajukan keterangan telat untuk hari ini.'
+            ], 409);
+        }
+
+        // Hitung keterlambatan dari jam absen masuk
+        $checkIn = Carbon::parse($absensi->check_in_at);
+        $standardTime = $checkIn->copy()->setTime(8, 0, 0);
+        $lateMinutes = $checkIn->greaterThan($standardTime)
+            ? (int) abs($checkIn->diffInMinutes($standardTime))
+            : 0;
+
+        if ($lateMinutes === 0) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak tercatat terlambat.'
+            ], 400);
+        }
+
+        // Hapus file bukti lama kalau ada
+        if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
+            Storage::disk('public')->delete($absensi->file_bukti);
+        }
+
+        // Upload file bukti baru
+        $fileBuktiPath = $request->file('file_bukti')->store('bukti_telat', 'public');
+
+        // Tentukan workflow berdasarkan employment type
+        $employment = strtolower($user->work_location ?? 'office');
+
+        if ($employment === 'freelance') {
+            $workflow = [
+                'supervisor' => 'pending',
+                'manager'    => 'pending',
+                'hrga'       => 'pending',
+            ];
+        } else {
+            $workflow = [
+                'manager' => 'pending',
+                'hrga'    => 'pending',
+            ];
+        }
+
+        // ✅ UPDATE record absensi yang ADA (bukan bikin baru!)
+        $absensi->update([
+            'tipe'                  => 'telat',
+            'status_approval'       => 'pending',
+            'file_bukti'            => $fileBuktiPath,
+            'keterangan_izin_sakit' => $request->keterangan,
+            'workflow_status'       => $workflow,
+            'current_approval_level'=> 1,
+            'rejected_by'           => null,
+            'rejected_at'           => null,
+            'catatan_admin'         => null,
+        ]);
+
+        // Notifikasi
+        Notification::create([
+            'user_id'     => $user->id,
+            'title'       => 'Pengajuan Keterangan Telat',
+            'message'     => "Pengajuan keterangan telat ({$lateMinutes} menit) telah diajukan dan menunggu approval.",
+            'type'        => 'telat_submitted',
+            'target_page' => '/telat_detail',
+            'target_id'   => $absensi->id,
+        ]);
+
+        DB::commit();
+
+        $absensi->load('user');
+        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
+
+        return response()->json([
+            'success'      => true,
+            'message'      => "Pengajuan keterangan telat ({$lateMinutes} menit) berhasil diajukan.",
+            'data'         => $absensi,
+            'late_minutes' => $lateMinutes,
+        ], 200);
+
+    } catch (ValidationException $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Validasi gagal',
+            'errors'  => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        if (isset($fileBuktiPath) && Storage::disk('public')->exists($fileBuktiPath)) {
+            Storage::disk('public')->delete($fileBuktiPath);
+        }
         return response()->json([
             'success' => false,
             'message' => 'Terjadi kesalahan server: ' . $e->getMessage()
