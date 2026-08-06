@@ -446,11 +446,17 @@ class AbsensiAdminController extends Controller
             return Absensi::find($item->id);
         });
 
-        // ✅ HITUNG TOTAL HARI KERJA (Untuk perhitungan Alfa)
+        // ✅ HITUNG TOTAL HARI KERJA (5 hari kerja/minggu, sampai hari ini/akhir periode)
         $totalHariKerja = 0;
         $tempDate = $startDate->copy();
-        while ($tempDate->lte($endDate)) {
-            if (!$tempDate->isWeekend() && !\App\Models\Holiday::isHoliday($tempDate)) {
+        $today = Carbon::now();
+        
+        // Batasi sampai hari ini atau akhir range jika range-nya sudah lewat
+        $limitDate = $today->lt($endDate) ? $today : $endDate;
+
+        while ($tempDate->lte($limitDate)) {
+            // Cek Senin-Jumat (1-5) dan bukan hari libur
+            if ($tempDate->dayOfWeek >= Carbon::MONDAY && $tempDate->dayOfWeek <= Carbon::FRIDAY && !\App\Models\Holiday::isHoliday($tempDate)) {
                 $totalHariKerja++;
             }
             $tempDate->addDay();
