@@ -47,6 +47,9 @@ class NewPasswordController extends Controller
                     'remember_token' => Str::random(60),
                 ])->save();
 
+                // ✅ REVOKE SEMUA TOKEN API (Kill Switch)
+                $user->tokens()->delete();
+
                 event(new PasswordReset($user));
             }
         );

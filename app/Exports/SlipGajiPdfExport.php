@@ -66,6 +66,7 @@ class SlipGajiPdfExport
             'gajiPokok' => $gajiPokok,
             'gajiLembur' => $gajiLembur,
             'potongan' => $potongan,
+            'adjustment' => $this->stats['total_adjustment'] ?? 0,
             'gajiBersih' => $gajiBersih,
             'durasiLembur' => $durasiLembur,
             'terbilang' => ucwords($this->terbilangString),

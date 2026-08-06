@@ -354,37 +354,7 @@
             $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
 
             // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI
-            $userId = $daily['user']->id;
-            $telatCount = \App\Models\Absensi::where('user_id', $userId)
-                ->whereMonth('check_in_at', now()->month)
-                ->whereYear('check_in_at', now()->year)
-                ->where(function($q) {
-                    $q->where('late_minutes', '>', 0)  // Telat
-                      ->orWhereNull('check_in_at');     // Alpha (ga masuk)
-                })
-                ->count();
-                //level peringatan
-            $warningLevel = 0;
-            $warningText = '';
-            $warningColor = '';
-            $warningIcon = '';
-
-            if ($telatCount >= 5) {
-                $warningLevel = 3;
-                $warningText = 'PERINGATAN 3 - Akan Dipanggil HRD!';
-                $warningColor = 'bg-red-600 text-white animate-pulse';
-                $warningIcon = 'fa-exclamation-circle';
-            } elseif ($telatCount >= 3) {
-                $warningLevel = 2;
-                $warningText = 'Peringatan 2 - Perhatian Serius';
-                $warningColor = 'bg-orange-500 text-white';
-                $warningIcon = 'fa-exclamation-triangle';
-            } elseif ($telatCount >= 1) {
-                $warningLevel = 1;
-                $warningText = 'Peringatan 1';
-                $warningColor = 'bg-yellow-500 text-white';
-                $warningIcon = 'fa-info-circle';
-            }
+            $warningLevel = 0; // Organik: flexible time, tidak ada peringatan telat
         @endphp
 
         <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
@@ -466,29 +436,7 @@
 
             {{-- Keterlambatan --}}
             <td class="px-6 py-4 whitespace-nowrap">
-                @php
-                    $lateMinutes = $daily['late_minutes'] ?? 0;
-                @endphp
-                @if($belumAbsen)
-                    <span class="text-red-600 dark:text-red-400 text-sm font-bold">
-                        <i class="fas fa-exclamation-circle"></i> -
-                    </span>
-                @elseif($lateMinutes > 0)
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                        <i class="fas fa-clock"></i>
-                        @if($lateMinutes < 60)
-                            {{ $lateMinutes }} menit
-                        @else
-                            @php
-                                $hours = floor($lateMinutes / 60);
-                                $mins = $lateMinutes % 60;
-                            @endphp
-                            {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                        @endif
-                    </span>
-                @else
-                    <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                @endif
+                <span class="text-gray-400 text-sm">-</span>
             </td>
 
             {{-- Check-out --}}
@@ -1363,8 +1311,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script nonce="{{ config('app.csp_nonce') }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script nonce="{{ config('app.csp_nonce') }}">
         document.addEventListener('DOMContentLoaded', () => {
         // 🔥 AUTO SCROLL KE TABEL YANG DI-SEARCH 🔥
         const urlParams = new URLSearchParams(window.location.search);

@@ -41,7 +41,7 @@ class UserProfileController extends Controller
             // Menangkap error tak terduga
             return response()->json([
                 'message' => 'An unexpected error occurred.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.'
             ], 500);
         }
     }
@@ -58,7 +58,7 @@ class UserProfileController extends Controller
             'name' => 'required|string|max:255',
             'id_karyawan' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'departemen' => 'required|string|max:255',
-            'profile_photo' => 'nullable|image|max:10240', // Maksimal 10MB
+            'profile_photo' => 'nullable|image|max:2048', // Maksimal 2MB (Cegah Bom Penyimpanan)
         ]);
 
         if ($validator->fails()) {

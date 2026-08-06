@@ -1,0 +1,11 @@
+includes:
+    - ./vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    level: 5
+
+    # Paksa jangan baca file yang bikin pusing ini
+    excludePaths:
+        - app/Resources/AbsensiResource.php

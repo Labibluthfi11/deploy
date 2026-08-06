@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Models\ActivityLog;
+
 
 class AuthController extends Controller
 {
@@ -39,8 +41,10 @@ class AuthController extends Controller
             ]);
 
             $token = $user->createToken('authToken')->plainTextToken;
+            ActivityLog::log('Register User', "User: {$user->name}", "User baru mendaftar via API.");
 
             return response()->json([
+
                 'message' => 'Registration successful',
                 'user' => $user,
                 'access_token' => $token,
@@ -57,7 +61,7 @@ class AuthController extends Controller
             // JARING 2: Kulkas (Semua Error Lainnya)
             return response()->json([
                 'message' => 'Registrasi gagal, terjadi kesalahan server.',
-                'error_debug' => $e->getMessage()
+                'error_debug' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.'
             ], 500);
         }
     }
@@ -82,8 +86,10 @@ class AuthController extends Controller
 
             $user = User::where('email', $request->email)->firstOrFail();
             $token = $user->createToken('authToken')->plainTextToken;
+            ActivityLog::log('Login User', "User: {$user->name}", "User login via API.");
 
             return response()->json([
+
                 'message' => 'Login successful',
                 'user' => $user,
                 'access_token' => $token,
@@ -100,7 +106,7 @@ class AuthController extends Controller
             // JARING 2: Kulkas (Semua Error Lainnya)
             return response()->json([
                 'message' => 'Terjadi kesalahan pada server.',
-                'error_debug' => $e->getMessage()
+                'error_debug' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.'
             ], 500);
         }
     }
@@ -180,7 +186,7 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update employment type.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.'
             ], 500);
         }
     }

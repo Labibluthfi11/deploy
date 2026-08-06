@@ -1,8 +1,8 @@
 {{-- MODERN REJECT MODAL - FORCE DISPLAY VERSION --}}
-<div id="rejectModal" style="display: none;" class="fixed inset-0 z-[9999] overflow-y-auto">
+<div id="rejectModal" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {{-- Background overlay --}}
-        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onclick="closeRejectModal()"></div>
+        <div class="close-reject-modal fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"></div>
 
         {{-- Center modal --}}
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
@@ -56,8 +56,7 @@
                     </button>
                     <button
                         type="button"
-                        onclick="closeRejectModal()"
-                        class="inline-flex justify-center items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        class="close-reject-modal inline-flex justify-center items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Batal
                     </button>
                 </div>
@@ -67,7 +66,7 @@
 </div>
 
 {{-- ✅ SCRIPT WITH FORCE DISPLAY --}}
-<script>
+<script nonce="{{ config('app.csp_nonce') }}">
     function openRejectModal(id, routeUrl) {
         console.log('🔥 [MODAL] Opening modal', { id, routeUrl });
 
@@ -86,18 +85,15 @@
             return;
         }
 
-        // ✅ SET FORM ACTION
         form.action = routeUrl;
         console.log('✅ [MODAL] Form action set:', form.action);
 
-        // 🔥 FORCE DISPLAY - PAKE STYLE.DISPLAY (bukan class)
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
 
-        console.log('✅ [MODAL] Modal displayed, current style:', modal.style.display);
+        console.log('✅ [MODAL] Modal displayed');
 
-        // Focus textarea
-        setTimeout(() => {
+        setTimeout(function() {
             const textarea = document.getElementById('catatan_admin');
             if (textarea) {
                 textarea.focus();
@@ -111,8 +107,8 @@
 
         const modal = document.getElementById('rejectModal');
         if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = 'auto';
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
             console.log('✅ [MODAL] Modal closed');
         }
 
@@ -122,17 +118,15 @@
         }
     }
 
-    // ESC key handler
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const modal = document.getElementById('rejectModal');
-            if (modal && modal.style.display === 'block') {
+            if (modal && !modal.classList.contains('hidden')) {
                 closeRejectModal();
             }
         }
     });
 
-    // Form validation
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ [MODAL] DOM loaded, checking modal existence');
 
@@ -141,6 +135,10 @@
 
         console.log('Modal exists:', !!modal);
         console.log('Form exists:', !!form);
+
+        document.querySelectorAll('.close-reject-modal').forEach(function(el) {
+            el.addEventListener('click', closeRejectModal);
+        });
 
         if (form) {
             form.addEventListener('submit', function(e) {

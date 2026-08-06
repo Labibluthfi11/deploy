@@ -33,7 +33,7 @@
                     <div class="flex-1">
                         <p class="font-semibold">{{ session('success') }}</p>
                     </div>
-                    <button onclick="this.parentElement.remove()" class="flex-shrink-0 text-white/80 hover:text-white transition-colors">
+                    <button data-action="dismiss-alert" class="flex-shrink-0 text-white/80 hover:text-white transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -51,7 +51,7 @@
                     <div class="flex-1">
                         <p class="font-semibold">{{ session('error') }}</p>
                     </div>
-                    <button onclick="this.parentElement.remove()" class="flex-shrink-0 text-white/80 hover:text-white transition-colors">
+                    <button data-action="dismiss-alert" class="flex-shrink-0 text-white/80 hover:text-white transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -201,9 +201,10 @@
         </div>
     </div>
 
+    @include('admin.absensi.approval.partials.izin-keluar-table')
     @include('admin.absensi.approval.partials.reject-modal')
 
-    <style>
+    <style nonce="{{ config('app.csp_nonce') }}">
         @keyframes fade-in {
             from {
                 opacity: 0;
@@ -218,4 +219,62 @@
             animation: fade-in 0.3s ease-out;
         }
     </style>
+
+    <script nonce="{{ config('app.csp_nonce') }}">
+        document.addEventListener('click', function(e) {
+            var target = e.target.closest('[data-action="dismiss-alert"]');
+            if (target) {
+                var alert = target.closest('.animate-fade-in');
+                if (alert) alert.remove();
+            }
+        });
+    </script>
+
+@if(session('success'))
+<div id="flashToast" class="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 px-5 py-4 bg-green-600 text-white rounded-2xl shadow-2xl transform transition-all duration-500 translate-y-0 opacity-100" style="max-width:380px">
+    <div class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+    </div>
+    <p class="text-sm font-semibold flex-1">{{ session('success') }}</p>
+    <button id="flashToastClose" class="w-6 h-6 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+    </button>
+</div>
+<script nonce="{{ config('app.csp_nonce') }}">
+    setTimeout(function() {
+        const toast = document.getElementById('flashToast');
+        if (toast) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => toast.remove(), 500);
+        }
+    }, 4000);
+    const closeBtn = document.getElementById('flashToastClose');
+    if (closeBtn) closeBtn.addEventListener('click', function() { document.getElementById('flashToast').remove(); });
+</script>
+@endif
+
+@if(session('error'))
+<div id="flashToastError" class="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 px-5 py-4 bg-red-600 text-white rounded-2xl shadow-2xl" style="max-width:380px">
+    <div class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+    </div>
+    <p class="text-sm font-semibold flex-1">{{ session('error') }}</p>
+</div>
+<script nonce="{{ config('app.csp_nonce') }}">
+    setTimeout(function() {
+        const toast = document.getElementById('flashToastError');
+        if (toast) {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }
+    }, 4000);
+</script>
+@endif
 </x-app-layout>

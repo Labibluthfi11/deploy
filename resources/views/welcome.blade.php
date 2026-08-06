@@ -89,9 +89,17 @@
     </footer>
 
     @push('styles')
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-        <style>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet"
+              integrity="sha512-1cK78a1o+hpVvTgaWw28SrjkAt+vA1mWxeE695jp9EHuxeyru473uFB6iCha7awqmsuyFutfnMbcTCm9txot6Q=="
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer"
+              nonce="{{ config('app.csp_nonce') }}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+              integrity="sha512-c42qTSw/wPZ3/5LBzD+Bw5f7bSF2oxou6wEb+I/lqADuhyWpId36goLJtfsZX61B851m1UV6L3PdwGNo6iGq7A=="
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer"
+              nonce="{{ config('app.csp_nonce') }}"/>
+        <style nonce="{{ config('app.csp_nonce') }}">
             @keyframes blob {
                 0%, 100% {
                     transform: translate(0, 0) scale(1);
@@ -116,8 +124,12 @@
     @endpush
 
     @push('scripts')
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-        <script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"
+                integrity="sha512-A7AYk1fGKX6S2HuqX7WZOKzLPfhUp7uZG0PUtzhGuK8pqUqhhuplqADutJ0iJyq8VJS0M67gz6S0lX4vkpkvuw=="
+                crossorigin="anonymous"
+                referrerpolicy="no-referrer"
+                nonce="{{ config('app.csp_nonce') }}"></script>
+        <script nonce="{{ config('app.csp_nonce') }}">
             AOS.init({
                 once: true,
                 duration: 1000

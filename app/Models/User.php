@@ -70,18 +70,42 @@ public static function cutiYangMemotong(): array
     }
 
     public function isSuperAdmin(): bool
-{
-    return $this->role === 'super_admin';
-}
+    {
+        return in_array($this->role, ['super_admin', 'manager', 'supervisor', 'hrga']);
+    }
 
-public function isAdminOnly(): bool
-{
-    return $this->role === 'admin';
-}
+    public function isAdminOnly(): bool
+    {
+        return $this->role === 'admin';
+    }
 
-public function isAnyAdmin(): bool
-{
-    return in_array($this->role, ['super_admin', 'admin']);
-}
+    public function isAnyAdmin(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'manager', 'supervisor', 'hrga']);
+    }
 
+    /**
+     * Get employee category for attendance logic.
+     * Centralized logic to replace repetitive checks in Controllers.
+     */
+    public function getKategoriAbsensiAttribute(): string
+    {
+        $idKaryawan = strtoupper($this->id_karyawan ?? '');
+        $empType = strtolower($this->employment_type ?? 'organik');
+
+        // Order is important: check prefixes first
+        if (strpos($idKaryawan, 'CS-AMB') === 0 || $empType === 'borongan') {
+            return 'borongan';
+        }
+        
+        if (strpos($idKaryawan, 'MG-AMB') === 0 || $empType === 'magang') {
+            return 'magang';
+        }
+        
+        if (strpos($idKaryawan, 'AMB') === 0 || $empType === 'freelance') {
+            return 'freelance';
+        }
+
+        return 'organik';
+    }
 }

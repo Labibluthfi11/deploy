@@ -60,8 +60,8 @@
                         if (strtolower($absen->status) == 'sakit') $totalSakit++;
                         $totalMenitLembur += $absen->overtime_minutes ?? 0;
                     } else {
-                        // Alpha = tidak ada absensi & bukan weekend
-                        if (!\Carbon\Carbon::parse($date)->isWeekend()) {
+                        // Alpha = tidak ada absensi & bukan weekend & bukan hari libur
+                        if (!\Carbon\Carbon::parse($date)->isWeekend() && !\App\Models\Holiday::isHoliday($date)) {
                             $totalAlpha++;
                         }
                     }
@@ -133,6 +133,9 @@
 
                                 if ($absen->status == 'hadir') {
                                     $cell = "$in - $out";
+                                    if (strtolower($absen->tipe ?? '') === 'sakit') {
+                                        $cell .= " (Hadir & Sakit)";
+                                    }
                                     if ($absen->late_minutes > 0) $cell .= " Tl:{$absen->late_minutes}m";
                                     if ($absen->overtime_minutes > 0) {
                                         $jam = floor($absen->overtime_minutes / 60);
@@ -145,8 +148,14 @@
                                 }
                             } else {
                                 if (!\Carbon\Carbon::parse($date)->isWeekend()) {
-                                    $cell = 'Tidak Masuk';
-                                    $bg = 'background:#FFB6C1;';
+                                    if (\App\Models\Holiday::isHoliday($date)) {
+                                        $holiday = \App\Models\Holiday::where('holiday_date', \Carbon\Carbon::parse($date)->toDateString())->first();
+                                        $cell = 'Lbr: ' . ($holiday->name ?? 'Hari Libur');
+                                        $bg = 'background:#D3D3D3;';
+                                    } else {
+                                        $cell = 'Tidak Masuk';
+                                        $bg = 'background:#FFB6C1;';
+                                    }
                                 }
                             }
                         @endphp

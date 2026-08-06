@@ -66,16 +66,38 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
         $grandTotalGajiPokok = 0;
         $grandTotalGajiLembur = 0;
-        $grandTotalPotongan = 0; // 🔥 TAMBAH INI
+        $grandTotalPotongan = 0;
+        $grandTotalGajiBersihRow = 0;
         $grandTotalGajiBersih = 0;
 
         foreach ($users as $user) {
             $userAbsensi = $absensiData->where('user_id', $user->id);
 
-            $grandTotalGajiPokok += $userAbsensi->sum('base_salary');
-            $grandTotalGajiLembur += $userAbsensi->sum('overtime_pay');
-            $grandTotalPotongan += $userAbsensi->sum('late_penalty'); // 🔥 TAMBAH INI
-            $grandTotalGajiBersih += $userAbsensi->sum('final_salary');
+            // 🔥 GROUP BY TANGGAL & AMBIL DATA TERBARU (ID Tertinggi) PER HARI
+            $latestDailyRecords = $userAbsensi->groupBy(function($absen) {
+                return \Carbon\Carbon::parse($absen->check_in_at)->format('Y-m-d');
+            })->map(function($dayGroup) {
+                return $dayGroup->sortByDesc('id')->first();
+            });
+
+            // ✅ PASTIKAN SEMUA KOMPONEN DIBULETIN DI AWAL
+            $pokokAsli = (float) $latestDailyRecords->sum('base_salary');
+            $bonusPlus = (float) $latestDailyRecords->where('adjustment_salary', '>', 0)->sum('adjustment_salary');
+            $pokokFinal = round($pokokAsli + $bonusPlus);
+
+            $lemburFinal = $latestDailyRecords->map(fn($a) => round($a->overtime_pay ?? 0))->sum();
+            
+            $dendaTelatIndividual = $latestDailyRecords->map(fn($a) => round($a->late_penalty ?? 0))->sum();
+            $adjMinus = round(abs((float) $latestDailyRecords->where('adjustment_salary', '<', 0)->sum('adjustment_salary')));
+            $potonganFinal = $dendaTelatIndividual + $adjMinus;
+
+            $grandTotalGajiPokok += $pokokFinal;
+            $grandTotalGajiLembur += $lemburFinal;
+            $grandTotalPotongan += $potonganFinal;
+            
+            // 🔥 TOTAL AKHIR PER USER (BALANCE)
+            $userTotal = ($pokokFinal + $lemburFinal) - $potonganFinal;
+            $grandTotalGajiBersih += $userTotal;
         }
 
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
@@ -84,10 +106,11 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'users' => $users,
             'absensiData' => $absensiData,
             'periodeStr' => $periodeStr,
-            'allDates' => $allDates, // 🔥 KIRIM LIST TANGGAL
+            'allDates' => $allDates,
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
-            'grandTotalPotongan' => $grandTotalPotongan, // 🔥 TAMBAH INI
+            'grandTotalPotongan' => $grandTotalPotongan,
+            'grandTotalGajiBersihRow' => $grandTotalGajiBersihRow,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
             'categoryLabel' => $categoryLabel,
         ]);
@@ -103,6 +126,10 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
         if (str_starts_with($idKaryawan, 'MG-AMB')) {
             return 'magang';
+        }
+
+        if (str_starts_with($idKaryawan, 'AMB')) {
+            return 'freelance';
         }
 
         return $user->employment_type ?? 'organik';

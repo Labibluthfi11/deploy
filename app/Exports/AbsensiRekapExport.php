@@ -38,29 +38,30 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
         $no = 1;
 
         foreach ($this->recapData as $recap) {
-            // 🔥 FILTER BERDASARKAN KATEGORI YANG DIPILIH 🔥
             $kategori = $recap['kategori'] ?? 'organik';
 
             if ($this->type !== 'all' && $kategori !== $this->type) {
                 continue;
             }
 
+            // ✅ RUMUS 4 KOLOM SAKTI: Kolom 1 + Kolom 2 - Kolom 3 = Kolom 4
             $data->push([
                 'no' => $no++,
                 'nama' => $recap['user']->name,
                 'id_karyawan' => $recap['user']->id_karyawan,
                 'departemen' => $recap['user']->departemen,
-                'tipe_karyawan' => ucfirst($kategori), // 🔥 GANTI DARI employment_type JADI kategori
+                'tipe_karyawan' => ucfirst($kategori),
                 'hadir' => $recap['total_hadir'],
                 'izin' => $recap['total_izin'],
                 'sakit' => $recap['total_sakit'],
                 'lembur' => $recap['total_lembur'],
                 'telat' => $recap['total_telat'],
-                'total_potongan' => 'Rp ' . number_format($recap['total_potongan'] ?? 0, 0, ',', '.'),
-                'total_menit_lembur' => ($recap['total_menit_lembur'] ?? 0) . ' Menit',
-                'total_gaji_lembur' => 'Rp ' . number_format($recap['total_gaji_lembur'] ?? 0, 0, ',', '.'),
-                'total_gaji' => 'Rp ' . number_format($recap['total_gaji'] ?? 0, 0, ',', '.'),
-                'total' => $recap['total_absensi'] ?? 0,
+                'gaji_pokok' => 'Rp ' . number_format($recap['total_gaji_pokok'] ?? 0, 0, ',', '.'), // Kolom 1
+                'gaji_lembur' => 'Rp ' . number_format($recap['total_gaji_lembur'] ?? 0, 0, ',', '.'), // Kolom 2
+                'total_potongan' => 'Rp ' . number_format($recap['total_potongan'] ?? 0, 0, ',', '.'), // Kolom 3
+                'keterangan' => $recap['keterangan_adj'] ?: '-',
+                'total_diterima' => 'Rp ' . number_format($recap['total_gaji'] ?? 0, 0, ',', '.'), // Kolom 4 (Pasti Balance)
+                'total_absensi' => $recap['total_absensi'] ?? 0,
             ]);
         }
 
@@ -74,16 +75,17 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'Nama Karyawan',
             'ID Karyawan',
             'Departemen',
-            'Kategori', // 🔥 GANTI DARI "Tipe Karyawan" JADI "Kategori"
+            'Kategori',
             'Hadir',
             'Izin',
             'Sakit',
             'Lembur',
             'Telat (x)',
+            'Gaji Pokok (Inc. Bonus)',
+            'Gaji Lembur',
             'Total Potongan',
-            'Total Menit Lembur',
-            'Total Gaji Lembur',
-            'Total Gaji',
+            'Keterangan (Rincian)',
+            'TOTAL DITERIMA (PAS)',
             'Total Absensi',
         ];
     }
@@ -91,8 +93,6 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
     public function styles(Worksheet $sheet)
     {
         $monthName = Carbon::createFromFormat('!m', $this->month)->translatedFormat('F');
-
-        // 🔥 LABEL KATEGORI UNTUK HEADER EXCEL 🔥
         $typeLabel = match($this->type) {
             'organik' => 'Karyawan Organik',
             'freelance' => 'Karyawan Freelance',
@@ -105,16 +105,14 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             ? "Minggu ke-{$this->week}, {$monthName} {$this->year}"
             : "{$monthName} {$this->year}";
 
-        // Header judul
         $sheet->insertNewRowBefore(1, 2);
         $sheet->setCellValue('A1', "REKAP ABSENSI - {$typeLabel}");
         $sheet->setCellValue('A2', "Periode: {$periode}");
 
-        // 🔥 SEKARANG PUNYA 15 KOLOM (A-O) 🔥
-        $sheet->mergeCells('A1:O1');
-        $sheet->mergeCells('A2:O2');
+        $sheet->mergeCells('A1:P1');
+        $sheet->mergeCells('A2:P2');
 
-        $sheet->getStyle('A1:O2')->applyFromArray([
+        $sheet->getStyle('A1:P2')->applyFromArray([
             'font' => ['bold' => true, 'size' => 14],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -122,8 +120,7 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             ],
         ]);
 
-        // Style header
-        $sheet->getStyle('A3:O3')->applyFromArray([
+        $sheet->getStyle('A3:P3')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
             'alignment' => [
@@ -135,21 +132,21 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             ],
         ]);
 
-        // Style isi data
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A4:O{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A4:P{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
-        // Style kolom angka (F-J dan O) CENTER
-        $sheet->getStyle("F4:J{$lastRow}")
-            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("O4:O{$lastRow}")
-            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("F4:J{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("P4:P{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // Style kolom gaji (K-N) ALIGN LEFT
-        $sheet->getStyle("K4:N{$lastRow}")
-            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        // Highlight TOTAL DITERIMA biar gampang liatnya
+        $sheet->getStyle("O4:O{$lastRow}")->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2EFDA']],
+        ]);
+
+        $sheet->getStyle("K4:O{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
         return [];
     }
@@ -157,21 +154,22 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
     public function columnWidths(): array
     {
         return [
-            'A' => 6,  // No
-            'B' => 25, // Nama
-            'C' => 15, // ID
-            'D' => 20, // Dept
-            'E' => 15, // Kategori
-            'F' => 10, // Hadir
-            'G' => 10, // Izin
-            'H' => 10, // Sakit
-            'I' => 10, // Lembur
-            'J' => 10, // Telat
-            'K' => 18, // Total Potongan
-            'L' => 18, // Total Menit Lembur
-            'M' => 20, // Total Gaji Lembur
-            'N' => 20, // Total Gaji
-            'O' => 15, // Total Absensi
+            'A' => 6,   // No
+            'B' => 25,  // Nama
+            'C' => 15,  // ID
+            'D' => 20,  // Dept
+            'E' => 15,  // Kategori
+            'F' => 8,   // Hadir
+            'G' => 8,   // Izin
+            'H' => 8,   // Sakit
+            'I' => 10,  // Lembur
+            'J' => 10,  // Telat
+            'K' => 22,  // Gaji Pokok
+            'L' => 18,  // Gaji Lembur
+            'M' => 18,  // Total Potongan
+            'N' => 45,  // Keterangan
+            'O' => 22,  // Total Diterima
+            'P' => 15,  // Total Absensi
         ];
     }
 

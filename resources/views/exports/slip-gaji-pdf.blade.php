@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Slip Gaji - {{ $user->name }}</title>
-    <style>
+    <style nonce="{{ config('app.csp_nonce') }}">
         /* [FIX 1] Reset Margin Kertas & Pakai Padding Body */
         @page {
             margin: 0px;
@@ -174,7 +174,7 @@
                             </tr>
                             <tr class="total-row">
                                 <td class="label">TOTAL PENGHASILAN</td>
-                                <td class="value">Rp {{ number_format($gajiPokok + $gajiLembur, 0, ',', '.') }}</td>
+                                <td class="value">Rp {{ number_format($gajiPokok + $gajiLembur + ($adjustment > 0 ? $adjustment : 0), 0, ',', '.') }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -193,16 +193,12 @@
                                 <td class="value">Rp {{ number_format($potongan, 0, ',', '.') }}</td>
                             </tr>
                             <tr>
-                                <td class="label">&nbsp;</td>
-                                <td class="value">&nbsp;</td>
-                            </tr>
-                            <tr>
-                                <td class="label">&nbsp;</td>
-                                <td class="value">&nbsp;</td>
+                                <td class="label">Penyesuaian Gaji (Adj)</td>
+                                <td class="value">Rp {{ number_format($adjustment, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="total-row">
                                 <td class="label">TOTAL POTONGAN</td>
-                                <td class="value">Rp {{ number_format($potongan, 0, ',', '.') }}</td>
+                                <td class="value">Rp {{ number_format($potongan + ($adjustment < 0 ? abs($adjustment) : 0), 0, ',', '.') }}</td>
                             </tr>
                         </tbody>
                     </table>

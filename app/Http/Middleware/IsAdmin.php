@@ -10,7 +10,7 @@ class IsAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::check() && Auth::user()->isAnyAdmin()) {
+        if (Auth::check() && (Auth::user()->isAnyAdmin() || Auth::user()->role === 'pkl')) {
             return $next($request);
         }
         abort(403, 'Unauthorized');

@@ -81,7 +81,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Minggu</label>
-                            <select name="week" id="weekSelect" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" style="display:none;">
+                            <select name="week" id="weekSelect" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition hidden">
                                 <option value="">Semua</option>
                                 @for ($i = 1; $i <= $weeks; $i++)
                                     <option value="{{ $i }}" {{ request('week') == $i ? 'selected' : '' }}>Minggu {{ $i }}</option>
@@ -115,7 +115,7 @@
                     <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d H:i:s') }}">
                     <input type="hidden" name="end_date" value="{{ $endDate->format('Y-m-d H:i:s') }}">
 
-                    <div class="p-6 border-b border-gray-200 dark:border-gray-7x100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                                 <span class="w-3 h-3 bg-green-500 rounded-full mr-3"></span> Karyawan Organik
@@ -127,12 +127,14 @@
                                 <button type="submit" formaction="{{ route('admin.absensi.bulk-export-simple') }}" class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-table mr-2"></i> Simple
                             </button>
+                            @if(auth()->user()->role !== 'pkl')
                              <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-pdf mr-2"></i> PDF
                             </button>
+                            @endif
                         </div>
                     </div>
 
@@ -146,15 +148,16 @@
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
                                     <th class="py-3 px-4 text-left">
-                                        <input type="checkbox" onclick="toggleTable(this, 'organik')" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                        <input type="checkbox" class="toggle-table-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" data-category="organik">
                                     </th>
                                     <th class="py-3 px-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nama</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
-                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin</th>
-                                  <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sisa Cuti</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Cuti Tahunan</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Cuti Spesial</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
-                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sisa Cuti</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin Keluar</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -171,15 +174,15 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                                                {{ $data['total_izin'] }}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                {{ $data['total_cuti_tahunan'] ?? 0 }}
                                             </span>
                                         </td>
-                                      <td class="py-3 px-4 text-center">
-    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-500">
-        {{ $data['user']->sisa_cuti ?? 0 }} Hari
-    </span>
-</td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400">
+                                                {{ $data['total_cuti_spesial'] ?? 0 }}
+                                            </span>
+                                        </td>
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
@@ -191,9 +194,17 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
-                                                {{ $data['total_telat'] ?? 0 }}x
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">
+                                                {{ $data['user']->sisa_cuti ?? 12 }} hari
                                             </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($data['total_izin_keluar'] ?? 0) >= 3 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400' }}">
+                                                {{ $data['total_izin_keluar'] ?? 0 }}x
+                                            </span>
+                                            @if(($data['total_izin_keluar_ditolak'] ?? 0) > 0)
+                                                <div class="text-xs text-red-500 mt-1">{{ $data['total_izin_keluar_ditolak'] }} ditolak</div>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
@@ -203,7 +214,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="12" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        <td colspan="13" class="text-center py-8 text-gray-500 dark:text-gray-400">
                                             <i class="fas fa-inbox text-3xl mb-2"></i>
                                             <p>Tidak ada data</p>
                                         </td>
@@ -211,7 +222,12 @@
                                 @endforelse
                                 @if(count($organikData) > 0)
                                     <tr class="bg-green-50 dark:bg-green-900/20">
-                                       
+                                        <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
+                                            Total Gaji Organik
+                                        </td>
+                                        <td class="py-4 px-4 text-right text-base font-bold text-green-600 dark:text-green-400">
+                                            Rp {{ number_format($totalGajiOrganik, 0, ',', '.') }}
+                                        </td>
                                         <td></td>
                                     </tr>
                                 @endif
@@ -259,7 +275,7 @@
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
                                     <th class="py-3 px-4 text-left">
-                                        <input type="checkbox" onclick="toggleTable(this, 'freelance')" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                        <input type="checkbox" class="toggle-table-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" data-category="freelance">
                                     </th>
                                     <th class="py-3 px-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nama</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
@@ -267,10 +283,13 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
+                                    @if(auth()->user()->role !== 'pkl')
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Menit OT</th>
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gaji OT</th>
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total Gaji</th>
+                                    @endif
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin Keluar</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -306,6 +325,7 @@
                                                 {{ $data['total_telat'] ?? 0 }}x
                                             </span>
                                         </td>
+                                        @if(auth()->user()->role !== 'pkl')
                                         <td class="py-3 px-4 text-right text-sm font-medium text-red-600 dark:text-red-400">
                                             Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
                                         </td>
@@ -317,6 +337,15 @@
                                         </td>
                                         <td class="py-3 px-4 text-right text-sm font-bold text-green-600 dark:text-green-400">
                                             Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
+                                        </td>
+                                        @endif
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($data['total_izin_keluar'] ?? 0) >= 3 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400' }}">
+                                                {{ $data['total_izin_keluar'] ?? 0 }}x
+                                            </span>
+                                            @if(($data['total_izin_keluar_ditolak'] ?? 0) > 0)
+                                                <div class="text-xs text-red-500 mt-1">{{ $data['total_izin_keluar_ditolak'] }} ditolak</div>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
@@ -332,7 +361,7 @@
                                         </td>
                                     </tr>
                                 @endforelse
-                                @if(count($freelanceData) > 0)
+                                @if(count($freelanceData) > 0 && auth()->user()->role !== 'pkl')
                                     <tr class="bg-orange-50 dark:bg-orange-900/20">
                                         <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
                                             Total Gaji Freelance
@@ -386,7 +415,7 @@
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
                                     <th class="py-3 px-4 text-left">
-                                        <input type="checkbox" onclick="toggleTable(this, 'borongan')" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                        <input type="checkbox" class="toggle-table-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" data-category="borongan">
                                     </th>
                                     <th class="py-3 px-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nama</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
@@ -394,10 +423,13 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
+                                    @if(auth()->user()->role !== 'pkl')
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Menit OT</th>
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gaji OT</th>
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total Gaji</th>
+                                    @endif
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin Keluar</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -433,6 +465,7 @@
                                                 {{ $data['total_telat'] ?? 0 }}x
                                             </span>
                                         </td>
+                                        @if(auth()->user()->role !== 'pkl')
                                         <td class="py-3 px-4 text-right text-sm font-medium text-red-600 dark:text-red-400">
                                             Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
                                         </td>
@@ -444,6 +477,15 @@
                                         </td>
                                         <td class="py-3 px-4 text-right text-sm font-bold text-green-600 dark:text-green-400">
                                             Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
+                                        </td>
+                                        @endif
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($data['total_izin_keluar'] ?? 0) >= 3 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400' }}">
+                                                {{ $data['total_izin_keluar'] ?? 0 }}x
+                                            </span>
+                                            @if(($data['total_izin_keluar_ditolak'] ?? 0) > 0)
+                                                <div class="text-xs text-red-500 mt-1">{{ $data['total_izin_keluar_ditolak'] }} ditolak</div>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
@@ -459,7 +501,7 @@
                                         </td>
                                     </tr>
                                 @endforelse
-                                @if(count($boronganData) > 0)
+                                @if(count($boronganData) > 0 && auth()->user()->role !== 'pkl')
                                     <tr class="bg-purple-50 dark:bg-purple-900/20">
                                         <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
                                             Total Gaji Borongan
@@ -513,7 +555,7 @@
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
                                     <th class="py-3 px-4 text-left">
-                                        <input type="checkbox" onclick="toggleTable(this, 'magang')" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                        <input type="checkbox" class="toggle-table-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" data-category="magang">
                                     </th>
                                     <th class="py-3 px-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nama</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
@@ -521,6 +563,11 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
+                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Menit OT</th>
+                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gaji OT</th>
+                                    <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total Gaji</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin Keluar</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -556,12 +603,26 @@
                                                 {{ $data['total_telat'] ?? 0 }}x
                                             </span>
                                         </td>
-                                       
+                                        <td class="py-3 px-4 text-right text-sm font-medium text-red-600 dark:text-red-400">
+                                            Rp {{ number_format($data['total_potongan'] ?? 0, 0, ',', '.') }}
+                                        </td>
                                         <td class="py-3 px-4 text-center text-sm text-gray-900 dark:text-gray-300">
                                             {{ $data['total_menit_lembur'] ?? 0 }}'
                                         </td>
-                                        
-                                        
+                                        <td class="py-3 px-4 text-right text-sm font-medium text-purple-600 dark:text-purple-400">
+                                            Rp {{ number_format($data['total_gaji_lembur'] ?? 0, 0, ',', '.') }}
+                                        </td>
+                                        <td class="py-3 px-4 text-right text-sm font-bold text-green-600 dark:text-green-400">
+                                            Rp {{ number_format($data['total_gaji'] ?? 0, 0, ',', '.') }}
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($data['total_izin_keluar'] ?? 0) >= 3 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400' }}">
+                                                {{ $data['total_izin_keluar'] ?? 0 }}x
+                                            </span>
+                                            @if(($data['total_izin_keluar_ditolak'] ?? 0) > 0)
+                                                <div class="text-xs text-red-500 mt-1">{{ $data['total_izin_keluar_ditolak'] }} ditolak</div>
+                                            @endif
+                                        </td>
                                         <td class="py-3 px-4 text-center">
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                                                 <i class="fas fa-eye mr-1"></i>
@@ -578,7 +639,12 @@
                                 @endforelse
                                 @if(count($magangData) > 0)
                                     <tr class="bg-blue-50 dark:bg-blue-900/20">
-                                        
+                                        <td colspan="10" class="py-4 px-4 text-right text-sm font-bold text-gray-900 dark:text-white uppercase">
+                                            Total Gaji Magang
+                                        </td>
+                                        <td class="py-4 px-4 text-right text-base font-bold text-blue-600 dark:text-blue-400">
+                                            Rp {{ number_format($totalGajiMagang, 0, ',', '.') }}
+                                        </td>
                                         <td></td>
                                     </tr>
                                 @endif
@@ -634,7 +700,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ config('app.csp_nonce') }}">
         function toggleTable(source, category) {
             const className = 'user-checkbox-' + category;
             const checkboxes = document.getElementsByClassName(className);
@@ -682,10 +748,16 @@
                 rangeSelect.addEventListener('change', toggleFields);
                 toggleFields();
             }
+
+            document.querySelectorAll('.toggle-table-checkbox').forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    toggleTable(this, this.dataset.category);
+                });
+            });
         });
     </script>
 
-    <style>
+    <style nonce="{{ config('app.csp_nonce') }}">
         @media (max-width: 768px) {
             .overflow-x-auto {
                 scrollbar-width: thin;

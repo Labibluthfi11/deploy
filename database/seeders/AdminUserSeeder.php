@@ -10,30 +10,44 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Super Admin (akses penuh)
+        // Manager (Full access)
         User::updateOrCreate(
-            ['email' => 'superadmin@example.com'],
+            ['email' => 'manager@anselmudaberkarya.com'],
             [
-                'name' => 'Super Admin',
-                'password' => Hash::make('password'),
-                'role' => 'super_admin', // ✅
+                'name' => 'Manager',
+                'password' => Hash::make('anselsukses1010'),
+                'role' => 'manager',
                 'is_admin' => 1,
-                'id_karyawan' => 'ADM002',
-                'departemen' => 'IT',
+                'id_karyawan' => 'ADM001',
+                'departemen' => 'Management',
                 'employment_type' => 'organik',
             ]
         );
 
-        // Admin biasa (tidak bisa akses organik)
+        // Supervisor (Full access)
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'supervisor@anselmudaberkarya.com'],
             [
-                'name' => 'Admin',
+                'name' => 'Supervisor',
+                'password' => Hash::make('anselsukses1010'),
+                'role' => 'supervisor',
+                'is_admin' => 1,
+                'id_karyawan' => 'ADM002',
+                'departemen' => 'Operations',
+                'employment_type' => 'organik',
+            ]
+        );
+
+        // HRGA (Full access)
+        User::updateOrCreate(
+            ['email' => 'hrga@anselmudaberkarya.com'],
+            [
+                'name' => 'HRGA',
                 'password' => Hash::make('password'),
-                'role' => 'admin', // ✅
+                'role' => 'hrga',
                 'is_admin' => 1,
                 'id_karyawan' => 'ADM003',
-                'departemen' => 'HR',
+                'departemen' => 'HRGA',
                 'employment_type' => 'organik',
             ]
         );

@@ -14,26 +14,28 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         
-        
         $middleware->validateCsrfTokens(except: [
             
         ]);
 
-        
         $middleware->statefulApi();
 
         $middleware->alias([
-    'admin' => \App\Http\Middleware\IsAdmin::class,
-    'super_admin' => \App\Http\Middleware\IsSuperAdmin::class, 
-]);
+            'admin' => \App\Http\Middleware\IsAdmin::class,
+            'super_admin' => \App\Http\Middleware\IsSuperAdmin::class, 
+            'api.kpi' => \App\Http\Middleware\VerifyKpiApiKey::class,
+            'block.pkl' => \App\Http\Middleware\BlockPkl::class,
+        ]);
         
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        \Sentry\Laravel\Integration::handles($exceptions);
+
         $exceptions->renderable(function (AuthenticationException $e, $request) {
             if ($request->is('api/*')) {
                 return response()->json([

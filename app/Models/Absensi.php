@@ -21,58 +21,79 @@ class Absensi extends Model
     const OVERTIME_REST_DEDUCTION_MINUTES = 30;
 
     protected $fillable = [
-    'user_id',
-    'status',
-    'tipe',
-    'file_bukti',
-    'keterangan_izin_sakit',
-    'check_in_at',
-    'check_out_at',
-    'end_date',
-    'total_days',
-    'parent_id',
-    'lokasi_masuk',
-    'lokasi_pulang',
-    'foto_masuk',
-    'foto_pulang',
-    'status_approval',
-    'approved_at', // 👈 TAMBAHIN INI
-    'catatan_admin',
-    'lembur_start',
-    'lembur_end',
-    'lembur_rest',
-    'lembur_keterangan',
-    'workflow_status',
-    'current_approval_level',
-    'rejected_by',
-    'rejected_at',
-    'late_minutes',
-    'rounded_late_minutes',
-    'base_salary',
-    'late_penalty',
-    'final_salary',
-    'overtime_minutes',
-    'overtime_pay',
-    'is_weekend_overtime',
-];
+        'user_id',
+        'status',
+        'tipe',
+        'submission_type',
+        'hari_potong_cuti',
+        'hari_unpaid',
+        'file_bukti',
+        'keterangan_izin_sakit',
+        'check_in_at',
+        'check_out_at',
+        'end_date',
+        'total_days',
+        'parent_id',
+        'lokasi_masuk',
+        'lokasi_pulang',
+        'foto_masuk',
+        'foto_pulang',
+        'foto_pulang_2',
+        'foto_pulang_3',
+        'foto_pulang_4',
+        'foto_pulang_5',
+        'foto_pulang_6',
+        'lembur_start',
+        'lembur_end',
+        'lembur_rest',
+        'lembur_keterangan',
+        'keterangan_goals',
+        'workflow_status',
+        'current_approval_level',
+        'late_minutes',
+        'rounded_late_minutes',
+        'overtime_minutes',
+        'is_weekend_overtime',
+        'is_mocked',
+        'status_approval',
+        'approved_at',
+        'base_salary',
+        'late_penalty',
+        'final_salary',
+        'overtime_pay',
+        'adjustment_salary',
+    ];
 
-protected $casts = [
-    'check_in_at' => 'datetime',
-    'check_out_at' => 'datetime',
-    'end_date' => 'date',
-    'approved_at' => 'datetime', // 👈 TAMBAHIN INI
-    'lembur_start' => 'datetime',
-    'lembur_end' => 'datetime',
-    'lembur_rest' => 'boolean',
-    'is_weekend_overtime' => 'boolean',
-    'workflow_status' => 'array',
-    'rejected_at' => 'datetime',
-    'base_salary' => 'decimal:2',
-    'late_penalty' => 'decimal:2',
-    'final_salary' => 'decimal:2',
-    'overtime_minutes' => 'integer',
-    'overtime_pay' => 'decimal:2',
-];
+    // ✅ FIX SECURITY: Field yang benar-benar sensitif tetap di guarded
+    protected $guarded = [
+        'rejected_by',
+        'rejected_at',
+        'adjustment_reason',
+        'adjustment_by',
+        'adjustment_at',
+        'catatan_admin',
+    ];
+
+    protected $casts = [
+        'check_in_at' => 'datetime',
+        'check_out_at' => 'datetime',
+        'end_date' => 'date',
+        'approved_at' => 'datetime',
+        'lembur_start' => 'datetime',
+        'lembur_end' => 'datetime',
+        'lembur_rest' => 'boolean',
+        'is_weekend_overtime' => 'boolean',
+        'is_mocked' => 'boolean',
+        'adjustment_at' => 'datetime',
+        'adjustment_salary' => 'decimal:2',
+        'workflow_status' => 'array',
+        'rejected_at' => 'datetime',
+        'base_salary' => 'decimal:2',
+        'late_penalty' => 'decimal:2',
+        'final_salary' => 'decimal:2',
+        'overtime_minutes' => 'integer',
+        'overtime_pay' => 'decimal:2',
+    ];
 
     protected $appends = [
         'late_duration_text',
@@ -110,8 +131,9 @@ protected $casts = [
     string $status,
     ?string $tipe = null,
     bool $isWeekend = false,
-    ?\Carbon\Carbon $checkIn = null,  // 🆕 TAMBAH INI
-    ?\Carbon\Carbon $checkOut = null  // 🆕 TAMBAH INI
+    ?\Carbon\Carbon $checkIn = null,
+    ?\Carbon\Carbon $checkOut = null,
+    string $kategori = 'organik'
 ): array
 {
     $baseSalary = 0;
@@ -119,14 +141,31 @@ protected $casts = [
     $finalSalary = 0;
     $roundedLateMinutes = 0;
 
+    $isHoliday = false;
+    if ($checkIn) {
+        $isHoliday = \App\Models\Holiday::isHoliday($checkIn);
+    }
+
     if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
-        $dailySalary = $isWeekend ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
-        $salaryPerMinute = $isWeekend ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
+        $isMultiplierDay = $isWeekend || $isHoliday;
+        $dailySalary = $isMultiplierDay ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
+        $salaryPerMinute = $isMultiplierDay ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
 
         // 🆕 HITUNG TOTAL JAM KERJA
         $workedMinutes = 0;
         if ($checkIn && $checkOut) {
-            $workedMinutes = self::calculateWorkedMinutes($checkIn, $checkOut);
+            $effectiveCheckIn = $checkIn;
+            
+            // 🔥 KHUSUS FREELANCE & BORONGAN:
+            // Gunakan jam 08:00 sebagai start rasio gaji pokok agar tidak "Double Potong" dengan late_penalty
+            if (in_array(strtolower($kategori), ['freelance', 'borongan'])) {
+                $standardStart = $checkIn->copy()->setTime(8, 0, 0);
+                if ($checkIn->greaterThan($standardStart)) {
+                    $effectiveCheckIn = $standardStart;
+                }
+            }
+            
+            $workedMinutes = self::calculateWorkedMinutes($effectiveCheckIn, $checkOut);
         } else {
             // Kalo belum checkout, assume 8 jam kerja penuh
             $workedMinutes = 480; // 8 jam
@@ -194,8 +233,11 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
                 $finalOvertimeMinutes = 0;
             }
 
+            $isHoliday = \App\Models\Holiday::isHoliday($startTime);
+            $isMultiplierDay = $isWeekend || $isHoliday;
+
             // 🆕 Pake rate sesuai weekend atau bukan
-            $hourlyRate = $isWeekend ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
+            $hourlyRate = $isMultiplierDay ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
             $overtimePay = ($finalOvertimeMinutes / 60) * $hourlyRate;
 
             return [
@@ -263,6 +305,11 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function editor()
+    {
+        return $this->belongsTo(User::class, 'adjustment_by');
     }
     public function parent()
 {

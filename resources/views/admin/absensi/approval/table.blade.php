@@ -147,8 +147,26 @@
 
                         {{-- JENIS / TANGGAL & WAKTU --}}
                         <td class="px-6 py-4">
+                            @php
+                                $cutiLabels = [
+                                    'cuti_tahunan' => 'Cuti Tahunan',
+                                    'cuti_melahirkan' => 'Cuti Melahirkan',
+                                    'cuti_keguguran' => 'Cuti Keguguran',
+                                    'cuti_haji' => 'Cuti Ibadah Haji',
+                                    'cuti_umroh' => 'Cuti Ibadah Umroh',
+                                    'cuti_menikah' => 'Cuti Menikah',
+                                    'cuti_khitanan' => 'Cuti Khitanan Anak',
+                                    'cuti_baptis' => 'Cuti Baptis Anak',
+                                    'cuti_meninggal' => 'Cuti Meninggal Keluarga',
+                                    'change_off' => 'Change Off',
+                                    'unpaid_leave' => 'Unpaid Leave',
+                                ];
+                                $jenisLabel = isset($cutiLabels[$submission->submission_type ?? ''])
+                                    ? $cutiLabels[$submission->submission_type]
+                                    : ($submission->tipe ? ucfirst($submission->tipe) : (ucfirst($submission->status) ?? 'Absensi'));
+                            @endphp
                             <div class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
-                                {{ $submission->tipe ? ucfirst($submission->tipe) : (ucfirst($submission->status) ?? 'Absensi') }}
+                                {{ $jenisLabel }}
                             </div>
                             <div class="text-sm text-gray-900 dark:text-white font-medium mt-1">
                                 {{ $displayDate ? \Carbon\Carbon::parse($displayDate)->isoFormat('DD MMM YYYY') : '-' }}
@@ -162,7 +180,7 @@
                                     @if($submission->lembur_rest == 1)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                                             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 104 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 1 0 4 14h12a1 1 0 0 0 .707-1.707L16 11.586V8a6 6 0 0 0-6-6zM10 18a3 3 0 0 1-3-3h6a3 3 0 0 1-3 3z"/>
                                             </svg>
                                             Istirahat
                                         </span>
@@ -199,6 +217,33 @@
                                     </a>
                                 @else
                                     <span class="text-xs text-gray-400 dark:text-gray-500 italic">Tidak ada</span>
+                                @endif
+                            @elseif ($submission->tipe === 'lembur')
+                                @php
+                                    $fotoLembur = $submission->foto_pulang ?? $submission->foto_pulang_2 ?? null;
+                                @endphp
+                                @php
+                                    $allFotos = array_values(array_filter([
+                                        $submission->foto_pulang,
+                                        $submission->foto_pulang_2,
+                                        $submission->foto_pulang_3,
+                                        $submission->foto_pulang_4,
+                                        $submission->foto_pulang_5,
+                                        $submission->foto_pulang_6,
+                                    ]));
+                                @endphp
+                                @if (count($allFotos) > 0)
+                                    <button type="button"
+                                        class="open-gallery-btn inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all"
+                                        data-fotos="{{ json_encode(array_map(fn($f) => asset('storage/' . $f), $allFotos)) }}"
+                                        data-name="{{ $submission->user->name ?? '-' }}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        {{ count($allFotos) }} Foto Lembur
+                                    </button>
+                                @else
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 italic">Tidak ada foto</span>
                                 @endif
                             @else
                                 <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
@@ -276,8 +321,7 @@
                                         @csrf
                                         <input type="hidden" name="catatan_admin" value="Disetujui">
                                         <button type="submit"
-                                            onclick="return confirm('Apakah Anda yakin ingin MENYETUJUI pengajuan ini?')"
-                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-all shadow-sm hover:shadow">
+                                            class="approve-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-all shadow-sm hover:shadow">
                                             <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
@@ -287,8 +331,9 @@
 
                                     <button
                                     type="button"
-                                    onclick="openRejectModal({{ $submission->id }}, '{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}')"
-                                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow">
+                                    class="reject-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow"
+                                    data-absensi-id="{{ $submission->id }}"
+                                    data-reject-url="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}">
                                     <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                     </svg>
@@ -311,7 +356,10 @@
                                     Completed
                                 </span>
                             @elseif ($statusApproval === 'rejected')
-                                <button type="button" class="inline-flex items-center text-xs text-red-600 dark:text-red-400 font-medium hover:text-red-500 dark:hover:text-red-300">
+                                <button type="button"
+                                    class="view-reason-btn inline-flex items-center text-xs text-red-600 dark:text-red-400 font-medium hover:text-red-500 dark:hover:text-red-300 cursor-pointer"
+                                    data-reason="{{ addslashes($submission->catatan_admin ?? 'Tidak ada keterangan') }}"
+                                    data-name="{{ $submission->user->name ?? '-' }}">
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                     </svg>
@@ -361,6 +409,177 @@
     </div>
 </div>
 
-@include('admin.absensi.approval.partials.reject-modal')
+
+<div id="modalViewReason" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div id="reasonModalOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md z-[10000]">
+            <div class="bg-gradient-to-r from-red-600 to-red-500 rounded-t-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-bold text-lg">Alasan Penolakan</h3>
+                            <p id="reasonModalName" class="text-red-100 text-xs mt-0.5"></p>
+                        </div>
+                    </div>
+                    <button id="reasonModalCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                    <p id="reasonModalText" class="text-sm text-red-800 dark:text-red-300 leading-relaxed italic"></p>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button id="reasonModalCloseBtnBottom" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalGallery" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div id="galleryOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-90"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl z-[10000]">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-500 rounded-t-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-white font-bold text-lg">Foto Bukti Lembur</h3>
+                        <p id="galleryName" class="text-purple-100 text-xs mt-0.5"></p>
+                    </div>
+                    <button id="galleryCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-4">
+                <div id="galleryMain" class="w-full h-80 bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden mb-3 flex items-center justify-center">
+                    <img id="galleryMainImg" src="" alt="Foto lembur" class="max-h-full max-w-full object-contain rounded-xl">
+                </div>
+                <div id="galleryThumbs" class="flex gap-2 overflow-x-auto pb-1"></div>
+                <div class="flex items-center justify-between mt-3">
+                    <button id="galleryPrev" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">← Prev</button>
+                    <span id="galleryCounter" class="text-sm text-gray-500 dark:text-gray-400"></span>
+                    <button id="galleryNext" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ config('app.csp_nonce') }}">
+    function openReasonModal(reason, name) {
+        document.getElementById('reasonModalText').textContent = reason || 'Tidak ada keterangan';
+        document.getElementById('reasonModalName').textContent = name || '';
+        document.getElementById('modalViewReason').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeReasonModal() {
+        document.getElementById('modalViewReason').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    document.getElementById('reasonModalOverlay').addEventListener('click', closeReasonModal);
+    document.getElementById('reasonModalCloseBtn').addEventListener('click', closeReasonModal);
+    document.getElementById('reasonModalCloseBtnBottom').addEventListener('click', closeReasonModal);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeReasonModal();
+    });
+
+</script>
+<script nonce="{{ config('app.csp_nonce') }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        let galleryFotos = [];
+        let galleryIndex = 0;
+
+        function openGallery(fotos, name) {
+            galleryFotos = fotos;
+            galleryIndex = 0;
+            document.getElementById('galleryName').textContent = name;
+            renderGallery();
+            document.getElementById('modalGallery').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeGallery() {
+            document.getElementById('modalGallery').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        function renderGallery() {
+            const img = document.getElementById('galleryMainImg');
+            img.src = '';
+            img.src = galleryFotos[galleryIndex];
+            document.getElementById('galleryCounter').textContent = (galleryIndex + 1) + ' / ' + galleryFotos.length;
+            const thumbs = document.getElementById('galleryThumbs');
+            thumbs.innerHTML = '';
+            galleryFotos.forEach(function(url, i) {
+                const t = document.createElement('img');
+                t.loading = 'lazy';
+                t.src = i === galleryIndex ? url : '';
+                t.dataset.src = url;
+                t.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid ' + (i === galleryIndex ? '#7c3aed' : 'transparent') + ';flex-shrink:0;background:#e5e7eb;';
+                t.addEventListener('click', function() {
+                    if (!this.src || this.src === window.location.href) this.src = this.dataset.src;
+                    galleryIndex = i;
+                    renderGallery();
+                });
+                thumbs.appendChild(t);
+            });
+            document.getElementById('galleryPrev').style.display = galleryFotos.length > 1 ? '' : 'none';
+            document.getElementById('galleryNext').style.display = galleryFotos.length > 1 ? '' : 'none';
+        }
+
+        document.getElementById('galleryPrev').addEventListener('click', function() {
+            galleryIndex = (galleryIndex - 1 + galleryFotos.length) % galleryFotos.length;
+            renderGallery();
+        });
+        document.getElementById('galleryNext').addEventListener('click', function() {
+            galleryIndex = (galleryIndex + 1) % galleryFotos.length;
+            renderGallery();
+        });
+        document.getElementById('galleryCloseBtn').addEventListener('click', closeGallery);
+        document.getElementById('galleryOverlay').addEventListener('click', closeGallery);
+
+        document.querySelectorAll('.open-gallery-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const fotos = JSON.parse(this.dataset.fotos);
+                openGallery(fotos, this.dataset.name);
+            });
+        });
+
+        document.querySelectorAll('.view-reason-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                openReasonModal(this.dataset.reason, this.dataset.name);
+            });
+        });
+
+        document.querySelectorAll('.approve-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                // langsung submit tanpa confirm
+            });
+        });
+
+        document.querySelectorAll('.reject-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                openRejectModal(this.dataset.absensiId, this.dataset.rejectUrl);
+            });
+        });
+    });
+</script>
 
 

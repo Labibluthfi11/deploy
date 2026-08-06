@@ -24,6 +24,10 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        // ✅ REVOKE SEMUA TOKEN API (Kill Switch)
+        // Biar sesi di HP otomatis logout kalau ganti password di web
+        $request->user()->tokens()->delete();
+
         return back()->with('status', 'password-updated');
     }
 }

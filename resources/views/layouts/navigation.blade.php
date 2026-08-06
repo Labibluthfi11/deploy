@@ -47,7 +47,7 @@
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <x-dropdown-link :href="route('logout')"
-                                        onclick="event.preventDefault(); this.closest('form').submit();"
+                                        data-action="submit-logout-form"
                                         class="text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
                                     {{ __('Log Out') }}
                                 </x-dropdown-link>
@@ -91,7 +91,7 @@
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <x-responsive-nav-link :href="route('logout')"
-                                onclick="event.preventDefault(); this.closest('form').submit();"
+                                data-action="submit-logout-form"
                                 class="text-gray-700 hover:bg-dustyLatte-400 dark:text-gray-300 dark:hover:bg-gray-800">
                             {{ __('Log Out') }}
                         </x-responsive-nav-link>
@@ -104,7 +104,16 @@
 
 {{-- Pastikan script untuk dark mode toggle ada di app.blade.php atau guest.blade.php --}}
 {{-- Atau tambahkan di bawah sini jika navbar ini berdiri sendiri tanpa layout parent --}}
-<script>
+<script nonce="{{ config('app.csp_nonce') }}">
+    document.addEventListener('click', function(e) {
+        var target = e.target.closest('[data-action="submit-logout-form"]');
+        if (target) {
+            e.preventDefault();
+            var form = target.closest('form');
+            if (form) form.submit();
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         const themeToggleBtn = document.getElementById('theme-toggle');
         if (themeToggleBtn) {

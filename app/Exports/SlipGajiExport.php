@@ -96,6 +96,7 @@ class SlipGajiExport implements WithEvents
                 // DATA
                 $gajiPokok = $this->stats['total_gaji_pokok'] ?? 0;
                 $gajiLembur = $this->stats['total_gaji_lembur'] ?? 0;
+                $adjustment = $this->stats['total_adjustment'] ?? 0;
                 $potongan = $this->stats['total_potongan'] ?? 0;
                 $gajiBersih = $this->stats['total_gaji_bersih'] ?? 0;
                 $totalMenit = $this->stats['total_menit_lembur'] ?? 0;
@@ -205,8 +206,8 @@ class SlipGajiExport implements WithEvents
 
                 $sheet->setCellValue("A{$row}", "Upah Lembur (Total)");
                 $sheet->setCellValue("B{$row}", $gajiLembur);
-                $sheet->setCellValue("D{$row}", "");
-                $sheet->setCellValue("E{$row}", "");
+                $sheet->setCellValue("D{$row}", "Penyesuaian Gaji (Adj)");
+                $sheet->setCellValue("E{$row}", $adjustment);
                 $row++;
 
                 $sheet->setCellValue("A{$row}", "Jumlah Jam Lembur");
@@ -222,9 +223,9 @@ class SlipGajiExport implements WithEvents
 
                 // ================= TOTAL (ABU-ABU & GRID) =================
                 $sheet->setCellValue("A{$row}", "TOTAL PENGHASILAN");
-                $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur);
+                $sheet->setCellValue("B{$row}", $gajiPokok + $gajiLembur + ($adjustment > 0 ? $adjustment : 0));
                 $sheet->setCellValue("D{$row}", "TOTAL POTONGAN");
-                $sheet->setCellValue("E{$row}", $potongan);
+                $sheet->setCellValue("E{$row}", $potongan + ($adjustment < 0 ? abs($adjustment) : 0));
 
                 $styleTotal = [
                     'font' => ['bold' => true],

@@ -43,13 +43,15 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
                 'tanggal' => Carbon::parse($item->check_in_at)->format('d M Y'),
                 'check_in' => Carbon::parse($item->check_in_at)->format('H:i'),
                 'check_out' => $item->check_out_at ? Carbon::parse($item->check_out_at)->format('H:i') : '-',
-                'status' => ucfirst($item->status ?? '-'),
+                'status' => ($item->status === 'hadir' && strtolower($item->tipe ?? '') === 'sakit') ? 'Hadir & Sakit' : ucfirst($item->status ?? '-'),
                 'tipe' => ucfirst($item->tipe ?? '-'),
                 'telat' => ($item->late_minutes ?? 0) . ' Menit',
                 'menit_lembur' => ($item->overtime_minutes ?? 0) . ' Menit',
                 'gaji_lembur' => 'Rp ' . number_format($item->overtime_pay ?? 0, 0, ',', '.'),
                 'gaji_pokok' => 'Rp ' . number_format($item->base_salary ?? 0, 0, ',', '.'),
                 'potongan' => 'Rp ' . number_format($item->late_penalty ?? 0, 0, ',', '.'),
+                'adjustment' => 'Rp ' . number_format($item->adjustment_salary ?? 0, 0, ',', '.'),
+                'alasan_adj' => $item->adjustment_reason ?? '-',
                 'gaji_bersih' => 'Rp ' . number_format($item->final_salary ?? 0, 0, ',', '.'),
                 'approval' => ucfirst($item->status_approval ?? '-'),
             ]);
@@ -72,6 +74,8 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
             'Gaji Lembur',
             'Gaji Pokok',
             'Potongan',
+            'Adjustment',
+            'Alasan Adj',
             'Gaji Bersih',
             'Approval',
         ];
@@ -109,9 +113,9 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
         $sheet->setCellValue('A3', "Periode: {$periode} {$dateRange}"); // <-- RANGE TANGGAL DI SINI
 
         // 5. Merge sel-sel header baru
-        $sheet->mergeCells('A1:M1');
-        $sheet->mergeCells('A2:M2');
-        $sheet->mergeCells('A3:M3');
+        $sheet->mergeCells('A1:O1');
+        $sheet->mergeCells('A2:O2');
+        $sheet->mergeCells('A3:O3');
 
         // 6. Style header baru (A1 sampai A3)
         $sheet->getStyle('A1:M3')->applyFromArray([
@@ -125,7 +129,7 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
         ]);
 
         // 7. Geser style header tabel (yang biru) ke BARIS 4
-        $sheet->getStyle('A4:M4')->applyFromArray([
+        $sheet->getStyle('A4:O4')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -134,7 +138,7 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
 
         // 8. Geser style data tabel (border) mulai dari BARIS 5
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A5:M{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A5:O{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
@@ -156,7 +160,9 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
             'J' => 18,
             'K' => 15,
             'L' => 18,
-            'M' => 12,
+            'M' => 20,
+            'N' => 18,
+            'O' => 12,
         ];
     }
 

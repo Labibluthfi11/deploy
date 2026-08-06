@@ -26,8 +26,8 @@
     @endpush
 
     @push('scripts')
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-        <script>
+        <script nonce="{{ config('app.csp_nonce') }}" src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+        <script nonce="{{ config('app.csp_nonce') }}">
             AOS.init();
         </script>
     @endpush

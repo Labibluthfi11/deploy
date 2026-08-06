@@ -15,7 +15,7 @@
         </div>
     </x-slot>
 
-    <style>
+    <style nonce="{{ config('app.csp_nonce') }}">
         /* ... (CSS lo udah bagus, gue biarin aja) ... */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -67,7 +67,7 @@
                     {{-- Pilihan Tipe Filter --}}
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Tipe Filter</label>
-                        <select name="filter_type" id="filter_type" class="filter-select" onchange="toggleFilterInputs()">
+                        <select name="filter_type" id="filter_type" class="filter-select">
                             <option value="all" {{ request('filter_type', 'all') == 'all' ? 'selected' : '' }}>Semua Data</option>
                             <option value="monthly" {{ request('filter_type') == 'monthly' ? 'selected' : '' }}>Per Bulan</option>
                             <option value="custom" {{ request('filter_type') == 'custom' ? 'selected' : '' }}>Range Tanggal (Custom)</option> {{-- ⬅️ INI BARU --}}
@@ -75,7 +75,7 @@
                     </div>
 
                     {{-- Filter Bulan (Muncul kalo pilih Per Bulan) --}}
-                    <div class="flex flex-col gap-2" id="month_section" style="display: none;">
+                    <div class="flex flex-col gap-2 {{ request('filter_type') == 'monthly' ? '' : 'hidden' }}" id="month_section">
                         <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Bulan & Tahun</label>
                         <div class="flex gap-2">
                             <select name="month" class="filter-select">
@@ -94,7 +94,7 @@
                     </div>
 
                     {{-- Filter Custom Tanggal (Muncul kalo pilih Range Tanggal) --}}
-                    <div class="flex flex-col gap-2" id="custom_date_section" style="display: none;">
+                    <div class="flex flex-col gap-2 {{ request('filter_type') == 'custom' ? '' : 'hidden' }}" id="custom_date_section">
                         <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Pilih Tanggal</label>
                         <div class="flex items-center gap-2">
                             <input type="date" name="start_date" value="{{ request('start_date') }}" class="filter-select text-gray-700">
@@ -116,8 +116,7 @@
                             'start_date' => request('start_date'), // ⬅️ Kirim start_date
                             'end_date' => request('end_date')      // ⬅️ Kirim end_date
                         ]) }}"
-                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200"
-                       style="height: 46px;">
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200 h-[46px]">
                         <i class="fas fa-file-invoice-dollar"></i> Export Slip Gaji
                     </a>
                 </form>
@@ -188,7 +187,7 @@
             </div>
 
             <!-- 🆕 KOTAK BARU: RINGKASAN GAJI (SESUAI REQUEST LO) -->
-            @if(!$isOrganikOrMagang)
+            @if($user->employment_type !== 'organik')
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 fade-in">
 
                 <!-- Card Potongan Telat -->
@@ -252,8 +251,9 @@
                 </div>
 
             </div>
-            <!-- 🆕 END RINGKASAN GAJI -->
             @endif
+            <!-- 🆕 END RINGKASAN GAJI -->
+
           {{-- Tombol Export --}}
 <div class="flex justify-end mb-4 gap-4">
 
@@ -266,8 +266,7 @@
             'start_date' => request('start_date'),
             'end_date' => request('end_date')
         ]) }}"
-       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200"
-       style="height: 46px;">
+       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200 h-[46px]">
         <i class="fas fa-file-excel"></i> Export Slip Gaji (Excel)
     </a>
 
@@ -280,8 +279,7 @@
             'start_date' => request('start_date'),
             'end_date' => request('end_date')
         ]) }}"
-       class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200"
-       style="height: 46px;"
+       class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200 h-[46px]"
        title="Format PDF - Tidak bisa diedit">
         <i class="fas fa-file-pdf"></i> Export Slip Gaji (PDF) 🔒
     </a>
@@ -292,6 +290,8 @@
             'filter_type' => request('filter_type', 'all'),
             'month' => request('month', now()->month),
             'year' => request('year', now()->year),
+            'start_date' => request('start_date'),
+            'end_date' => request('end_date'),
         ]) }}"
        class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200">
         <i class="fas fa-file-excel"></i>
@@ -318,14 +318,16 @@
                                 <th>Tanggal</th>
                                 <th>Check-in</th>
                                 <th>Telat</th>
-                              @if(!$isOrganikOrMagang)
+                                @if($user->employment_type !== 'organik')
                                 <th>Gaji Pokok</th>
                                 <th>Potongan</th>
                                 <th>Gaji Bersih</th>
+                                @endif
                                 <!-- 🆕 TAMBAH 2 HEADER INI -->
                                 <th>Menit Lembur</th>
+                                @if($user->employment_type !== 'organik')
                                 <th>Gaji Lembur</th>
-                              @endif
+                                @endif
                                 <!-- ------------------- -->
                                 <th>Check-out</th>
                                 <th>Status</th>
@@ -356,7 +358,9 @@
 
                                     {{-- Telat --}}
                                     <td>
-                                        @if($item->late_minutes > 0)
+                                        @if($user->employment_type === 'organik')
+                                            <span class="text-ontime">Flexible Time</span>
+                                        @elseif($item->late_minutes > 0)
                                             <div class="flex flex-col gap-1">
                                                 <span class="text-late">
                                                     {{ floor($item->late_minutes / 60) > 0 ? floor($item->late_minutes / 60).' jam ' : '' }}{{ $item->late_minutes % 60 }} menit
@@ -371,7 +375,8 @@
                                             <span class="text-ontime">Tepat Waktu</span>
                                         @endif
                                     </td>
-                                     @if(!$isOrganikOrMagang)
+
+                                    @if($user->employment_type !== 'organik')
                                     {{-- Gaji Pokok --}}
                                     <td>
                                         @if($item->base_salary)
@@ -409,6 +414,7 @@
                                             <span class="text-gray-500 dark:text-gray-400 text-sm">-</span>
                                         @endif
                                     </td>
+                                    @endif
 
                                     <!-- 🆕 TAMBAH 2 KOLOM INI -->
                                     <td>
@@ -420,6 +426,7 @@
                                             <span class="text-gray-500 dark:text-gray-400 text-sm">-</span>
                                         @endif
                                     </td>
+                                    @if($user->employment_type !== 'organik')
                                     <td>
                                         @if($item->overtime_pay > 0)
                                             <span class="px-2.5 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-lg text-xs font-semibold">
@@ -429,7 +436,7 @@
                                             <span class="text-gray-500 dark:text-gray-400 text-sm">-</span>
                                         @endif
                                     </td>
-                                  @endif
+                                    @endif
                                     <!-- ------------------- -->
 
                                     {{-- Check-out --}}
@@ -441,16 +448,41 @@
                                         @else
                                             <span class="text-gray-500 dark:text-gray-400 text-sm">-</span>
                                         @endif
+                                        @if($item->status === 'hadir' && $item->status_approval === 'approved')
+                                        <button class="edit-checkout-btn px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all mt-1"
+                                            data-absensi-id="{{ $item->id }}"
+                                            data-checkout-time="{{ $item->check_out_at ? $item->check_out_at->format('Y-m-d H:i:s') : now()->format('Y-m-d') . ' 17:00:00' }}">
+                                            Edit Pulang
+                                        </button>
+                                        @endif
                                     </td>
 
                                     {{-- Status --}}
                                     <td>
+                                        @php
+                                            $cutiLabels = [
+                                                'cuti_tahunan' => 'Cuti Tahunan',
+                                                'cuti_melahirkan' => 'Cuti Melahirkan',
+                                                'cuti_keguguran' => 'Cuti Keguguran',
+                                                'cuti_haji' => 'Cuti Ibadah Haji',
+                                                'cuti_umroh' => 'Cuti Ibadah Umroh',
+                                                'cuti_menikah' => 'Cuti Menikah',
+                                                'cuti_khitanan' => 'Cuti Khitanan Anak',
+                                                'cuti_baptis' => 'Cuti Baptis Anak',
+                                                'cuti_meninggal' => 'Cuti Meninggal Keluarga',
+                                                'change_off' => 'Change Off',
+                                                'unpaid_leave' => 'Unpaid Leave',
+                                            ];
+                                            $statusLabel = isset($cutiLabels[$item->submission_type ?? ''])
+                                                ? $cutiLabels[$item->submission_type]
+                                                : ucfirst($item->status);
+                                        @endphp
                                         <span class="badge-premium
                                             @if($item->status == 'hadir') bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300
                                             @elseif($item->status == 'izin') bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300
                                             @elseif($item->status == 'sakit') bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300
                                             @endif">
-                                            {{ ucfirst($item->status) }}
+                                            {{ $statusLabel }}
                                         </span>
                                     </td>
 
@@ -554,8 +586,9 @@
                                     </td>
                                     <td>
                             @if($item->status === 'hadir' && $item->status_approval === 'approved')
-                            <button onclick="editCheckIn({{ $item->id }}, '{{ $item->check_in_at->format('Y-m-d H:i:s') }}')"
-                                    class="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-xs font-semibold transition-all">
+                            <button class="edit-checkin-btn px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-xs font-semibold transition-all"
+                                    data-absensi-id="{{ $item->id }}"
+                                    data-checkin-time="{{ $item->check_in_at->format('Y-m-d H:i:s') }}">
                                 Edit
                             </button>
                             @else
@@ -584,6 +617,55 @@
         </div>
     </div>
 
+    <div id="modalEditCheckOut" class="fixed inset-0 bg-gradient-to-br from-black/60 via-black/70 to-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-95 hover:scale-100 border border-gray-200 dark:border-gray-700">
+        <div class="relative bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 rounded-t-3xl p-6 overflow-hidden">
+            <div class="absolute inset-0 opacity-20">
+                <div class="absolute top-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse"></div>
+                <div class="absolute bottom-0 right-0 w-32 h-32 bg-indigo-300 rounded-full blur-2xl animate-pulse delay-300"></div>
+            </div>
+            <div class="relative flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
+                        <i class="fas fa-sign-out-alt text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Edit Waktu Check-Out</h3>
+                        <p class="text-xs text-blue-100 mt-0.5">Ubah jam pulang karyawan</p>
+                    </div>
+                </div>
+                <button type="button" class="close-modal-checkout-btn w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-lg rounded-xl flex items-center justify-center transition-all duration-200 hover:rotate-90">
+                    <i class="fas fa-times text-lg text-white"></i>
+                </button>
+            </div>
+        </div>
+        <form id="formEditCheckOut" method="POST" class="p-6 space-y-6">
+            @csrf
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
+                <p class="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                    <i class="fas fa-info-circle mr-1"></i> Ubah jam pulang karyawan.
+                </p>
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <i class="fas fa-clock mr-1 text-blue-500"></i> Jam Pulang Baru
+                </label>
+                <input type="datetime-local" id="inputNewCheckOut" name="new_check_out"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    required>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" class="close-modal-checkout-btn flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold transition-all">
+                    Batal
+                </button>
+                <button type="submit" class="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-lg">
+                    <i class="fas fa-save mr-2"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+    </div>
+
     <div id="modalEditCheckIn" class="fixed inset-0 bg-gradient-to-br from-black/60 via-black/70 to-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4 animate-fadeIn">
     <div class="bg-white dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-95 hover:scale-100 border border-gray-200 dark:border-gray-700">
 
@@ -605,8 +687,7 @@
                         <p class="text-xs text-blue-100 mt-0.5">Ubah jam masuk karyawan</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeModal()"
-                        class="w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-lg rounded-xl flex items-center justify-center transition-all duration-200 hover:rotate-90">
+                <button type="button" class="close-modal-btn w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-lg rounded-xl flex items-center justify-center transition-all duration-200 hover:rotate-90">
                     <i class="fas fa-times text-lg text-white"></i>
                 </button>
             </div>
@@ -665,8 +746,7 @@
     {{-- Buttons --}}
     <div class="flex gap-3 pt-4">
         <button type="button"
-                onclick="closeModal()"
-                class="flex-1 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
+                class="close-modal-btn flex-1 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
                        text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm
                        transition-all duration-200 transform hover:scale-105 active:scale-95
                        flex items-center justify-center gap-2 group">
@@ -698,25 +778,53 @@
 </div>
 
 
-<script>
+<script nonce="{{ config('app.csp_nonce') }}">
 console.log('🔥 Script loaded');
+
+const baseUrl = "{{ url('/admin/absensi') }}";
 
 function toggleFilterInputs() {
     const type = document.getElementById('filter_type').value;
     const monthSection = document.getElementById('month_section');
     const customSection = document.getElementById('custom_date_section');
 
-    monthSection.style.display = 'none';
-    customSection.style.display = 'none';
+    if (monthSection) monthSection.classList.add('hidden');
+    if (customSection) customSection.classList.add('hidden');
 
-    if (type === 'monthly') {
-        monthSection.style.display = 'flex';
-    } else if (type === 'custom') {
-        customSection.style.display = 'flex';
+    if (type === 'monthly' && monthSection) {
+        monthSection.classList.remove('hidden');
+    } else if (type === 'custom' && customSection) {
+        customSection.classList.remove('hidden');
     }
 }
 
-document.addEventListener('DOMContentLoaded', toggleFilterInputs);
+function editCheckOut(absensiId, currentTime) {
+    const form = document.getElementById('formEditCheckOut');
+    const inputField = document.getElementById('inputNewCheckOut');
+    const modal = document.getElementById('modalEditCheckOut');
+
+    if (!form || !inputField || !modal) {
+        console.error('Element editCheckOut not found!');
+        return;
+    }
+
+    const actionUrl = `${baseUrl}/${absensiId}/update-checkout`;
+    form.setAttribute('action', actionUrl);
+
+    const formatted = currentTime.replace(' ', 'T').substring(0, 16);
+    inputField.value = formatted;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeModalCheckOut() {
+    const modal = document.getElementById('modalEditCheckOut');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
 
 function editCheckIn(absensiId, currentTime) {
     const form = document.getElementById('formEditCheckIn');
@@ -728,19 +836,13 @@ function editCheckIn(absensiId, currentTime) {
         return;
     }
 
-    // Set action URL dengan BASE URL dari Laravel
-    const baseUrl = "{{ url('/admin/absensi') }}";
-    const actionUrl = `${baseUrl}/${absensiId}/edit-checkin`;
-
+    const actionUrl = `${baseUrl}/${absensiId}/update-checkin`;
     form.setAttribute('action', actionUrl);
-
     console.log('✅ Action URL:', actionUrl);
 
-    // Format waktu ke datetime-local format
     const formatted = currentTime.replace(' ', 'T').substring(0, 16);
     inputField.value = formatted;
 
-    // Show modal
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -753,26 +855,24 @@ function closeModal() {
     }
 }
 
-function toggleFilterInputs() {
-    const type = document.getElementById('filter_type').value;
-    const monthSection = document.getElementById('month_section');
-    const customSection = document.getElementById('custom_date_section');
-
-    if (monthSection) monthSection.style.display = 'none';
-    if (customSection) customSection.style.display = 'none';
-
-    if (type === 'monthly' && monthSection) {
-        monthSection.style.display = 'flex';
-    } else if (type === 'custom' && customSection) {
-        customSection.style.display = 'flex';
-    }
-}
-
-// Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     toggleFilterInputs();
 
-    // Close modal on outside click
+    const filterType = document.getElementById('filter_type');
+    if (filterType) {
+        filterType.addEventListener('change', toggleFilterInputs);
+    }
+
+    document.querySelectorAll('.edit-checkin-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            editCheckIn(this.dataset.absensiId, this.dataset.checkinTime);
+        });
+    });
+
+    document.querySelectorAll('.close-modal-btn').forEach(function(btn) {
+        btn.addEventListener('click', closeModal);
+    });
+
     const modal = document.getElementById('modalEditCheckIn');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -782,6 +882,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+    document.querySelectorAll('.edit-checkout-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            editCheckOut(this.dataset.absensiId, this.dataset.checkoutTime);
+        });
+    });
+
+    document.querySelectorAll('.close-modal-checkout-btn').forEach(function(btn) {
+        btn.addEventListener('click', closeModalCheckOut);
+    });
+
+    const modalCheckOut = document.getElementById('modalEditCheckOut');
+    if (modalCheckOut) {
+        modalCheckOut.addEventListener('click', function(e) {
+            if (e.target === this) closeModalCheckOut();
+        });
+    }
+
 console.log('🔥 Script initialized');
 </script>
 </x-app-layout>

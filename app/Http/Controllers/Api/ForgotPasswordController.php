@@ -71,7 +71,7 @@ class ForgotPasswordController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Terjadi kesalahan pada server.',
-                'error_debug' => $e->getMessage(),
+                'error_debug' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.',
             ], 500);
         }
     }
@@ -123,7 +123,7 @@ class ForgotPasswordController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Terjadi kesalahan pada server.',
-                'error_debug' => $e->getMessage(),
+                'error_debug' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.',
             ], 500);
         }
     }
@@ -175,6 +175,10 @@ class ForgotPasswordController extends Controller
             $user->password = Hash::make($request->password);
             $user->save();
 
+            // ✅ REVOKE SEMUA TOKEN (Kill Switch)
+            // Biar semua perangkat yang login pake password lama otomatis logout
+            $user->tokens()->delete();
+
             // Hapus OTP setelah berhasil
             DB::table('password_resets')->where('email', $email)->delete();
 
@@ -190,7 +194,7 @@ class ForgotPasswordController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Terjadi kesalahan pada server.',
-                'error_debug' => $e->getMessage(),
+                'error_debug' => config('app.debug') ? $e->getMessage() : 'Silakan hubungi Admin.',
             ], 500);
         }
     }

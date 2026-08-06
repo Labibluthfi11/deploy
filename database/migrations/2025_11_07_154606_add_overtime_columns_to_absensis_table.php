@@ -12,7 +12,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('absensis', function (Blueprint $table) {
-            // Kolom ini yang error karena GA ADA
             $table->integer('overtime_minutes')->default(0)->nullable()->after('final_salary');
             $table->decimal('overtime_pay', 15, 2)->default(0)->nullable()->after('overtime_minutes');
         });
