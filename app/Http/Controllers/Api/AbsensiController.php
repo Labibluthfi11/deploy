@@ -615,9 +615,33 @@ public function meAbsensi(Request $request)
                 'unpaid_leave'    => ['maxDays' => 30,  'potongJatah' => false, 'gratisHari' => 0],
             ];
 
-            $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
-            $endDate = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : $startDate->copy()->startOfDay();
-            $totalDays = $startDate->diffInDays($endDate) + 1;
+            $startDateInput = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
+            $endDateInput = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : $startDateInput->copy()->startOfDay();
+
+            // Saring hari kerja efektif (Opsi 2 - Backend Pintar)
+            $calendarCutiTypes = ['cuti_melahirkan', 'cuti_keguguran', 'unpaid_leave'];
+            $isCalendarLeave = in_array($submissionType, $calendarCutiTypes);
+
+            $validDates = [];
+            $tempDate = $startDateInput->copy();
+            while ($tempDate->lte($endDateInput)) {
+                $isWeekend = Absensi::isWeekend($tempDate);
+                $isHoliday = \App\Models\Holiday::isHoliday($tempDate);
+
+                if ($isCalendarLeave || (!$isWeekend && !$isHoliday)) {
+                    $validDates[] = $tempDate->copy();
+                }
+                $tempDate->addDay();
+            }
+
+            if (empty($validDates)) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Tidak ada hari kerja efektif pada rentang tanggal yang dipilih.'], 422);
+            }
+
+            $startDate = $validDates[0];
+            $endDate = end($validDates);
+            $totalDays = count($validDates);
 
             // Validasi maxDays per jenis cuti
             $maxDays = 30;
@@ -708,14 +732,13 @@ public function meAbsensi(Request $request)
             ]);
 
             // Bulk Insert Children
-            $currentDate = $startDate->copy();
             $childRecords = [];
-            while ($currentDate->lte($endDate)) {
-                if (!$currentDate->isSameDay($startDate)) {
+            foreach ($validDates as $index => $date) {
+                if ($index > 0) { // Lewati hari pertama (induk)
                     $childRecords[] = [
                         'user_id' => $user->id,
                         'parent_id' => $parentAbsensi->id,
-                        'check_in_at' => $currentDate->copy()->setTime(8, 0, 0)->toDateTimeString(),
+                        'check_in_at' => $date->copy()->setTime(8, 0, 0)->toDateTimeString(),
                         'status' => $status,
                         'tipe' => $status,
                         'submission_type' => $submissionType,
@@ -727,7 +750,6 @@ public function meAbsensi(Request $request)
                         'created_at' => now(), 'updated_at' => now(),
                     ];
                 }
-                $currentDate->addDay();
             }
 
             if (!empty($childRecords)) {
@@ -1109,9 +1131,33 @@ public function meAbsensi(Request $request)
             }
 
             // Hitung tanggal baru jika diberikan
-            $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::parse($absensi->check_in_at)->startOfDay();
-            $endDate = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : ($absensi->end_date ? Carbon::parse($absensi->end_date)->startOfDay() : $startDate->copy());
-            $totalDays = $startDate->diffInDays($endDate) + 1;
+            $startDateInput = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::parse($absensi->check_in_at)->startOfDay();
+            $endDateInput = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : ($absensi->end_date ? Carbon::parse($absensi->end_date)->startOfDay() : $startDateInput->copy());
+
+            // Saring hari kerja efektif (Opsi 2 - Backend Pintar)
+            $calendarCutiTypes = ['cuti_melahirkan', 'cuti_keguguran', 'unpaid_leave'];
+            $isCalendarLeave = in_array($absensi->submission_type, $calendarCutiTypes);
+
+            $validDates = [];
+            $tempDate = $startDateInput->copy();
+            while ($tempDate->lte($endDateInput)) {
+                $isWeekend = Absensi::isWeekend($tempDate);
+                $isHoliday = \App\Models\Holiday::isHoliday($tempDate);
+
+                if ($isCalendarLeave || (!$isWeekend && !$isHoliday)) {
+                    $validDates[] = $tempDate->copy();
+                }
+                $tempDate->addDay();
+            }
+
+            if (empty($validDates)) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Tidak ada hari kerja efektif pada rentang tanggal yang dipilih.'], 422);
+            }
+
+            $startDate = $validDates[0];
+            $endDate = end($validDates);
+            $totalDays = count($validDates);
 
             if ($totalDays > 30) {
                 DB::rollBack();
@@ -1151,14 +1197,13 @@ public function meAbsensi(Request $request)
 
             // Buat ulang data anak jika lebih dari 1 hari
             if ($totalDays > 1) {
-                $currentDate = $startDate->copy();
                 $childRecords = [];
-                while ($currentDate->lte($endDate)) {
-                    if (!$currentDate->isSameDay($startDate)) {
+                foreach ($validDates as $index => $date) {
+                    if ($index > 0) { // Lewati hari pertama (induk)
                         $childRecords[] = [
                             'user_id' => $absensi->user_id,
                             'parent_id' => $absensi->id,
-                            'check_in_at' => $currentDate->copy()->setTime(8, 0, 0)->toDateTimeString(),
+                            'check_in_at' => $date->copy()->setTime(8, 0, 0)->toDateTimeString(),
                             'status' => $type,
                             'tipe' => $type,
                             'submission_type' => $absensi->submission_type,
@@ -1170,7 +1215,6 @@ public function meAbsensi(Request $request)
                             'created_at' => now(), 'updated_at' => now(),
                         ];
                     }
-                    $currentDate->addDay();
                 }
                 if (!empty($childRecords)) {
                     Absensi::insert($childRecords);
