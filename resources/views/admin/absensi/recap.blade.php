@@ -155,6 +155,7 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Cuti Tahunan</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Cuti Spesial</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Alfa</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sisa Cuti</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin Keluar</th>
@@ -186,6 +187,11 @@
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                {{ $data['total_alfa'] ?? 0 }}
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
@@ -281,6 +287,7 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Alfa</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
                                     @if(auth()->user()->role !== 'pkl')
@@ -313,6 +320,11 @@
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                {{ $data['total_alfa'] ?? 0 }}
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
@@ -421,6 +433,7 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Alfa</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
                                     @if(auth()->user()->role !== 'pkl')
@@ -453,6 +466,11 @@
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                {{ $data['total_alfa'] ?? 0 }}
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
@@ -561,6 +579,7 @@
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Hadir</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Izin</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Sakit</th>
+                                    <th class="py-3 px-4 text-center text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Alfa</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Lembur</th>
                                     <th class="py-3 px-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Telat</th>
                                     <th class="py-3 px-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Potongan</th>
@@ -591,6 +610,11 @@
                                         <td class="py-3 px-4 text-center">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                                 {{ $data['total_sakit'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                {{ $data['total_alfa'] ?? 0 }}
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">

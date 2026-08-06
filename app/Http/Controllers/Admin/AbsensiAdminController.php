@@ -446,6 +446,16 @@ class AbsensiAdminController extends Controller
             return Absensi::find($item->id);
         });
 
+        // ✅ HITUNG TOTAL HARI KERJA (Untuk perhitungan Alfa)
+        $totalHariKerja = 0;
+        $tempDate = $startDate->copy();
+        while ($tempDate->lte($endDate)) {
+            if (!$tempDate->isWeekend() && !\App\Models\Holiday::isHoliday($tempDate)) {
+                $totalHariKerja++;
+            }
+            $tempDate->addDay();
+        }
+
         // ✅ HITUNG GAJI (Semua yang punya final_salary)
         $totalGaji = $absensiUser->sum('final_salary') ?? 0;
         $totalGajiLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay') ?? 0;
@@ -457,14 +467,22 @@ class AbsensiAdminController extends Controller
             ->whereBetween('waktu_keluar', [$izinKeluarMonthStart, $izinKeluarMonthEnd])
             ->get();
 
+        $totalHadir = $absensiUser->where('status', 'hadir')->count();
+        $totalIzin = $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count();
+        $totalSakit = $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count();
+        
+        // Alfa = Total Hari Kerja - (Hadir + Izin + Sakit)
+        $totalAlfa = max(0, $totalHariKerja - ($totalHadir + $totalIzin + $totalSakit));
+
         $recapData[] = [
             'user' => $user,
             'kategori' => $kategori,
-            'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-            'total_izin' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count(),
+            'total_hadir' => $totalHadir,
+            'total_izin' => $totalIzin,
+            'total_alfa' => $totalAlfa, // ✅ BARU
             'total_cuti_tahunan' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->where('submission_type', 'cuti_tahunan')->count(),
             'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),
-            'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
+            'total_sakit' => $totalSakit,
             'total_cuti' => $absensiUser->where('status', 'izin')->filter(fn($item) => str_starts_with($item->submission_type ?? '', 'cuti'))->where('status_approval', 'approved')->count(),
             'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
             'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
