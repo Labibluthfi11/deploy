@@ -605,13 +605,16 @@ public function meAbsensi(Request $request)
                 'start_date' => 'nullable|date|after_or_equal:today',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'catatan_admin' => 'nullable|string|max:255',
+                'jam_pulang_rencana' => 'nullable|date_format:H:i',
             ]);
 
             $user = Auth::user();
             $status = $request->status ?? $defaultStatus;
+            $submissionType = $request->catatan_admin ?? null; // Pastikan ini di-assign sebelum validasi
+            $jamPulangRencana = $request->jam_pulang_rencana;
             
-            // 🆕 TAMBAH VALIDASI: Tidak boleh izin/cuti jika sudah absen masuk (kecuali lembur)
-            if ($status !== 'lembur') {
+            // 🆕 TAMBAH VALIDASI: Tidak boleh izin/cuti jika sudah absen masuk (kecuali lembur & izin_pulang_cepat)
+            if ($status !== 'lembur' && $submissionType !== 'izin_pulang_cepat') {
                 $today = \Carbon\Carbon::today();
                 $hasCheckInToday = Absensi::where('user_id', $user->id)
                     ->whereDate('check_in_at', $today)
@@ -625,8 +628,6 @@ public function meAbsensi(Request $request)
                     ], 422);
                 }
             }
-
-            $submissionType = $request->catatan_admin ?? null; // jenis cuti dari Flutter
 
             // Ketentuan per jenis cuti
             $cutiConfig = [
@@ -751,6 +752,7 @@ public function meAbsensi(Request $request)
                 'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
                 'submission_type' => $submissionType,
                 'catatan_admin' => $request->catatan_admin,
+                'jam_pulang_rencana' => $jamPulangRencana,
                 'workflow_status' => $workflow,
                 'current_approval_level' => 1,
                 'late_minutes' => 0,

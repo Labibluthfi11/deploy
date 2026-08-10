@@ -407,7 +407,7 @@ class ApprovalController extends Controller
 
                     DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
                         // 1. UPDATE DATA UTAMA (PARENT)
-                        $absensi->update([
+                        $updateData = [
                             'status_approval' => 'approved',
                             'approved_at' => now(),
                             'workflow_status' => $workflowStatus,
@@ -418,7 +418,32 @@ class ApprovalController extends Controller
                             'base_salary' => 0,
                             'late_penalty' => 0,
                             'final_salary' => 0,
-                        ]);
+                        ];
+
+                        // 🆕 LOGIKA IZIN SETENGAH HARI
+                        if ($absensi->jam_pulang_rencana) {
+                            $checkInDate = \Carbon\Carbon::parse($absensi->check_in_at)->format('Y-m-d');
+                            $checkOutDateTime = \Carbon\Carbon::parse($checkInDate . ' ' . $absensi->jam_pulang_rencana);
+                            $updateData['check_out_at'] = $checkOutDateTime;
+                            
+                            // Hitung gaji ulang karena jam pulang berubah
+                            $salaryData = \App\Models\Absensi::calculateSalary(
+                                $absensi->late_minutes ?? 0,
+                                'hadir', // Anggap hadir karena kerja setengah hari
+                                null,
+                                $absensi->is_weekend_overtime ?? false,
+                                $absensi->check_in_at,
+                                $checkOutDateTime,
+                                $absensi->user->kategori_absensi
+                            );
+                            
+                            $updateData['status'] = 'hadir'; // Ubah status jadi hadir tapi durasi kurang
+                            $updateData['base_salary'] = $salaryData['base_salary'];
+                            $updateData['late_penalty'] = $salaryData['late_penalty'];
+                            $updateData['final_salary'] = $salaryData['final_salary'];
+                        }
+
+                        $absensi->update($updateData);
 
                         
 $user = \App\Models\User::find($absensi->user_id);
