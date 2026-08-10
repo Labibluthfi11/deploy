@@ -322,38 +322,48 @@ class AbsensiController extends Controller
             }
 
             $checkInTimeParsed = \Carbon\Carbon::parse($absensi->check_in_at);
-            // ATURAN WAKTU KERJA 9 JAM (8 Kerja + 1 Istirahat)
-            // Tolak absen pulang jika kurang dari 9 jam (540 menit) KECUALI tipe absen pulang-nya adalah sakit/izin
+
+            // 🆕 FLAG PELANGGARAN DURASI
+            $isKurang8Jam = false;
+
+            // ATURAN WAKTU KERJA
             if ($request->tipe !== 'sakit' && $request->tipe !== 'izin') {
                 $kategori = $user->kategori_absensi;
-                
+
                 $isFreelance = ($kategori === 'freelance');
                 $isBorongan = ($kategori === 'borongan');
                 $isMagang = ($kategori === 'magang');
+                $isOrganik = ($kategori === 'organik');
 
                 $currentTime = \Carbon\Carbon::now('Asia/Jakarta');
                 $minutesWorked = $checkInTimeParsed->diffInMinutes($currentTime);
                 $isAfterFivePM = $currentTime->hour >= 17;
 
+                // 🆕 Cek apakah kurang dari 9 jam (8 kerja + 1 istirahat)
+                if ($minutesWorked < 540) {
+                    $isKurang8Jam = true;
+                }
+
                 // Freelance & Borongan boleh pulang asal sudah jam 5 sore (17:00)
                 if ($isFreelance || $isBorongan) {
-                    // Jika belum jam 5 sore DAN belum kerja 9 jam, baru kita tolak
                     if (!$isAfterFivePM && $minutesWorked < 540) {
                         return response()->json([
                             'message' => 'Freelance/Borongan baru boleh pulang kalau sudah jam 17:00 (5 sore) atau sudah kerja 9 jam. Semangat bang!'
                         ], 400);
                     }
-                } else {
-                    // Organik & Magang wajib 9 jam
-                    if ($minutesWorked < 540) {
-                        return response()->json([
-                            'message' => 'Anda belum memenuhi waktu kerja wajib 9 jam (8 jam kerja + 1 jam istirahat). Organik dilarang pulang gasik!'
-                        ], 400);
-                    }
-                }
+                } 
+                // Organik & Magang: Dulu wajib 9 jam, sekarang IZINKAN pulang, TAPI tandai sebagai pelanggaran
+                // else {
+                //     if ($minutesWorked < 540) {
+                //         return response()->json([
+                //             'message' => 'Anda belum memenuhi waktu kerja wajib 9 jam (8 jam kerja + 1 jam istirahat). Organik dilarang pulang gasik!'
+                //         ], 400);
+                //     }
+                // }
             }
 
             // CEK IZIN KELUAR RULES
+
             // 1. Cek ada pelanggaran hari ini?
             $hasPelanggaran = \App\Models\IzinKeluar::where('user_id', $user->id)
                 ->whereBetween('waktu_keluar', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
@@ -453,6 +463,7 @@ class AbsensiController extends Controller
 
                 $absensi->update([
                 'check_out_at' => $checkOutTime,
+                'is_kurang_8_jam' => $isKurang8Jam, // 🆕 TAMBAHKAN INI
                 'foto_pulang' => $fotoPath,
                 'foto_pulang_2' => $fotoPath2,
                 'foto_pulang_3' => $fotoPath3,

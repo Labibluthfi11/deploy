@@ -62,6 +62,7 @@ class Absensi extends Model
         'final_salary',
         'overtime_pay',
         'adjustment_salary',
+        'is_kurang_8_jam',
     ];
 
     // ✅ FIX SECURITY: Field yang benar-benar sensitif tetap di guarded

@@ -476,6 +476,7 @@ class AbsensiAdminController extends Controller
         $totalHadir = $absensiUser->where('status', 'hadir')->count();
         $totalIzin = $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count();
         $totalSakit = $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count();
+        $totalKurang8Jam = $absensiUser->where('is_kurang_8_jam', true)->count(); // 🆕 TAMBAH INI
         
         // Alfa = Total Hari Kerja - (Hadir + Izin + Sakit)
         $totalAlfa = max(0, $totalHariKerja - ($totalHadir + $totalIzin + $totalSakit));
@@ -485,6 +486,8 @@ class AbsensiAdminController extends Controller
             'kategori' => $kategori,
             'total_hadir' => $totalHadir,
             'total_izin' => $totalIzin,
+            'total_sakit' => $totalSakit,
+            'total_kurang_8_jam' => $totalKurang8Jam, // 🆕 TAMBAH INI
             'total_alfa' => $totalAlfa, // ✅ BARU
             'total_cuti_tahunan' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->where('submission_type', 'cuti_tahunan')->count(),
             'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),

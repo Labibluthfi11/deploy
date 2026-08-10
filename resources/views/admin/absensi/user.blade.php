@@ -359,7 +359,11 @@
                                     {{-- Telat --}}
                                     <td>
                                         @if($user->employment_type === 'organik')
-                                            <span class="text-ontime">Flexible Time</span>
+                                            @if($item->is_kurang_8_jam)
+                                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">⚠️ Belum 8 Jam</span>
+                                            @else
+                                                <span class="text-ontime">Flexible Time</span>
+                                            @endif
                                         @elseif($item->late_minutes > 0)
                                             <div class="flex flex-col gap-1">
                                                 <span class="text-late">
