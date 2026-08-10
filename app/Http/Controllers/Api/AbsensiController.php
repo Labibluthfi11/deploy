@@ -609,6 +609,23 @@ public function meAbsensi(Request $request)
 
             $user = Auth::user();
             $status = $request->status ?? $defaultStatus;
+            
+            // 🆕 TAMBAH VALIDASI: Tidak boleh izin/cuti jika sudah absen masuk (kecuali lembur)
+            if ($status !== 'lembur') {
+                $today = \Carbon\Carbon::today();
+                $hasCheckInToday = Absensi::where('user_id', $user->id)
+                    ->whereDate('check_in_at', $today)
+                    ->where('status', 'hadir')
+                    ->exists();
+
+                if ($hasCheckInToday) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Anda tidak bisa mengajukan izin atau cuti karena Anda sudah melakukan absen masuk hari ini.'
+                    ], 422);
+                }
+            }
+
             $submissionType = $request->catatan_admin ?? null; // jenis cuti dari Flutter
 
             // Ketentuan per jenis cuti
