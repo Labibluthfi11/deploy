@@ -260,7 +260,11 @@
                                     } elseif ($submission->tipe === 'sakit') {
                                         $mainKeterangan = $submission->keterangan_izin_sakit ?? 'Pengajuan Sakit';
                                     } elseif ($submission->tipe === 'izin') {
-                                        $mainKeterangan = $submission->keterangan_izin ?? $submission->keterangan_izin_sakit ?? 'Pengajuan Izin';
+                                        if ($submission->submission_type === 'izin_pulang_cepat') {
+                                            $mainKeterangan = 'Izin Pulang Cepat: ' . ($submission->keterangan_izin_sakit ?? 'Tanpa Keterangan');
+                                        } else {
+                                            $mainKeterangan = $submission->keterangan_izin ?? $submission->keterangan_izin_sakit ?? 'Pengajuan Izin';
+                                        }
                                     } elseif ($submission->tipe === 'telat') {
                                         $mainKeterangan = $submission->keterangan_izin_sakit ?? 'Pengajuan Keterangan Telat';
                                     } else {
