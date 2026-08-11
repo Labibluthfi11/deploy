@@ -260,7 +260,7 @@
                                 <div class="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 bottom-full left-0 mb-2 w-max max-w-sm shadow-xl border border-gray-700">
                                     {{ $mainKeterangan }}
                                     <!-- Tooltip Arrow -->
-                                    <div class="absolute top-full left-2 border-8 border-transparent border-t-gray-900"></div>
+                                    <div class="absolute -top-2 left-2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-gray-900"></div>
                                 </div>
                             </div>
 
