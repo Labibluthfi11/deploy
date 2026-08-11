@@ -272,9 +272,14 @@
                                     }
                                 @endphp
 
-                                <p class="truncate font-medium text-gray-900 dark:text-white" title="{{ $mainKeterangan }}">
-                                    {{ $mainKeterangan }}
-                                </p>
+                                <button type="button"
+                                    class="view-keterangan-btn text-left hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                    data-keterangan="{{ addslashes($mainKeterangan) }}"
+                                    data-name="{{ $user->name ?? '-' }}">
+                                    <span class="block font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title="Klik untuk lihat detail">
+                                        {{ $mainKeterangan }}
+                                    </span>
+                                </button>
 
                                 @if (!empty($submission->rejected_by) && !empty($submission->catatan_admin) && $submission->status_approval === 'pending')
                                 <div class="mt-2 p-2.5 bg-amber-500/10 border-l-4 border-amber-500 rounded text-xs leading-relaxed">
@@ -413,8 +418,46 @@
     </div>
 </div>
 
+<div id="modalViewKeterangan" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div id="keteranganModalOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg z-[10000]">
+            <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-t-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-bold text-lg">Detail Keterangan</h3>
+                            <p id="keteranganModalName" class="text-indigo-100 text-xs mt-0.5"></p>
+                        </div>
+                    </div>
+                    <button id="keteranganModalCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                    <p id="keteranganModalText" class="text-sm text-gray-800 dark:text-gray-300 leading-relaxed"></p>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button id="keteranganModalCloseBtnBottom" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="modalViewReason" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
+...
     <div class="flex items-center justify-center min-h-screen px-4">
         <div id="reasonModalOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md z-[10000]">
@@ -485,6 +528,22 @@
 </div>
 
 <script nonce="{{ config('app.csp_nonce') }}">
+    function openKeteranganModal(keterangan, name) {
+        document.getElementById('keteranganModalText').textContent = keterangan || 'Tidak ada keterangan';
+        document.getElementById('keteranganModalName').textContent = name || '';
+        document.getElementById('modalViewKeterangan').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeKeteranganModal() {
+        document.getElementById('modalViewKeterangan').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    document.getElementById('keteranganModalOverlay').addEventListener('click', closeKeteranganModal);
+    document.getElementById('keteranganModalCloseBtn').addEventListener('click', closeKeteranganModal);
+    document.getElementById('keteranganModalCloseBtnBottom').addEventListener('click', closeKeteranganModal);
+    
     function openReasonModal(reason, name) {
         document.getElementById('reasonModalText').textContent = reason || 'Tidak ada keterangan';
         document.getElementById('reasonModalName').textContent = name || '';
@@ -500,8 +559,12 @@
     document.getElementById('reasonModalOverlay').addEventListener('click', closeReasonModal);
     document.getElementById('reasonModalCloseBtn').addEventListener('click', closeReasonModal);
     document.getElementById('reasonModalCloseBtnBottom').addEventListener('click', closeReasonModal);
+    
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeReasonModal();
+        if (e.key === 'Escape') {
+            closeKeteranganModal();
+            closeReasonModal();
+        }
     });
 
 </script>
@@ -563,6 +626,12 @@
             btn.addEventListener('click', function() {
                 const fotos = JSON.parse(this.dataset.fotos);
                 openGallery(fotos, this.dataset.name);
+            });
+        });
+
+        document.querySelectorAll('.view-keterangan-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                openKeteranganModal(this.dataset.keterangan, this.dataset.name);
             });
         });
 
