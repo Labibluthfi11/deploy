@@ -100,6 +100,9 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             $grandTotalGajiBersih += $userTotal;
         }
 
+        // CEK APAKAH SEMUA USER ADALAH ORGANIK
+        $isOnlyOrganik = count($uniqueCategories) === 1 && $uniqueCategories[0] === 'organik';
+
         $periodeStr = Carbon::parse($this->startDate)->translatedFormat('d M Y') . ' s/d ' . Carbon::parse($this->endDate)->translatedFormat('d M Y');
 
         return view('exports.bulk_detail', [
@@ -113,6 +116,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'grandTotalGajiBersihRow' => $grandTotalGajiBersihRow,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
             'categoryLabel' => $categoryLabel,
+            'isOnlyOrganik' => $isOnlyOrganik,
         ]);
     }
 
