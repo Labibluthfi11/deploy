@@ -122,20 +122,6 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
     private function detectKategori(User $user): string
     {
-        $idKaryawan = $user->id_karyawan ?? '';
-
-        if (str_starts_with($idKaryawan, 'CS-AMB')) {
-            return 'borongan';
-        }
-
-        if (str_starts_with($idKaryawan, 'MG-AMB')) {
-            return 'magang';
-        }
-
-        if (str_starts_with($idKaryawan, 'AMB')) {
-            return 'freelance';
-        }
-
         return $user->employment_type ?? 'organik';
     }
 
