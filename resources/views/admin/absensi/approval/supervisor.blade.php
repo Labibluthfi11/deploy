@@ -248,8 +248,7 @@
     setTimeout(function() {
         const toast = document.getElementById('flashToast');
         if (toast) {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(20px)';
+            toast.classList.add('opacity-0', 'translate-y-5');
             setTimeout(() => toast.remove(), 500);
         }
     }, 4000);
@@ -259,7 +258,7 @@
 @endif
 
 @if(session('error'))
-<div id="flashToastError" class="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 px-5 py-4 bg-red-600 text-white rounded-2xl shadow-2xl max-w-[380px]">
+<div id="flashToastError" class="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 px-5 py-4 bg-red-600 text-white rounded-2xl shadow-2xl max-w-[380px] transition-all duration-500 opacity-100">
     <div class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -271,7 +270,7 @@
     setTimeout(function() {
         const toast = document.getElementById('flashToastError');
         if (toast) {
-            toast.style.opacity = '0';
+            toast.classList.add('opacity-0');
             setTimeout(() => toast.remove(), 500);
         }
     }, 4000);
