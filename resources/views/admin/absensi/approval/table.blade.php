@@ -162,6 +162,11 @@
                                     'unpaid_leave' => 'Unpaid Leave',
                                     'izin_pulang_cepat' => 'Izin Setengah Hari',
                                 ];
+                                
+                                if($submission->id == 7048) {
+                                    dd($submission->submission_type);
+                                }
+                                
                                 $jenisLabel = isset($cutiLabels[$submission->submission_type ?? ''])
                                     ? $cutiLabels[$submission->submission_type]
                                     : ($submission->tipe ? ucfirst($submission->tipe) : (ucfirst($submission->status) ?? 'Absensi'));
