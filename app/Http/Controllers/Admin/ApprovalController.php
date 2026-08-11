@@ -874,7 +874,8 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
 
             if ($isLeaveType) {
                 DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
-                    $absensi->update([
+                    // Cek jika izin pulang cepat
+                    $updateData = [
                         'status_approval' => 'approved',
                         'approved_at' => now(),
                         'workflow_status' => $workflowStatus,
@@ -882,10 +883,38 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                         'rejected_at' => null,
                         'overtime_minutes' => 0,
                         'overtime_pay' => 0,
-                        'base_salary' => 0,
-                        'late_penalty' => 0,
-                        'final_salary' => 0,
-                    ]);
+                    ];
+
+                    if ($absensi->submission_type === 'izin_pulang_cepat' && $absensi->jam_pulang_rencana) {
+                        $checkIn = \Carbon\Carbon::parse($absensi->check_in_at);
+                        $checkOut = \Carbon\Carbon::parse($absensi->check_in_at)->setTimeFromTimeString($absensi->jam_pulang_rencana);
+                        
+                        $updateData['check_out_at'] = $checkOut;
+                        
+                        $isWeekend = \App\Models\Absensi::isWeekend($checkIn);
+                        $kategori = $absensi->user->kategori_absensi ?? 'organik';
+                        $lateMinutes = $absensi->late_minutes ?? 0;
+                        
+                        $salaryData = \App\Models\Absensi::calculateSalary(
+                            $lateMinutes,
+                            'hadir',
+                            null,
+                            $isWeekend,
+                            $checkIn,
+                            $checkOut,
+                            $kategori
+                        );
+                        
+                        $updateData['base_salary'] = $salaryData['base_salary'];
+                        $updateData['late_penalty'] = $salaryData['late_penalty'];
+                        $updateData['final_salary'] = $salaryData['final_salary'];
+                    } else {
+                        $updateData['base_salary'] = 0;
+                        $updateData['late_penalty'] = 0;
+                        $updateData['final_salary'] = 0;
+                    }
+
+                    $absensi->update($updateData);
 
                     $user = \App\Models\User::find($absensi->user_id);
                     if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) { 

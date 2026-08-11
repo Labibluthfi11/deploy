@@ -738,28 +738,49 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            $parentAbsensi = Absensi::create([
-                'hari_potong_cuti' => $hariPotongCuti,
-                'hari_unpaid' => $hariUnpaid,
-                'user_id' => $user->id,
-                'check_in_at' => $startDate,
-                'end_date' => $endDate,
-                'total_days' => $totalDays,
-                'status' => $status,
-                'tipe' => $status,
-                'status_approval' => 'pending',
-                'file_bukti' => $fileBuktiPath,
-                'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
-                'submission_type' => $submissionType,
-                'catatan_admin' => $request->catatan_admin,
-                'jam_pulang_rencana' => $jamPulangRencana,
-                'workflow_status' => $workflow,
-                'current_approval_level' => 1,
-                'late_minutes' => 0,
-                'base_salary' => 0,
-                'late_penalty' => 0,
-                'final_salary' => 0,
-            ]);
+            // Cek apakah sudah ada record absensi untuk tanggal ini
+            $existingTodayAbsensi = Absensi::where('user_id', $user->id)
+                ->whereDate('check_in_at', $startDate)
+                ->first();
+
+            if ($existingTodayAbsensi && $submissionType === 'izin_pulang_cepat') {
+                $parentAbsensi = $existingTodayAbsensi;
+                $parentAbsensi->update([
+                    'status' => $status,
+                    'tipe' => $status,
+                    'status_approval' => 'pending',
+                    'file_bukti' => $fileBuktiPath,
+                    'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
+                    'submission_type' => $submissionType,
+                    'catatan_admin' => $request->catatan_admin,
+                    'jam_pulang_rencana' => $jamPulangRencana,
+                    'workflow_status' => $workflow,
+                    'current_approval_level' => 1,
+                ]);
+            } else {
+                $parentAbsensi = Absensi::create([
+                    'hari_potong_cuti' => $hariPotongCuti,
+                    'hari_unpaid' => $hariUnpaid,
+                    'user_id' => $user->id,
+                    'check_in_at' => $startDate,
+                    'end_date' => $endDate,
+                    'total_days' => $totalDays,
+                    'status' => $status,
+                    'tipe' => $status,
+                    'status_approval' => 'pending',
+                    'file_bukti' => $fileBuktiPath,
+                    'keterangan_izin_sakit' => $request->keterangan_izin_sakit,
+                    'submission_type' => $submissionType,
+                    'catatan_admin' => $request->catatan_admin,
+                    'jam_pulang_rencana' => $jamPulangRencana,
+                    'workflow_status' => $workflow,
+                    'current_approval_level' => 1,
+                    'late_minutes' => 0,
+                    'base_salary' => 0,
+                    'late_penalty' => 0,
+                    'final_salary' => 0,
+                ]);
+            }
 
             // Bulk Insert Children
             $childRecords = [];
