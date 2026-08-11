@@ -256,19 +256,16 @@
                             @endif
                         </td>
 
+                        @php
+                            $mainKeterangan = $isOvertime
+                                ? ($submission->lembur_keterangan ?? $submission->keterangan_goals ?? '-')
+                                : ($submission->keterangan_izin_sakit ?? $submission->keterangan_goals ?? '-');
+                        @endphp
                         {{-- KETERANGAN --}}
                         <td class="px-6 py-4">
-                            <div class="relative group">
-                                <p class="truncate font-medium text-gray-900 dark:text-white cursor-help max-w-[200px]">
-                                    {{ $mainKeterangan }}
-                                </p>
-                                <!-- Floating Tooltip -->
-                                <div class="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 bottom-full left-0 mb-2 w-max max-w-sm shadow-xl border border-gray-700">
-                                    {{ $mainKeterangan }}
-                                    <!-- Tooltip Arrow -->
-                                    <div class="absolute -top-2 left-2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-gray-900"></div>
-                                </div>
-                            </div>
+                            <p class="font-medium text-gray-900 dark:text-white max-w-[220px] break-words line-clamp-5">
+                                {{ $mainKeterangan }}
+                            </p>
 
                                 @if (!empty($submission->rejected_by) && !empty($submission->catatan_admin) && $submission->status_approval === 'pending')
                                 <div class="mt-2 p-2.5 bg-amber-500/10 border-l-4 border-amber-500 rounded text-xs leading-relaxed">

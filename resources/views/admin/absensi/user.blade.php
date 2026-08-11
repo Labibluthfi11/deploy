@@ -476,6 +476,7 @@
                                                 'cuti_meninggal' => 'Cuti Meninggal Keluarga',
                                                 'change_off' => 'Change Off',
                                                 'unpaid_leave' => 'Unpaid Leave',
+                                    'izin_pulang_cepat' => 'Pengajuan Setengah Hari',
                                             ];
                                             $statusLabel = isset($cutiLabels[$item->submission_type ?? ''])
                                                 ? $cutiLabels[$item->submission_type]
