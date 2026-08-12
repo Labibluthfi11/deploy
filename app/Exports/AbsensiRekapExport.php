@@ -55,7 +55,7 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
                 'izin' => $recap['total_izin'],
                 'sakit' => $recap['total_sakit'],
                 'lembur' => $recap['total_lembur'],
-                'telat' => $recap['total_telat'],
+                'kolom_telat_atau_kurang' => ($kategori === 'organik') ? $recap['total_kurang_8_jam'] : $recap['total_telat'],
                 'gaji_pokok' => 'Rp ' . number_format($recap['total_gaji_pokok'] ?? 0, 0, ',', '.'), // Kolom 1
                 'gaji_lembur' => 'Rp ' . number_format($recap['total_gaji_lembur'] ?? 0, 0, ',', '.'), // Kolom 2
                 'total_potongan' => 'Rp ' . number_format($recap['total_potongan'] ?? 0, 0, ',', '.'), // Kolom 3
@@ -80,7 +80,7 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'Izin',
             'Sakit',
             'Lembur',
-            'Telat (x)',
+            ($this->type === 'organik') ? 'Kurang 8 Jam (x)' : 'Telat (x)',
             'Gaji Pokok (Inc. Bonus)',
             'Gaji Lembur',
             'Total Potongan',
