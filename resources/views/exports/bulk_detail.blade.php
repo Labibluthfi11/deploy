@@ -129,11 +129,15 @@
                         <td style="{{ $cellStyle }}">{{ $no++ }}</td>
                         <td style="{{ $cellStyle }}">{{ $date->translatedFormat('d M Y') }}</td>
                         <td colspan="5" style="text-align: center; border: 1px solid #000000;">-</td>
-                        <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
-                        <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                        @if (!$isOnlyOrganik)
+                            <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                            <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                            <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                        @endif
                         <td style="text-align: center; border: 1px solid #000000;">-</td>
-                        <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                        @if (!$isOnlyOrganik)
+                            <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
+                        @endif
                         <td style="text-align: center; border: 1px solid #000000;">-</td>
                     </tr>
                 @endif
