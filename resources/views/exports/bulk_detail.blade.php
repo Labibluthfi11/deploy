@@ -78,12 +78,21 @@
                     })->sortByDesc('id')->first();
 
                     $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
-                    $rowStyle = '';
                     $cellStyle = 'text-align: center; border: 1px solid #000000;';
 
-                    if (!$item && $isWeekday) {
-                        $rowStyle = 'background-color: #FFE6E6;'; 
-                        $cellStyle = 'text-align: center; border: 1px solid #000000; color: #FF0000; font-weight: bold;';
+                    // Logika Status saat tidak ada absen
+                    $statusLabel = 'Alpha';
+                    if (!$item) {
+                        if ($date->isSaturday()) {
+                            $statusLabel = 'Sabtu Libur';
+                        } elseif ($date->isSunday()) {
+                            $statusLabel = 'Minggu Libur';
+                        } else {
+                            $holiday = \App\Models\Holiday::where('holiday_date', $date->toDateString())->first();
+                            if ($holiday) {
+                                $statusLabel = $holiday->name;
+                            }
+                        }
                     }
 
                     if ($item) {
@@ -125,10 +134,10 @@
                         <td style="text-align: center; border: 1px solid #000000; font-size: 9px;">{{ ucfirst($item->status_approval) }}</td>
                     </tr>
                 @else
-                    <tr style="{{ $rowStyle }}">
+                    <tr>
                         <td style="{{ $cellStyle }}">{{ $no++ }}</td>
                         <td style="{{ $cellStyle }}">{{ $date->translatedFormat('d M Y') }}</td>
-                        <td colspan="5" style="text-align: center; border: 1px solid #000000;">-</td>
+                        <td colspan="5" style="text-align: center; border: 1px solid #000000;">{{ $statusLabel }}</td>
                         @if (!$isOnlyOrganik)
                             <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
                             <td style="text-align: right; border: 1px solid #000000;">Rp 0</td>
