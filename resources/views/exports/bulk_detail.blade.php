@@ -48,7 +48,7 @@
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 80px;">In</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 80px;">Out</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Status</th>
-                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Telat</th>
+                <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">{{ $isOnlyOrganik ? 'Kurang 8 Jam' : 'Telat' }}</th>
                 <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 100px;">Menit Lbr</th>
                 @if (!$isOnlyOrganik)
                     <th style="font-weight: bold; text-align: center; border: 1px solid #000000; width: 120px; background-color: #E2EFDA; color: #000;">Gaji Pokok</th>
@@ -111,7 +111,7 @@
                         <td style="text-align: center; border: 1px solid #000000;">{{ \Carbon\Carbon::parse($item->check_in_at)->format('H:i') }}</td>
                         <td style="text-align: center; border: 1px solid #000000;">{{ $item->check_out_at ? \Carbon\Carbon::parse($item->check_out_at)->format('H:i') : '-' }}</td>
                         <td style="text-align: center; border: 1px solid #000000; font-size: 9px;">{{ ucfirst($item->status) }}</td>
-                        <td style="text-align: center; border: 1px solid #000000;">{{ $item->late_minutes }}m</td>
+                        <td style="text-align: center; border: 1px solid #000000;">{{ $isOnlyOrganik ? ($item->is_kurang_8_jam ? 'Ya' : '-') : ($item->late_minutes . 'm') }}</td>
                         <td style="text-align: center; border: 1px solid #000000;">{{ $item->overtime_minutes }}m</td>
                         @if (!$isOnlyOrganik)
                             <td style="text-align: right; border: 1px solid #000000;">Rp {{ number_format($gajiPokokHarian, 0, ',', '.') }}</td>
