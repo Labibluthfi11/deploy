@@ -1171,7 +1171,7 @@ public function meAbsensi(Request $request)
             ]);
 
             $absensi = Absensi::find($id);
-            if (!$absensi || $absensi->user_id !== Auth::id()) {
+            if (!$absensi || (int) $absensi->user_id !== (int) Auth::id()) {
                 DB::rollBack();
                 return response()->json(['success' => false, 'message' => 'Record tidak ditemukan atau akses ditolak.'], 404);
             }
