@@ -1255,7 +1255,6 @@ public function meAbsensi(Request $request)
     // ... (Fungsi resubmitSakit dan resubmitIzin bisa dihapus/dibiarkan sebagai alias)
     public function resubmitSakit(Request $request, $id) { return $this->resubmit($request, $id); }
     public function resubmitIzin(Request $request, $id) { return $this->resubmit($request, $id); }
-    public function resubmitLembur(Request $request, $id) { return $this->resubmit($request, $id); }
 
     /**
      * Helper Unified logic for Resubmitting Sick and Leave requests
