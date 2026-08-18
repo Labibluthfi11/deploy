@@ -1405,100 +1405,100 @@ public function meAbsensi(Request $request)
     }
 
     public function resubmitLembur(Request $request, $id)
-{
-    try {
-        // ✅ VALIDASI ID
-        if (!is_numeric($id) || $id <= 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ID tidak valid.'
-            ], 400);
-        }
-
-        $request->validate([
-            'foto'        => 'required|image|max:2048',
-            'foto_2'      => 'nullable|image|max:2048',
-            'foto_3'      => 'nullable|image|max:2048',
-            'foto_4'      => 'nullable|image|max:2048',
-            'foto_5'      => 'nullable|image|max:2048',
-            'foto_6'      => 'nullable|image|max:2048',
-            'lat'         => 'required|numeric',
-            'lng'         => 'required|numeric',
-            'jam_mulai'   => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i',
-            'istirahat'   => 'required|boolean',
-            'keterangan'  => 'required|string|max:500',
-            'keterangan_goals' => 'nullable|string|max:2000',
-            'is_weekend'  => 'nullable|boolean',
-            'is_mocked'   => 'nullable|boolean',
-        ]);
-
-        $jamMulai = Carbon::createFromFormat('H:i', $request->jam_mulai);
-        $jamSelesai = Carbon::createFromFormat('H:i', $request->jam_selesai);
-        
-        if ($jamSelesai->lte($jamMulai)) {
-            return response()->json(['success' => false, 'message' => 'Jam selesai harus lebih dari jam mulai.'], 422);
-        }
-
-        // ✅ FIX SECURITY #2: Batas Maksimal Lembur 5 Jam
-        if ($jamMulai->diffInHours($jamSelesai) > 5) {
-            return response()->json(['success' => false, 'message' => 'Durasi lembur tidak wajar (Maksimal 5 jam sehari). Harap hubungi HR untuk lembur khusus.'], 422);
-        }
-
-        $absensi = Absensi::find($id);
-        if (!$absensi || $absensi->user_id != Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Record tidak ditemukan atau akses ditolak.'], 404);
-        }
-
-        if (!in_array($absensi->status_approval, ['rejected', 'ditolak'])) {
-            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
-        }
-
-        // --- 1. HANDLE PHOTOS (CLEAN WAY) ---
-        $photoFields = ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'];
-        $requestFields = ['foto', 'foto_2', 'foto_3', 'foto_4', 'foto_5', 'foto_6'];
-        $newPaths = [];
-
-        foreach ($photoFields as $index => $field) {
-            $reqField = $requestFields[$index];
-            
-            if ($request->hasFile($reqField)) {
-                // Delete old
-                if ($absensi->$field && Storage::disk('public')->exists($absensi->$field)) {
-                    Storage::disk('public')->delete($absensi->$field);
-                }
-                // Store new
-                $newPaths[$field] = $request->file($reqField)->store('absensi_foto', 'public');
-            } else {
-                $newPaths[$field] = $absensi->$field;
+    {
+        try {
+            // ✅ VALIDASI ID
+            if (!is_numeric($id) || $id <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ID tidak valid.'
+                ], 400);
             }
-        }
 
-        $lokasiPulang = $request->lat . ',' . $request->lng;
-        $baseDate = $absensi->check_in_at ? Carbon::parse($absensi->check_in_at)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
-        $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
-        $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
-        $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+            $request->validate([
+                'foto'        => 'required|image|max:2048',
+                'foto_2'      => 'nullable|image|max:2048',
+                'foto_3'      => 'nullable|image|max:2048',
+                'foto_4'      => 'nullable|image|max:2048',
+                'foto_5'      => 'nullable|image|max:2048',
+                'foto_6'      => 'nullable|image|max:2048',
+                'lat'         => 'required|numeric',
+                'lng'         => 'required|numeric',
+                'jam_mulai'   => 'required|date_format:H:i',
+                'jam_selesai' => 'required|date_format:H:i',
+                'istirahat'   => 'required|boolean',
+                'keterangan'  => 'required|string|max:500',
+                'keterangan_goals' => 'nullable|string|max:2000',
+                'is_weekend'  => 'nullable|boolean',
+                'is_mocked'   => 'nullable|boolean',
+            ]);
 
-        $employment = strtolower($absensi->user->work_location ?? 'office');
-        $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
-        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
-        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+            $jamMulai = Carbon::createFromFormat('H:i', $request->jam_mulai);
+            $jamSelesai = Carbon::createFromFormat('H:i', $request->jam_selesai);
+            
+            if ($jamSelesai->lte($jamMulai)) {
+                return response()->json(['success' => false, 'message' => 'Jam selesai harus lebih dari jam mulai.'], 422);
+            }
 
-        $overtimeData = Absensi::calculateOvertimeFromInput($lemburStart, $lemburEnd, $request->istirahat, $isWeekendOvertime);
-        
-        $kategori = $absensi->user->kategori_absensi;
-        $salaryData = Absensi::calculateSalary(
-            $absensi->late_minutes ?? 0,
-            $absensi->status,
-            'lembur',
-            $isWeekendOvertime,
-            $absensi->check_in_at,
-            $absensi->check_out_at ?? now(),
-            $kategori
-        );
+            // ✅ FIX SECURITY #2: Batas Maksimal Lembur 5 Jam
+            if ($jamMulai->diffInHours($jamSelesai) > 5) {
+                return response()->json(['success' => false, 'message' => 'Durasi lembur tidak wajar (Maksimal 5 jam sehari). Harap hubungi HR untuk lembur khusus.'], 422);
+            }
 
-        $absensi->update(array_merge($newPaths, [
+            $absensi = Absensi::find($id);
+            if (!$absensi || $absensi->user_id != Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Record tidak ditemukan atau akses ditolak.'], 404);
+            }
+
+            if (!in_array($absensi->status_approval, ['rejected', 'ditolak'])) {
+                return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+            }
+
+            // --- 1. HANDLE PHOTOS (CLEAN WAY) ---
+            $photoFields = ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'];
+            $requestFields = ['foto', 'foto_2', 'foto_3', 'foto_4', 'foto_5', 'foto_6'];
+            $newPaths = [];
+
+            foreach ($photoFields as $index => $field) {
+                $reqField = $requestFields[$index];
+                
+                if ($request->hasFile($reqField)) {
+                    // Delete old
+                    if ($absensi->$field && Storage::disk('public')->exists($absensi->$field)) {
+                        Storage::disk('public')->delete($absensi->$field);
+                    }
+                    // Store new
+                    $newPaths[$field] = $request->file($reqField)->store('absensi_foto', 'public');
+                } else {
+                    $newPaths[$field] = $absensi->$field;
+                }
+            }
+
+            $lokasiPulang = $request->lat . ',' . $request->lng;
+            $baseDate = $absensi->check_in_at ? Carbon::parse($absensi->check_in_at)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
+            $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
+            $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
+            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+
+            $employment = strtolower($absensi->user->work_location ?? 'office');
+            $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
+            $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+            $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+            $overtimeData = Absensi::calculateOvertimeFromInput($lemburStart, $lemburEnd, $request->istirahat, $isWeekendOvertime);
+            
+            $kategori = $absensi->user->kategori_absensi;
+            $salaryData = Absensi::calculateSalary(
+                $absensi->late_minutes ?? 0,
+                $absensi->status,
+                'lembur',
+                $isWeekendOvertime,
+                $absensi->check_in_at,
+                $absensi->check_out_at ?? now(),
+                $kategori
+            );
+
+            $absensi->update(array_merge($newPaths, [
             'lokasi_pulang'         => $lokasiPulang,
             'lembur_start'          => $lemburStart,
             'lembur_end'            => $lemburEnd,
