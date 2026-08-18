@@ -168,6 +168,11 @@ class Absensi extends Model
             }
             
             $workedMinutes = self::calculateWorkedMinutes($effectiveCheckIn, $checkOut);
+            
+            // 🔥 LOGIC AUTO-FLAG PENGINGAT ADMIN UNTUK ORGANIK
+            if ($kategori === 'organik' && $this->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN') {
+                $workedMinutes = 0; // Set ke 0 agar gaji tidak terhitung otomatis
+            }
         } else {
             // Kalo belum checkout, assume 8 jam kerja penuh
             $workedMinutes = 480; // 8 jam

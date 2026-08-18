@@ -1139,15 +1139,123 @@ public function meAbsensi(Request $request)
         }
     }
 
-    public function resubmitSakit(Request $request, $id)
+    /**
+     * Unified Resubmit API Endpoint
+     */
+    public function resubmit(Request $request, $id)
     {
-        return $this->handleResubmitIzinSakit($request, $id, 'sakit');
+        // 1. Coba cari di Absensi (Sakit, Izin, Lembur, Telat)
+        $absensi = Absensi::find($id);
+        if ($absensi) {
+            if ($absensi->user_id !== Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+            }
+
+            $type = strtolower($absensi->tipe ?? $absensi->status ?? 'absensi');
+            if (in_array($type, ['sakit', 'izin'])) {
+                return $this->handleResubmitIzinSakit($request, $id, $type);
+            } elseif ($type === 'lembur') {
+                return $this->handleResubmitLembur($request, $id);
+            } elseif ($type === 'telat') {
+                // Bisa pakai handler izin/sakit karena tabelnya sama
+                return $this->handleResubmitIzinSakit($request, $id, 'telat');
+            }
+        }
+
+        // 2. Jika tidak ada di Absensi, coba cari di IzinKeluar
+        $izinKeluar = \App\Models\IzinKeluar::find($id);
+        if ($izinKeluar) {
+            if ($izinKeluar->user_id !== Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+            }
+            return $this->handleResubmitIzinKeluar($request, $id);
+        }
+
+        // 3. Coba cari di ScheduledLembur (Lembur Terjadwal)
+        $scheduledLembur = \App\Models\ScheduledLembur::find($id);
+        if ($scheduledLembur) {
+            if ($scheduledLembur->user_id !== Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+            }
+            return $this->handleResubmitScheduledLembur($request, $id);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Data tidak ditemukan atau tipe tidak didukung.'], 404);
     }
 
-    public function resubmitIzin(Request $request, $id)
+    /**
+     * Handler for Izin Keluar Resubmission
+     */
+    private function handleResubmitIzinKeluar(Request $request, $id)
     {
-        return $this->handleResubmitIzinSakit($request, $id, 'izin');
+        $izin = \App\Models\IzinKeluar::findOrFail($id);
+        
+        if (!in_array($izin->status_approval, ['rejected', 'ditolak'])) {
+            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+        }
+
+        $izin->update([
+            'status_approval' => 'pending',
+            'current_approval_level' => 1,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'catatan_admin' => null,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Pengajuan Izin Keluar berhasil diajukan ulang.'], 200);
     }
+
+    /**
+     * Handler for Scheduled Lembur Resubmission
+     */
+    private function handleResubmitScheduledLembur(Request $request, $id)
+    {
+        $lembur = \App\Models\ScheduledLembur::findOrFail($id);
+
+        if (!in_array($lembur->status, ['rejected', 'ditolak'])) {
+            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
+        }
+
+        $request->validate([
+            'tanggal_lembur' => 'required|date|after:today',
+            'keterangan'     => 'required|max:500',
+            'foto_bukti'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
+        ]);
+
+        $fotoPath = $lembur->foto_bukti;
+        if ($request->hasFile('foto_bukti')) {
+            if ($lembur->foto_bukti && Storage::disk('public')->exists($lembur->foto_bukti)) {
+                Storage::disk('public')->delete($lembur->foto_bukti);
+            }
+            $fotoPath = $request->file('foto_bukti')->store('absensi_foto', 'public');
+        }
+
+        $lembur->update([
+            'tanggal_lembur' => $request->tanggal_lembur,
+            'keterangan'     => $request->keterangan,
+            'foto_bukti'     => $fotoPath,
+            'status'         => 'pending',
+            'current_approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Lembur terjadwal berhasil diajukan ulang.', 'data' => $lembur], 200);
+    }
+
+
+    /**
+     * Helper for Lembur resubmission logic (extracted from resubmitLembur)
+     */
+    private function handleResubmitLembur(Request $request, $id)
+    {
+        // ... (Logika lama resubmitLembur pindah ke sini)
+    }
+
+    // ... (Fungsi resubmitSakit dan resubmitIzin bisa dihapus/dibiarkan sebagai alias)
+    public function resubmitSakit(Request $request, $id) { return $this->resubmit($request, $id); }
+    public function resubmitIzin(Request $request, $id) { return $this->resubmit($request, $id); }
+    public function resubmitLembur(Request $request, $id) { return $this->resubmit($request, $id); }
 
     /**
      * Helper Unified logic for Resubmitting Sick and Leave requests

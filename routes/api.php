@@ -95,6 +95,7 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
             Route::post('/absensi/sakit/{id}/resubmit', [AbsensiController::class, 'resubmitSakit']);
             Route::post('/absensi/izin/{id}/resubmit', [AbsensiController::class, 'resubmitIzin']);
             Route::post('/absensi/lembur/{id}/resubmit', [AbsensiController::class, 'resubmitLembur']);
+            Route::post('/absensi/resubmit/{id}', [AbsensiController::class, 'resubmit']);
         });
         
         // ========== ABSENSI - GET ENDPOINTS ==========
