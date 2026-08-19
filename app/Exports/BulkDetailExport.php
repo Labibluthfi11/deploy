@@ -29,7 +29,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
 
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
-            ->where('status_approval', 'approved')
+            ->whereIn('status_approval', ['approved', 'rejected', 'pending'])
             ->orderBy('check_in_at', 'asc')
             ->get();
 
@@ -67,7 +67,6 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
         $grandTotalGajiPokok = 0;
         $grandTotalGajiLembur = 0;
         $grandTotalPotongan = 0;
-        $grandTotalGajiBersihRow = 0;
         $grandTotalGajiBersih = 0;
 
         foreach ($users as $user) {
@@ -81,11 +80,13 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             });
 
             // ✅ PASTIKAN SEMUA KOMPONEN DIBULETIN DI AWAL
-            $pokokAsli = (float) $latestDailyRecords->sum('base_salary');
-            $bonusPlus = (float) $latestDailyRecords->where('adjustment_salary', '>', 0)->sum('adjustment_salary');
+            // Gaji pokok hitung dari record yang approved (hadir/lembur)
+            $pokokAsli = (float) $latestDailyRecords->where('status_approval', 'approved')->sum('base_salary');
+            $bonusPlus = (float) $latestDailyRecords->where('status_approval', 'approved')->where('adjustment_salary', '>', 0)->sum('adjustment_salary');
             $pokokFinal = round($pokokAsli + $bonusPlus);
 
-            $lemburFinal = $latestDailyRecords->map(fn($a) => round($a->overtime_pay ?? 0))->sum();
+            // 🔥 Gaji lembur HANYA hitung yang approved
+            $lemburFinal = $latestDailyRecords->where('status_approval', 'approved')->map(fn($a) => round($a->overtime_pay ?? 0))->sum();
             
             $dendaTelatIndividual = $latestDailyRecords->map(fn($a) => round($a->late_penalty ?? 0))->sum();
             $adjMinus = round(abs((float) $latestDailyRecords->where('adjustment_salary', '<', 0)->sum('adjustment_salary')));
