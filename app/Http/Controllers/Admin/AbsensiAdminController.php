@@ -548,45 +548,47 @@ class AbsensiAdminController extends Controller
         $izinKeluarMonthEnd = Carbon::create($year, $month, 1)->endOfMonth();
 
         foreach ($users as $user) {
-            // 🔥 QUERY BIASA
+            // 🔥 QUERY DENGAN PENDING
             $absensiUser = Absensi::where('user_id', $user->id)
-    ->whereBetween('check_in_at', [$startDate, $endDate])
-    ->whereIn('status_approval', ['approved', 'rejected']) // ✅
-    ->get();
+                ->whereBetween('check_in_at', [$startDate, $endDate])
+                ->whereIn('status_approval', ['approved', 'rejected', 'pending'])
+                ->get();
 
-    $absensiUser = $absensiUser->map(function($item) {
-        return Absensi::find($item->id);
-    });
+            // 🔥 HITUNG GAJI HANYA YANG APPROVED
+            $totalGaji = $absensiUser->where('status_approval', 'approved')->sum('final_salary') ?? 0;
+            $totalGajiLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay') ?? 0;
+            $totalMenitLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes');
+            
+            // 🔥 TOTAL POTONGAN TETAP HITUNG SEMUA (KARNA SUDAH FINAL)
+            $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
+            
+            $kategori = $this->detectKategori($user);
 
-    $totalGaji = $absensiUser->sum('final_salary') ?? 0;
-    $totalGajiLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay') ?? 0;
-    $totalMenitLembur = $absensiUser->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes');
-    $totalPotongan = $absensiUser->sum('late_penalty') ?? 0;
-    $kategori = $this->detectKategori($user);
+            $izinKeluarUser = \App\Models\IzinKeluar::where('user_id', $user->id)
+                ->whereBetween('waktu_keluar', [$izinKeluarMonthStart, $izinKeluarMonthEnd])
+                ->get();
 
-        $izinKeluarUser = \App\Models\IzinKeluar::where('user_id', $user->id)
-            ->whereBetween('waktu_keluar', [$izinKeluarMonthStart, $izinKeluarMonthEnd])
-            ->get();
-
-    $recapData[] = [
-        'user' => $user,
-        'kategori' => $kategori,
-        'total_hadir' => $absensiUser->where('status', 'hadir')->count(),
-        'total_izin' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count(),
-            'total_cuti_tahunan' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->where('submission_type', 'cuti_tahunan')->count(),
-            'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),
-        'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
-        'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
-        'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
-        'total_menit_lembur' => $totalMenitLembur,
-        'total_gaji_lembur' => $totalGajiLembur,
-        'total_menit_telat' => $absensiUser->sum('late_minutes'),
-        'total_gaji' => $totalGaji,
-        'total_potongan' => $totalPotongan,
-        'total_izin_keluar' => $izinKeluarUser->count(),
-        'total_izin_keluar_ditolak' => $izinKeluarUser->where('status_approval', 'rejected')->count(),
-        'total_absensi' => $absensiUser->count(),
-    ];
+            $recapData[] = [
+                'user' => $user,
+                'kategori' => $kategori,
+                'total_hadir' => $absensiUser->where('status', 'hadir')->where('status_approval', 'approved')->count(),
+                'total_izin' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->count(),
+                'total_cuti_tahunan' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->where('submission_type', 'cuti_tahunan')->count(),
+                'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),
+                'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
+                'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+                'total_lembur_pending' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'pending')->count(),
+                'total_lembur_ditolak' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'rejected')->count(),
+                'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+                'total_menit_lembur' => $totalMenitLembur,
+                'total_gaji_lembur' => $totalGajiLembur,
+                'total_menit_telat' => $absensiUser->sum('late_minutes'),
+                'total_gaji' => $totalGaji,
+                'total_potongan' => $totalPotongan,
+                'total_izin_keluar' => $izinKeluarUser->count(),
+                'total_izin_keluar_ditolak' => $izinKeluarUser->where('status_approval', 'rejected')->count(),
+                'total_absensi' => $absensiUser->count(),
+            ];
         }
 
         $filenameSuffix = $range === 'weekly' && $week

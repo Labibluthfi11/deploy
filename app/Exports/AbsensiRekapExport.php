@@ -55,6 +55,8 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
                 'izin' => $recap['total_izin'],
                 'sakit' => $recap['total_sakit'],
                 'lembur' => $recap['total_lembur'],
+                'lembur_pending' => $recap['total_lembur_pending'],
+                'lembur_ditolak' => $recap['total_lembur_ditolak'],
                 'kolom_telat_atau_kurang' => ($kategori === 'organik') ? $recap['total_kurang_8_jam'] : $recap['total_telat'],
                 'gaji_pokok' => 'Rp ' . number_format($recap['total_gaji_pokok'] ?? 0, 0, ',', '.'), // Kolom 1
                 'gaji_lembur' => 'Rp ' . number_format($recap['total_gaji_lembur'] ?? 0, 0, ',', '.'), // Kolom 2
@@ -79,7 +81,9 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'Hadir',
             'Izin',
             'Sakit',
-            'Lembur',
+            'Lembur (App)',
+            'Lembur (Pend)',
+            'Lembur (Rej)',
             ($this->type === 'organik') ? 'Kurang 8 Jam (x)' : 'Telat (x)',
             'Gaji Pokok (Inc. Bonus)',
             'Gaji Lembur',
@@ -120,7 +124,7 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             ],
         ]);
 
-        $sheet->getStyle('A3:P3')->applyFromArray([
+        $sheet->getStyle('A3:R3')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
             'alignment' => [
@@ -133,20 +137,20 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
         ]);
 
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A4:P{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A4:R{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
 
-        $sheet->getStyle("F4:J{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("P4:P{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("F4:L{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("R4:R{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         // Highlight TOTAL DITERIMA biar gampang liatnya
-        $sheet->getStyle("O4:O{$lastRow}")->applyFromArray([
+        $sheet->getStyle("Q4:Q{$lastRow}")->applyFromArray([
             'font' => ['bold' => true],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2EFDA']],
         ]);
 
-        $sheet->getStyle("K4:O{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("M4:Q{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
         return [];
     }
@@ -162,14 +166,16 @@ class AbsensiRekapExport implements FromCollection, WithHeadings, WithStyles, Wi
             'F' => 8,   // Hadir
             'G' => 8,   // Izin
             'H' => 8,   // Sakit
-            'I' => 10,  // Lembur
-            'J' => 10,  // Telat
-            'K' => 22,  // Gaji Pokok
-            'L' => 18,  // Gaji Lembur
-            'M' => 18,  // Total Potongan
-            'N' => 45,  // Keterangan
-            'O' => 22,  // Total Diterima
-            'P' => 15,  // Total Absensi
+            'I' => 10,  // Lembur (App)
+            'J' => 10,  // Lembur (Pend)
+            'K' => 10,  // Lembur (Rej)
+            'L' => 10,  // Telat
+            'M' => 22,  // Gaji Pokok
+            'N' => 18,  // Gaji Lembur
+            'O' => 18,  // Total Potongan
+            'P' => 45,  // Keterangan
+            'Q' => 22,  // Total Diterima
+            'R' => 15,  // Total Absensi
         ];
     }
 
