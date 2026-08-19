@@ -114,7 +114,6 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             'grandTotalGajiPokok' => $grandTotalGajiPokok,
             'grandTotalGajiLembur' => $grandTotalGajiLembur,
             'grandTotalPotongan' => $grandTotalPotongan,
-            'grandTotalGajiBersihRow' => $grandTotalGajiBersihRow,
             'grandTotalGajiBersih' => $grandTotalGajiBersih,
             'categoryLabel' => $categoryLabel,
             'isOnlyOrganik' => $isOnlyOrganik,
