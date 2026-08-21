@@ -35,6 +35,22 @@ class KoreksiAbsensiController extends Controller
         return response()->json(['message' => 'Berhasil mengajukan koreksi', 'data' => $correction], 201);
     }
 
+    // Upload bukti foto
+    public function uploadBukti(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $path = $request->file('file')->store('koreksi-bukti', 'public');
+
+        return response()->json([
+            'message' => 'Foto berhasil diupload',
+            'path' => $path,
+            'url' => asset('storage/' . $path)
+        ], 200);
+    }
+
     // Logic Approve (Lupa Absen Full Day)
     public function approve(Request $request, $id)
     {
