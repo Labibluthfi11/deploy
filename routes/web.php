@@ -70,6 +70,13 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         Route::get('/', [\App\Http\Controllers\Admin\IzinKeluarAdminController::class, 'index'])->name('admin.izin-keluar.index');
     });
 
+    // KOREKSI ABSENSI
+    Route::prefix('koreksi-absensi')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'index'])->name('admin.koreksi-absensi.index');
+        Route::post('/{id}/approve', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'approve'])->name('admin.koreksi-absensi.approve');
+        Route::post('/{id}/reject', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'reject'])->name('admin.koreksi-absensi.reject');
+    });
+
     // APPROVAL ABSENSI
     Route::prefix('approval')->group(function () {
         Route::get('/supervisor', [ApprovalController::class, 'supervisor'])->name('admin.absensi.approval.supervisor');

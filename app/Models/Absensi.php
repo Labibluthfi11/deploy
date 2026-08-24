@@ -29,6 +29,7 @@ class Absensi extends Model
         'hari_unpaid',
         'file_bukti',
         'keterangan_izin_sakit',
+        'keterangan_admin',
         'check_in_at',
         'check_out_at',
         'end_date',

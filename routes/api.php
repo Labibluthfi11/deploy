@@ -110,6 +110,7 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
         Route::middleware('admin')->group(function () {
             Route::get('/admin/koreksi-absensi', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'index']);
             Route::post('/admin/koreksi-absensi/{id}/approve', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'approve']);
+            Route::post('/admin/koreksi-absensi/{id}/reject', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'reject']);
         });
 
         // ========== NOTIFICATIONS ==========
