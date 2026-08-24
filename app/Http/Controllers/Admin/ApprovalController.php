@@ -40,6 +40,7 @@ class ApprovalController extends Controller
     {
         $search = $request->input('search');
 
+        // Query: Fetch all submissions (standard absensi AND koreksi)
         $query = Absensi::with('user')
             ->where('current_approval_level', $level);
 
@@ -386,11 +387,57 @@ class ApprovalController extends Controller
             $workflowStatus[$workflowKey] = 'approved';
 
             if ($currentLevel >= $maxLevel) {
-                // ✅ FINAL APPROVAL (HRGA)
+                // FINAL APPROVAL (HRGA)
 
-                // 🔥 FIX: CEK APAKAH INI IZIN/SAKIT (BUKAN LEMBUR/HADIR)
-                $isLeaveType = in_array(strtolower($absensi->status ?? ''), ['izin', 'sakit']) ||
-                               in_array(strtolower($absensi->tipe ?? ''), ['izin', 'sakit']);
+                    // 🆕 INTEGRASI KOREKSI ABSENSI
+                    if ($absensi->tipe === 'koreksi') {
+                        DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
+                            $updateData = [
+                                'status' => 'hadir',
+                                'tipe' => 'normal',
+                                'status_approval' => 'approved',
+                                'approved_at' => now(),
+                                'workflow_status' => $workflowStatus,
+                                'rejected_by' => null,
+                                'rejected_at' => null,
+                            ];
+
+                            if ($absensi->user->employment_type === 'organik') {
+                                $updateData['base_salary'] = 0;
+                                $updateData['final_salary'] = 0;
+                            } else {
+                                $salaryData = \App\Models\Absensi::calculateSalary(
+                                    0,
+                                    'hadir',
+                                    'normal',
+                                    \App\Models\Absensi::isWeekend($absensi->check_in_at),
+                                    $absensi->check_in_at,
+                                    $absensi->check_out_at,
+                                    $absensi->user->employment_type
+                                );
+                                $updateData['base_salary'] = $salaryData['base_salary'];
+                                $updateData['final_salary'] = $salaryData['final_salary'];
+                            }
+
+                            $absensi->update($updateData);
+
+                            Notification::create([
+                                'user_id' => $absensi->user_id,
+                                'title' => "Pengajuan Koreksi Disetujui ✅",
+                                'message' => "Pengajuan koreksi absen kamu telah disetujui oleh $currentApprover.",
+                                'type' => "koreksi_approved",
+                                'target_page' => '/absensi',
+                                'target_id' => $absensi->id,
+                            ]);
+
+                            \App\Models\ActivityLog::log('Approve Koreksi Final', "Koreksi ID: {$absensi->id} dari {$absensi->user->name}", "Persetujuan final oleh: {$currentApprover}");
+                        });
+                        return back()->with('success', 'Koreksi berhasil disetujui.');
+                    }
+
+                    // 🔥 FIX: CEK APAKAH INI IZIN/SAKIT (BUKAN LEMBUR/HADIR)
+                    $isLeaveType = in_array(strtolower($absensi->status ?? ''), ['izin', 'sakit']) ||
+                                   in_array(strtolower($absensi->tipe ?? ''), ['izin', 'sakit']);
 
                 Log::info('🔍 [APPROVAL] Processing final approval', [
                     'id' => $absensi->id,

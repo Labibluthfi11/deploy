@@ -102,17 +102,6 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
         Route::get('/absensi/me', [AbsensiController::class, 'meAbsensi']);
         Route::get('/absensi/detail/{id}', [AbsensiController::class, 'getDetailAbsensi']);
         
-        // ========== KOREKSI ABSENSI ==========
-        Route::post('/koreksi/upload-bukti', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'uploadBukti']);
-        Route::post('/koreksi-absensi', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'store']);
-        
-        // Admin only routes for koreksi
-        Route::middleware('admin')->group(function () {
-            Route::get('/admin/koreksi-absensi', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'index']);
-            Route::post('/admin/koreksi-absensi/{id}/approve', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'approve']);
-            Route::post('/admin/koreksi-absensi/{id}/reject', [\App\Http\Controllers\Admin\KoreksiAbsensiController::class, 'reject']);
-        });
-
         // ========== NOTIFICATIONS ==========
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])
