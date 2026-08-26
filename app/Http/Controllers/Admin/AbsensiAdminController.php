@@ -24,6 +24,56 @@ use Illuminate\Support\Facades\Auth;
 
 class AbsensiAdminController extends Controller
 {
+    public function storeLemburManual(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'tanggal' => 'required|date',
+            'lembur_start' => 'required|date_format:H:i',
+            'lembur_end' => 'required|date_format:H:i',
+            'istirahat' => 'nullable|boolean',
+            'keterangan' => 'required|string|max:500',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $tanggal = Carbon::parse($request->tanggal)->toDateString();
+        $startTime = Carbon::parse($tanggal . ' ' . $request->lembur_start);
+        $endTime = Carbon::parse($tanggal . ' ' . $request->lembur_end);
+
+        // Cari absensi di tanggal tersebut yang statusnya approved
+        $absensi = Absensi::where('user_id', $user->id)
+            ->whereDate('check_in_at', $tanggal)
+            ->where('status_approval', 'approved')
+            ->first();
+
+        if (!$absensi) {
+            return back()->with('error', 'Tidak ada data absensi approved untuk tanggal tersebut.');
+        }
+
+        // Logic Lembur: Rate 1x (fix), istirahat 30m jika dipilih
+        $hasRest = $request->boolean('istirahat');
+        $minutes = abs($endTime->diffInMinutes($startTime));
+        $finalMinutes = $hasRest ? max(0, $minutes - 30) : $minutes;
+        
+        // Asumsi HOURLY_SALARY adalah 1x rate
+        $overtimePay = ($finalMinutes / 60) * Absensi::HOURLY_SALARY;
+
+        $absensi->update([
+            'tipe' => 'lembur',
+            'lembur_start' => $startTime,
+            'lembur_end' => $endTime,
+            'lembur_rest' => $hasRest ? 1 : 0,
+            'lembur_keterangan' => $request->keterangan,
+            'overtime_minutes' => $finalMinutes,
+            'overtime_pay' => $overtimePay,
+            'final_salary' => ($absensi->final_salary ?? 0) + $overtimePay,
+        ]);
+
+        ActivityLog::log('Manual Overtime', "Admin: " . Auth::user()->name, "Input lembur manual untuk User: {$user->name} tanggal: {$tanggal}. Durasi: {$finalMinutes}m");
+
+        return back()->with('success', 'Lembur manual berhasil ditambahkan.');
+    }
+
     public function showManualEntryPage()
     {
         $users = User::whereNotIn('role', ['super_admin', 'admin', 'manager', 'supervisor', 'hrga', 'pkl'])->get();
