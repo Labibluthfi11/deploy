@@ -93,6 +93,13 @@
                     <i class="fas fa-circle text-[8px] w-4"></i>
                     <span>Freelance</span>
                 </a>
+
+                <a href="{{ route('admin.absensi.koreksi') }}"
+                   class="flex items-center gap-3 px-3 py-1.5 ml-3 text-sm font-medium rounded-md transition-all
+                   {{ request()->routeIs('admin.absensi.koreksi') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-pen-nib text-[8px] w-4"></i>
+                    <span>Input Manual</span>
+                </a>
             </div>
 
             <!-- APPROVAL SECTION -->

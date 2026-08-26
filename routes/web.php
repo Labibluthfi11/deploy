@@ -96,6 +96,9 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         
     Route::post('/absensi/manual-entry', [AbsensiAdminController::class, 'storeManual'])
         ->name('admin.absensi.store-manual');
+
+    Route::get('/absensi/koreksi', [AbsensiAdminController::class, 'showManualEntryPage'])
+        ->name('admin.absensi.koreksi');
 });
 
 require __DIR__ . '/auth.php';

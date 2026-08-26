@@ -24,6 +24,12 @@ use Illuminate\Support\Facades\Auth;
 
 class AbsensiAdminController extends Controller
 {
+    public function showManualEntryPage()
+    {
+        $users = User::whereNotIn('role', ['super_admin', 'admin', 'manager', 'supervisor', 'hrga', 'pkl'])->get();
+        return view('admin.absensi.koreksi', compact('users'));
+    }
+
     public function storeManual(Request $request)
     {
         $request->validate([
