@@ -390,7 +390,7 @@ class ApprovalController extends Controller
                 // FINAL APPROVAL (HRGA)
 
                     // 🆕 INTEGRASI KOREKSI ABSENSI
-                    if ($absensi->tipe === 'koreksi') {
+                    if ($absensi->tipe === 'koreksi lupa absen') {
                         DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
                             $updateData = [
                                 'status' => 'hadir',

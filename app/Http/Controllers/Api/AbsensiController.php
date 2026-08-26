@@ -1733,30 +1733,40 @@ public function koreksiLupaAbsen(Request $request)
     try {
         $request->validate([
             'tanggal'    => 'required|date',
-            'tipe_lupa'  => 'required|in:masuk,pulang',
-            'jam_koreksi'=> 'required|date_format:H:i',
+            'jam_masuk'  => 'nullable|date_format:H:i',
+            'jam_pulang' => 'nullable|date_format:H:i',
             'foto'       => 'required|image|max:2048',
             'keterangan' => 'required|string|max:500',
         ]);
 
+        if (!$request->jam_masuk && !$request->jam_pulang) {
+            return response()->json(['success' => false, 'message' => 'Harap isi jam masuk atau jam pulang.'], 422);
+        }
+
         $user = Auth::user();
         $tanggal = Carbon::parse($request->tanggal)->toDateString();
-        $jamKoreksi = Carbon::parse($request->tanggal . ' ' . $request->jam_koreksi);
 
         // Cek apakah sudah ada absensi di tanggal tersebut
         $absensi = Absensi::where('user_id', $user->id)
             ->whereDate('check_in_at', $tanggal)
             ->first();
 
-        // Jika belum ada record sama sekali, buat baru
+        $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
+
+        // --- LOGIKA REVISI ---
         if (!$absensi) {
+            // Skenario 1: Lupa absen total (Belum ada record sama sekali)
+            if (!$request->jam_masuk || !$request->jam_pulang) {
+                return response()->json(['success' => false, 'message' => 'Untuk koreksi hari penuh, harap isi jam masuk dan jam pulang.'], 422);
+            }
+
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
             $absensi = Absensi::create([
                 'user_id' => $user->id,
-                'check_in_at' => ($request->tipe_lupa === 'masuk') ? $jamKoreksi : $tanggal . ' 08:00:00',
-                'check_out_at' => ($request->tipe_lupa === 'pulang') ? $jamKoreksi : null,
+                'check_in_at' => Carbon::parse($tanggal . ' ' . $request->jam_masuk),
+                'check_out_at' => Carbon::parse($tanggal . ' ' . $request->jam_pulang),
                 'status' => 'hadir',
                 'tipe' => 'koreksi lupa absen',
                 'status_approval' => 'pending',
@@ -1764,47 +1774,44 @@ public function koreksiLupaAbsen(Request $request)
                 'current_approval_level' => 1,
                 'submission_type' => 'koreksi lupa absen',
                 'keterangan_izin_sakit' => $request->keterangan,
+                'file_bukti' => $fotoPath,
+                'foto_masuk' => $fotoPath,
+                'foto_pulang' => $fotoPath,
             ]);
         } else {
-            // Jika sudah ada, update record yang ada
-            if ($request->tipe_lupa === 'masuk' && !$absensi->check_in_at) {
-                $absensi->check_in_at = $jamKoreksi;
-            } elseif ($request->tipe_lupa === 'pulang' && !$absensi->check_out_at) {
-                $absensi->check_out_at = $jamKoreksi;
-            } else {
-                return response()->json(['success' => false, 'message' => 'Absensi untuk tipe tersebut pada tanggal ini sudah terisi.'], 409);
-            }
-
-            $absensi->update([
+            // Skenario 2: Sudah ada record (hanya update yang perlu)
+            $updateData = [
                 'tipe' => 'koreksi lupa absen',
                 'status_approval' => 'pending',
                 'keterangan_izin_sakit' => $request->keterangan,
                 'submission_type' => 'koreksi lupa absen',
-            ]);
-        }
+                'file_bukti' => $fotoPath,
+            ];
 
-        // Upload foto bukti
-        $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
-        
-        $updateData = ['file_bukti' => $fotoPath];
-        if ($request->tipe_lupa === 'masuk') {
-            $updateData['foto_masuk'] = $fotoPath;
-        } else {
-            $updateData['foto_pulang'] = $fotoPath;
+            if ($request->jam_masuk && !$absensi->check_in_at) {
+                $updateData['check_in_at'] = Carbon::parse($tanggal . ' ' . $request->jam_masuk);
+                $updateData['foto_masuk'] = $fotoPath;
+            }
+
+            if ($request->jam_pulang && !$absensi->check_out_at) {
+                $updateData['check_out_at'] = Carbon::parse($tanggal . ' ' . $request->jam_pulang);
+                $updateData['foto_pulang'] = $fotoPath;
+            }
+
+            $absensi->update($updateData);
         }
-        $absensi->update($updateData);
 
         Notification::create([
             'user_id' => $user->id,
             'title' => "Pengajuan Koreksi Lupa Absen",
-            'message' => "Pengajuan koreksi lupa absen ({$request->tipe_lupa}) tanggal {$tanggal} telah diajukan.",
+            'message' => "Pengajuan koreksi lupa absen tanggal {$tanggal} telah diajukan.",
             'type' => 'koreksi_submitted',
             'target_page' => '/absensi_detail',
             'target_id' => $absensi->id,
         ]);
 
         DB::commit();
-        
+
         $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
 
         return response()->json([
