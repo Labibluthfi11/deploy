@@ -1727,4 +1727,94 @@ public function pengajuanTelat(Request $request)
     }
 }
 
+public function koreksiLupaAbsen(Request $request)
+{
+    DB::beginTransaction();
+    try {
+        $request->validate([
+            'tanggal'    => 'required|date',
+            'tipe_lupa'  => 'required|in:masuk,pulang',
+            'jam_koreksi'=> 'required|date_format:H:i',
+            'foto'       => 'required|image|max:2048',
+            'keterangan' => 'required|string|max:500',
+        ]);
+
+        $user = Auth::user();
+        $tanggal = Carbon::parse($request->tanggal)->toDateString();
+        $jamKoreksi = Carbon::parse($request->tanggal . ' ' . $request->jam_koreksi);
+
+        // Cek apakah sudah ada absensi di tanggal tersebut
+        $absensi = Absensi::where('user_id', $user->id)
+            ->whereDate('check_in_at', $tanggal)
+            ->first();
+
+        // Jika belum ada record sama sekali, buat baru
+        if (!$absensi) {
+            $employment = strtolower($user->work_location ?? 'office');
+            $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+
+            $absensi = Absensi::create([
+                'user_id' => $user->id,
+                'check_in_at' => ($request->tipe_lupa === 'masuk') ? $jamKoreksi : $tanggal . ' 08:00:00',
+                'check_out_at' => ($request->tipe_lupa === 'pulang') ? $jamKoreksi : null,
+                'status' => 'hadir',
+                'tipe' => 'koreksi_lupa_absen',
+                'status_approval' => 'pending',
+                'workflow_status' => $workflow,
+                'current_approval_level' => 1,
+                'submission_type' => 'koreksi_lupa_absen',
+                'keterangan_izin_sakit' => $request->keterangan,
+            ]);
+        } else {
+            // Jika sudah ada, update record yang ada
+            if ($request->tipe_lupa === 'masuk' && !$absensi->check_in_at) {
+                $absensi->check_in_at = $jamKoreksi;
+            } elseif ($request->tipe_lupa === 'pulang' && !$absensi->check_out_at) {
+                $absensi->check_out_at = $jamKoreksi;
+            } else {
+                return response()->json(['success' => false, 'message' => 'Absensi untuk tipe tersebut pada tanggal ini sudah terisi.'], 409);
+            }
+
+            $absensi->update([
+                'tipe' => 'koreksi_lupa_absen',
+                'status_approval' => 'pending',
+                'keterangan_izin_sakit' => $request->keterangan,
+                'submission_type' => 'koreksi_lupa_absen',
+            ]);
+        }
+
+        // Upload foto bukti
+        $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
+
+        if ($request->tipe_lupa === 'masuk') {
+            $absensi->update(['foto_masuk' => $fotoPath]);
+        } else {
+            $absensi->update(['foto_pulang' => $fotoPath]);
+        }
+
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => "Pengajuan Koreksi Lupa Absen",
+            'message' => "Pengajuan koreksi lupa absen ({$request->tipe_lupa}) tanggal {$tanggal} telah diajukan.",
+            'type' => 'koreksi_submitted',
+            'target_page' => '/absensi_detail',
+            'target_id' => $absensi->id,
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan koreksi lupa absen berhasil diajukan.',
+            'data' => $absensi
+        ], 201);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }
