@@ -10,6 +10,10 @@
                     Kelola dan pantau kehadiran karyawan secara real-time
                 </p>
             </div>
+            <button type="button" onclick="openManualEntryModal()" 
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-md transition-all">
+                + Input Manual
+            </button>
         </div>
     </x-slot>
 
@@ -1429,5 +1433,55 @@
                 }
             });
         });
+    </script>
+
+    <div id="modalManualEntry" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-75" onclick="closeManualEntryModal()"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg z-[10000] p-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Input Absensi Manual</h3>
+                
+                <form action="{{ route('admin.absensi.store-manual') }}" method="POST">
+                    @csrf
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Karyawan</label>
+                            <select name="user_id" class="w-full mt-1 p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                                @foreach($users as $u)
+                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
+                            <input type="date" name="tanggal" required class="w-full mt-1 p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jam Masuk</label>
+                                <input type="time" name="jam_masuk" required class="w-full mt-1 p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jam Pulang</label>
+                                <input type="time" name="jam_pulang" required class="w-full mt-1 p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Berita Acara)</label>
+                            <textarea name="keterangan" required class="w-full mt-1 p-2 border rounded-lg dark:bg-gray-700 dark:text-white" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button type="button" onclick="closeManualEntryModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg dark:text-white">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openManualEntryModal() { document.getElementById('modalManualEntry').classList.remove('hidden'); }
+        function closeManualEntryModal() { document.getElementById('modalManualEntry').classList.add('hidden'); }
     </script>
 </x-app-layout>

@@ -84,7 +84,6 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
             // IZIN KELUAR API
             Route::post('/izin-keluar/start', [\App\Http\Controllers\Api\IzinKeluarApiController::class, 'startIzin']);
             Route::post('/izin-keluar/end', [\App\Http\Controllers\Api\IzinKeluarApiController::class, 'endIzin']);
-            Route::post('/absensi/koreksi-lupa-absen', [AbsensiController::class, 'koreksiLupaAbsen']);
         });
         
         Route::get('/absensi/scheduled-lembur', [ScheduledLemburController::class, 'index']);

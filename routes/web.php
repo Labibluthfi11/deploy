@@ -93,6 +93,9 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
     // --- ABSENSI MANAGEMENT (Adjustment Gaji) ---
     Route::post('/absensi/{absensi}/adjustment', [AbsensiAdminController::class, 'updateAdjustment'])
         ->name('admin.absensi.update-adjustment');
+        
+    Route::post('/absensi/manual-entry', [AbsensiAdminController::class, 'storeManual'])
+        ->name('admin.absensi.store-manual');
 });
 
 require __DIR__ . '/auth.php';

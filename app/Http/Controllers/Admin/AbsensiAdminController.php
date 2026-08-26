@@ -19,9 +19,59 @@ use App\Exports\BulkDetailExport;
 use App\Exports\BulkSimpleExport;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Auth;
 
 class AbsensiAdminController extends Controller
 {
+    public function storeManual(Request $request)
+    {
+        $request->validate([
+            'user_id'    => 'required|exists:users,id',
+            'tanggal'    => 'required|date',
+            'jam_masuk'  => 'required|date_format:H:i',
+            'jam_pulang' => 'required|date_format:H:i',
+            'keterangan' => 'required|string|max:500',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $tanggal = Carbon::parse($request->tanggal);
+        $checkIn = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_masuk);
+        $checkOut = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_pulang);
+
+        // Hitung Gaji
+        $isWeekend = Absensi::isWeekend($checkIn);
+        $lateMinutes = 0; // Admin yang input, asumsikan telat 0 atau bisa ditambah logic lain
+        
+        $salaryData = Absensi::calculateSalary(
+            $lateMinutes,
+            'hadir',
+            'normal',
+            $isWeekend,
+            $checkIn,
+            $checkOut,
+            $user->kategori_absensi
+        );
+
+        $absensi = Absensi::create([
+            'user_id' => $user->id,
+            'check_in_at' => $checkIn,
+            'check_out_at' => $checkOut,
+            'status' => 'hadir',
+            'tipe' => 'normal',
+            'status_approval' => 'approved',
+            'approved_at' => now(),
+            'keterangan_izin_sakit' => 'Manual Entry: ' . $request->keterangan,
+            'base_salary' => $salaryData['base_salary'],
+            'late_penalty' => $salaryData['late_penalty'],
+            'final_salary' => $salaryData['final_salary'],
+            'is_mocked' => false,
+        ]);
+
+        ActivityLog::log('Manual Entry', "Admin: " . Auth::user()->name, "Input manual untuk User: {$user->name} tanggal: {$tanggal->toDateString()}");
+
+        return back()->with('success', 'Absensi manual berhasil ditambahkan.');
+    }
     public function index(Request $request)
     {
         return $this->indexByEmploymentType($request, null);
