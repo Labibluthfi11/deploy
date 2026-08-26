@@ -1758,11 +1758,11 @@ public function koreksiLupaAbsen(Request $request)
                 'check_in_at' => ($request->tipe_lupa === 'masuk') ? $jamKoreksi : $tanggal . ' 08:00:00',
                 'check_out_at' => ($request->tipe_lupa === 'pulang') ? $jamKoreksi : null,
                 'status' => 'hadir',
-                'tipe' => 'koreksi_lupa_absen',
+                'tipe' => 'koreksi lupa absen',
                 'status_approval' => 'pending',
                 'workflow_status' => $workflow,
                 'current_approval_level' => 1,
-                'submission_type' => 'koreksi_lupa_absen',
+                'submission_type' => 'koreksi lupa absen',
                 'keterangan_izin_sakit' => $request->keterangan,
             ]);
         } else {
@@ -1776,21 +1776,23 @@ public function koreksiLupaAbsen(Request $request)
             }
 
             $absensi->update([
-                'tipe' => 'koreksi_lupa_absen',
+                'tipe' => 'koreksi lupa absen',
                 'status_approval' => 'pending',
                 'keterangan_izin_sakit' => $request->keterangan,
-                'submission_type' => 'koreksi_lupa_absen',
+                'submission_type' => 'koreksi lupa absen',
             ]);
         }
 
         // Upload foto bukti
         $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
-
+        
+        $updateData = ['file_bukti' => $fotoPath];
         if ($request->tipe_lupa === 'masuk') {
-            $absensi->update(['foto_masuk' => $fotoPath]);
+            $updateData['foto_masuk'] = $fotoPath;
         } else {
-            $absensi->update(['foto_pulang' => $fotoPath]);
+            $updateData['foto_pulang'] = $fotoPath;
         }
+        $absensi->update($updateData);
 
         Notification::create([
             'user_id' => $user->id,
@@ -1802,6 +1804,8 @@ public function koreksiLupaAbsen(Request $request)
         ]);
 
         DB::commit();
+        
+        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
 
         return response()->json([
             'success' => true,
