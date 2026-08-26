@@ -211,7 +211,7 @@
 
                         {{-- BUKTI --}}
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat')
+                            @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat' || $submission->tipe === 'koreksi lupa absen')
                                 @if ($submission->file_bukti)
                                     <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank"
                                        class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
