@@ -43,6 +43,7 @@ class AbsensiResource extends JsonResource
             // Bukti & Lokasi
             'foto_masuk_url' => $this->foto_masuk ? url('storage/' . $this->foto_masuk) : null,
             'foto_keluar_url' => $this->foto_pulang ? url('storage/' . $this->foto_pulang) : null,
+            'file_bukti_url' => $this->file_bukti ? url('storage/' . $this->file_bukti) : null,
 
             'lokasi_masuk' => [
                 'lat' => explode(',', $this->lokasi_masuk)[0] ?? null,
