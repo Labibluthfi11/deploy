@@ -145,19 +145,18 @@ class AbsensiAdminController extends Controller
         }
     }
 
+    public function storeManual(Request $request)
+    {
+        $request->validate([
+            'user_id'    => 'required|exists:users,id',
+            'tanggal'    => 'required|date',
+            'jam_masuk'  => 'required|date_format:H:i',
+            'jam_pulang' => 'required|date_format:H:i',
+            'foto_masuk' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'foto_pulang' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'keterangan' => 'required|string|max:500',
+        ]);
 
-        $user = User::findOrFail($request->user_id);
-        $tanggal = Carbon::parse($request->tanggal);
-        $checkIn = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_masuk);
-        $checkOut = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_pulang);
-
-        // Hitung Gaji
-        $isWeekend = Absensi::isWeekend($checkIn);
-        $lateMinutes = 0; // Admin yang input, asumsikan telat 0 atau bisa ditambah logic lain
-        
-        $salaryData = Absensi::calculateSalary(
-            $lateMinutes,
-            'hadir',
             'normal',
             $isWeekend,
             $checkIn,
