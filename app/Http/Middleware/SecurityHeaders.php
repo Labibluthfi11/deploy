@@ -15,8 +15,8 @@ class SecurityHeaders
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Ambil nonce yang sudah digenerate oleh Vite
-        $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce();
+        // 1. Generate nonce
+        $cspNonce = bin2hex(random_bytes(16));
         
         // Simpan ke config agar bisa diakses di Blade
         config(['app.csp_nonce' => $cspNonce]);

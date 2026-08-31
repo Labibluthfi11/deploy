@@ -157,11 +157,14 @@ class AbsensiAdminController extends Controller
             'keterangan' => 'required|string|max:500',
         ]);
 
+        $salaryData = Absensi::calculateSalary(
+            $lateMinutes,
+            'hadir',
             'normal',
             $isWeekend,
             $checkIn,
             $checkOut,
-            $user->kategori_absensi
+            $user->getKategoriAbsensiAttribute()
         );
 
         $createData = [
