@@ -44,7 +44,7 @@ class SecurityHeaders
         $csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-eval' 'nonce-$cspNonce' cdnjs.cloudflare.com cdn.jsdelivr.net",
-            "style-src 'self' 'unsafe-inline' 'nonce-$cspNonce' fonts.googleapis.com cdnjs.cloudflare.com cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com cdn.jsdelivr.net",
             "img-src 'self' data: cdnjs.cloudflare.com i.pravatar.cc",
             "font-src 'self' data: fonts.gstatic.com cdnjs.cloudflare.com",
             "connect-src 'self' https://cdn.jsdelivr.net",
