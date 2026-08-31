@@ -23,6 +23,12 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
+        // 1. Inisialisasi Nonce secara konsisten
+        $this->app->singleton('csp_nonce', fn () => bin2hex(random_bytes(16)));
+        
+        // 2. Register ke Vite
+        \Illuminate\Support\Facades\Vite::useCspNonce(fn () => app('csp_nonce'));
+
         // Define Rate Limiter untuk API secara umum
         \Illuminate\Support\Facades\RateLimiter::for('api', function (\Illuminate\Http\Request $request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
