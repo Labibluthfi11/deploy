@@ -950,8 +950,12 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            $absensi->update([
-                'check_out_at'          => $absensi->check_out_at ?? now(),
+            // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
+            $childLembur = Absensi::create([
+                'user_id'               => $user->id,
+                'parent_id'             => $absensi->id,
+                'check_in_at'           => $lemburStart,
+                'check_out_at'          => $lemburEnd,
                 'foto_pulang'           => $fotoPath,
                 'foto_pulang_2'         => $fotoPath2,
                 'foto_pulang_3'         => $fotoPath3,
@@ -970,30 +974,22 @@ public function meAbsensi(Request $request)
                 'keterangan_goals'      => $request->keterangan_goals,
                 'overtime_minutes'      => $overtimeData['minutes'],
                 'overtime_pay'          => $overtimeData['pay'],
-                'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
-                'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
-                'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
-                'is_weekend_overtime'   => $isWeekendOvertime, // 🆕 Simpan flag weekend
+                'is_weekend_overtime'   => $isWeekendOvertime,
                 'is_mocked'             => $request->boolean('is_mocked'),
             ]);
 
-            $absensi->load('user');
-            $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
-            if ($absensi->foto_pulang_2) $absensi->foto_pulang_2_url = Storage::url($absensi->foto_pulang_2);
-            if ($absensi->foto_pulang_3) $absensi->foto_pulang_3_url = Storage::url($absensi->foto_pulang_3);
-            if ($absensi->foto_pulang_4) $absensi->foto_pulang_4_url = Storage::url($absensi->foto_pulang_4);
-            if ($absensi->foto_pulang_5) $absensi->foto_pulang_5_url = Storage::url($absensi->foto_pulang_5);
-            if ($absensi->foto_pulang_6) $absensi->foto_pulang_6_url = Storage::url($absensi->foto_pulang_6);
+            $childLembur->load('user');
+            $childLembur->foto_pulang_url = Storage::url($childLembur->foto_pulang);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Absensi lembur berhasil diajukan' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
-                'data' => $absensi,
+                'message' => 'Absensi lembur berhasil diajukan sebagai record baru.' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
+                'data' => $childLembur,
                 'overtime_info' => [
                     'minutes' => $overtimeData['minutes'],
                     'pay' => 'Rp ' . number_format($overtimeData['pay'], 0, ',', '.'),
                     'formatted_duration' => floor($overtimeData['minutes'] / 60) . ' jam ' . ($overtimeData['minutes'] % 60) . ' menit',
-                    'is_weekend' => $isWeekendOvertime // 🆕 Info ke client
+                    'is_weekend' => $isWeekendOvertime
                 ]
             ], 201);
 
@@ -1095,13 +1091,17 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            $absensi->update([
-                'check_out_at'          => $absensi->check_out_at ?? now(),
-                'foto_pulang'           => $fotoBukti ?? $absensi->foto_pulang,
-                'foto_pulang_2'         => $fotoPath2 ?? $absensi->foto_pulang_2,
-                'foto_pulang_3'         => $fotoPath3 ?? $absensi->foto_pulang_3,
-                'foto_pulang_4'         => $fotoPath4 ?? $absensi->foto_pulang_4,
-                'foto_pulang_5'         => $fotoPath5 ?? $absensi->foto_pulang_5,
+            // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
+            $childLembur = Absensi::create([
+                'user_id'               => $user->id,
+                'parent_id'             => $absensi->id,
+                'check_in_at'           => $lemburStart,
+                'check_out_at'          => $lemburEnd,
+                'foto_pulang'           => $fotoBukti ?? null,
+                'foto_pulang_2'         => $fotoPath2,
+                'foto_pulang_3'         => $fotoPath3,
+                'foto_pulang_4'         => $fotoPath4,
+                'foto_pulang_5'         => $fotoPath5,
                 'tipe'                  => 'lembur',
                 'status_approval'       => 'pending',
                 'workflow_status'       => $workflow,
@@ -1113,19 +1113,16 @@ public function meAbsensi(Request $request)
                 'keterangan_goals'      => $request->keterangan_goals,
                 'overtime_minutes'      => $overtimeData['minutes'],
                 'overtime_pay'          => $overtimeData['pay'],
-                'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
-                'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
-                'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
                 'is_weekend_overtime'   => $isWeekendOvertime,
                 'is_mocked'             => $request->boolean('is_mocked'),
             ]);
 
-            $absensi->load('user');
+            $childLembur->load('user');
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pengajuan lembur berhasil' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
-                'data' => $absensi,
+                'message' => 'Pengajuan lembur berhasil diajukan sebagai record baru.' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
+                'data' => $childLembur,
                 'overtime_info' => [
                     'minutes' => $overtimeData['minutes'],
                     'pay' => 'Rp ' . number_format($overtimeData['pay'], 0, ',', '.'),
@@ -1675,17 +1672,19 @@ public function pengajuanTelat(Request $request)
             ];
         }
 
-        // ✅ UPDATE record absensi yang ADA (bukan bikin baru!)
-        $absensi->update([
-            'tipe'                  => 'telat',
+        // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK TELAT
+        $childTelat = Absensi::create([
+            'user_id'               => $user->id,
+            'parent_id'             => $absensi->id,
+            'check_in_at'           => $absensi->check_in_at,
+            'status'                => 'hadir', // Status asli tetap hadir
+            'tipe'                  => 'telat', // Tipe pengajuan telat
             'status_approval'       => 'pending',
             'file_bukti'            => $fileBuktiPath,
             'keterangan_izin_sakit' => $request->keterangan,
             'workflow_status'       => $workflow,
             'current_approval_level'=> 1,
-            'rejected_by'           => null,
-            'rejected_at'           => null,
-            'catatan_admin'         => null,
+            'late_minutes'          => $lateMinutes,
         ]);
 
         // Notifikasi
@@ -1695,18 +1694,18 @@ public function pengajuanTelat(Request $request)
             'message'     => "Pengajuan keterangan telat ({$lateMinutes} menit) telah diajukan dan menunggu approval.",
             'type'        => 'telat_submitted',
             'target_page' => '/telat_detail',
-            'target_id'   => $absensi->id,
+            'target_id'   => $childTelat->id,
         ]);
 
         DB::commit();
 
-        $absensi->load('user');
-        $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
+        $childTelat->load('user');
+        $childTelat->file_bukti_url = Storage::url($childTelat->file_bukti);
 
         return response()->json([
             'success'      => true,
             'message'      => "Pengajuan keterangan telat ({$lateMinutes} menit) berhasil diajukan.",
-            'data'         => $absensi,
+            'data'         => $childTelat,
             'late_minutes' => $lateMinutes,
         ], 200);
 
