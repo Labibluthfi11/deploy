@@ -157,6 +157,15 @@ class AbsensiAdminController extends Controller
             'keterangan' => 'required|string|max:500',
         ]);
 
+        $user = User::findOrFail($request->user_id);
+        $tanggal = Carbon::parse($request->tanggal);
+        $checkIn = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_masuk);
+        $checkOut = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $request->jam_pulang);
+
+        // Hitung Gaji
+        $lateMinutes = 0; // Admin yang input, asumsikan telat 0 atau bisa ditambah logic lain
+        $isWeekend = Absensi::isWeekend($checkIn);
+        
         $salaryData = Absensi::calculateSalary(
             $lateMinutes,
             'hadir',
