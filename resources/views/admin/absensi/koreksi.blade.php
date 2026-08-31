@@ -97,5 +97,47 @@
                 </div>
             </form>
         </div>
+
+        <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Input Izin / Sakit Manual</h3>
+            <form action="{{ route('admin.absensi.store-izin-sakit-manual') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Karyawan</label>
+                        <select name="user_id" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                            @foreach($users as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
+                        <input type="date" name="tanggal" required class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipe</label>
+                        <select name="tipe_izin" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                            <option value="sakit">Sakit</option>
+                            <option value="cuti_tahunan">Cuti Tahunan</option>
+                            <option value="cuti_melahirkan">Cuti Melahirkan</option>
+                            <option value="cuti_menikah">Cuti Menikah</option>
+                            <option value="izin_biasa">Izin Biasa</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Bukti (Surat/Foto)</label>
+                        <input type="file" name="file_bukti" accept="image/*,.pdf" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>
+                        <textarea name="keterangan" required class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button type="submit" class="px-6 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg shadow transition-all">Simpan Izin/Sakit</button>
+                </div>
+            </form>
+        </div>
     </div>
 </x-app-layout>

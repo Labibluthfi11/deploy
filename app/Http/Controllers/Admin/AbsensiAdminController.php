@@ -88,17 +88,63 @@ class AbsensiAdminController extends Controller
         return view('admin.absensi.koreksi', compact('users'));
     }
 
-    public function storeManual(Request $request)
+    public function storeIzinSakitManual(Request $request)
     {
         $request->validate([
-            'user_id'    => 'required|exists:users,id',
-            'tanggal'    => 'required|date',
-            'jam_masuk'  => 'required|date_format:H:i',
-            'jam_pulang' => 'required|date_format:H:i',
-            'foto_masuk' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'foto_pulang' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'user_id' => 'required|exists:users,id',
+            'tanggal' => 'required|date',
+            'tipe_izin' => 'required|string', // e.g., 'sakit', 'cuti_tahunan', 'izin_biasa'
+            'file_bukti' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'keterangan' => 'required|string|max:500',
         ]);
+
+        $user = User::findOrFail($request->user_id);
+        $tanggal = Carbon::parse($request->tanggal);
+        
+        // Tentukan status berdasarkan tipe izin
+        $status = ($request->tipe_izin === 'sakit') ? 'sakit' : 'izin';
+
+        DB::beginTransaction();
+        try {
+            // Potong cuti jika tipe izin termasuk dalam kategori yang memotong
+            if (in_array($request->tipe_izin, User::cutiYangMemotong())) {
+                if ($user->sisa_cuti <= 0) {
+                    return back()->with('error', 'Sisa cuti karyawan tidak mencukupi.');
+                }
+                $user->decrement('sisa_cuti');
+                $user->increment('total_cuti_diambil');
+            }
+
+            $createData = [
+                'user_id' => $user->id,
+                'check_in_at' => $tanggal->startOfDay(),
+                'check_out_at' => $tanggal->endOfDay(),
+                'status' => $status,
+                'submission_type' => $request->tipe_izin,
+                'status_approval' => 'approved',
+                'approved_at' => now(),
+                'keterangan_izin_sakit' => 'Manual Entry: ' . $request->keterangan,
+                'final_salary' => 0, // Izin/Sakit manual biasanya tidak dibayar
+                'is_mocked' => false,
+            ];
+
+            if ($request->hasFile('file_bukti')) {
+                $path = $request->file('file_bukti')->store('absensi/bukti', 'public');
+                $createData['file_bukti'] = $path;
+            }
+
+            Absensi::create($createData);
+
+            ActivityLog::log('Manual Izin/Sakit', "Admin: " . Auth::user()->name, "Input manual untuk User: {$user->name} tanggal: {$tanggal->toDateString()}. Tipe: {$request->tipe_izin}");
+
+            DB::commit();
+            return back()->with('success', 'Izin/Sakit manual berhasil ditambahkan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menambahkan data: ' . $e->getMessage());
+        }
+    }
+
 
         $user = User::findOrFail($request->user_id);
         $tanggal = Carbon::parse($request->tanggal);

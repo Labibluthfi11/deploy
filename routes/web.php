@@ -97,6 +97,9 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
     Route::post('/absensi/manual-entry', [AbsensiAdminController::class, 'storeManual'])
         ->name('admin.absensi.store-manual');
 
+    Route::post('/absensi/manual-izin-sakit', [AbsensiAdminController::class, 'storeIzinSakitManual'])
+        ->name('admin.absensi.store-izin-sakit-manual');
+
     Route::post('/absensi/manual-overtime', [AbsensiAdminController::class, 'storeLemburManual'])
         ->name('admin.absensi.store-lembur-manual');
 
