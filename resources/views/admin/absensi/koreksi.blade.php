@@ -6,7 +6,7 @@
     <div class="py-8 px-4 sm:px-6 lg:px-8 space-y-8">
         <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Input Absensi Manual</h3>
-            <form action="{{ route('admin.absensi.store-manual') }}" method="POST">
+            <form action="{{ route('admin.absensi.store-manual') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="space-y-4">
                     <div>
@@ -31,6 +31,16 @@
                             <input type="time" name="jam_pulang" required class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Masuk</label>
+                            <input type="file" name="foto_masuk" accept="image/*" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Pulang</label>
+                            <input type="file" name="foto_pulang" accept="image/*" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                        </div>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>
                         <textarea name="keterangan" required class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600" rows="3"></textarea>
@@ -44,7 +54,7 @@
 
         <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Input Lembur Manual</h3>
-            <form action="{{ route('admin.absensi.store-lembur-manual') }}" method="POST">
+            <form action="{{ route('admin.absensi.store-lembur-manual') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="space-y-4">
                     <div>
@@ -72,6 +82,10 @@
                     <div class="flex items-center gap-2">
                         <input type="checkbox" name="istirahat" value="1" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                         <label class="text-sm text-gray-700 dark:text-gray-300">Potong Istirahat (30 menit)</label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Bukti Lembur</label>
+                        <input type="file" name="file_bukti" accept="image/*,.pdf" class="w-full mt-1 p-2.5 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>

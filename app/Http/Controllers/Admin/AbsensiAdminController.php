@@ -32,6 +32,7 @@ class AbsensiAdminController extends Controller
             'lembur_start' => 'required|date_format:H:i',
             'lembur_end' => 'required|date_format:H:i',
             'istirahat' => 'nullable|boolean',
+            'file_bukti' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'keterangan' => 'required|string|max:500',
         ]);
 
@@ -58,7 +59,7 @@ class AbsensiAdminController extends Controller
         // Asumsi HOURLY_SALARY adalah 1x rate
         $overtimePay = ($finalMinutes / 60) * Absensi::HOURLY_SALARY;
 
-        $absensi->update([
+        $updateData = [
             'tipe' => 'lembur',
             'lembur_start' => $startTime,
             'lembur_end' => $endTime,
@@ -67,7 +68,14 @@ class AbsensiAdminController extends Controller
             'overtime_minutes' => $finalMinutes,
             'overtime_pay' => $overtimePay,
             'final_salary' => ($absensi->final_salary ?? 0) + $overtimePay,
-        ]);
+        ];
+
+        if ($request->hasFile('file_bukti')) {
+            $path = $request->file('file_bukti')->store('absensi/bukti', 'public');
+            $updateData['file_bukti'] = $path;
+        }
+
+        $absensi->update($updateData);
 
         ActivityLog::log('Manual Overtime', "Admin: " . Auth::user()->name, "Input lembur manual untuk User: {$user->name} tanggal: {$tanggal}. Durasi: {$finalMinutes}m");
 
@@ -87,6 +95,8 @@ class AbsensiAdminController extends Controller
             'tanggal'    => 'required|date',
             'jam_masuk'  => 'required|date_format:H:i',
             'jam_pulang' => 'required|date_format:H:i',
+            'foto_masuk' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'foto_pulang' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'keterangan' => 'required|string|max:500',
         ]);
 
@@ -109,7 +119,7 @@ class AbsensiAdminController extends Controller
             $user->kategori_absensi
         );
 
-        $absensi = Absensi::create([
+        $createData = [
             'user_id' => $user->id,
             'check_in_at' => $checkIn,
             'check_out_at' => $checkOut,
@@ -122,7 +132,19 @@ class AbsensiAdminController extends Controller
             'late_penalty' => $salaryData['late_penalty'],
             'final_salary' => $salaryData['final_salary'],
             'is_mocked' => false,
-        ]);
+        ];
+
+        if ($request->hasFile('foto_masuk')) {
+            $path = $request->file('foto_masuk')->store('absensi/foto', 'public');
+            $createData['foto_masuk'] = $path;
+        }
+        
+        if ($request->hasFile('foto_pulang')) {
+            $path = $request->file('foto_pulang')->store('absensi/foto', 'public');
+            $createData['foto_pulang'] = $path;
+        }
+
+        $absensi = Absensi::create($createData);
 
         ActivityLog::log('Manual Entry', "Admin: " . Auth::user()->name, "Input manual untuk User: {$user->name} tanggal: {$tanggal->toDateString()}");
 
