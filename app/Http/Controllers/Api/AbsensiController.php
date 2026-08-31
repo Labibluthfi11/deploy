@@ -902,11 +902,12 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
             }
 
-            if ($absensi->tipe === 'sakit' || $absensi->tipe === 'izin') {
+            // ✅ FIX: CEK AGAR TIDAK MENIMPA PENGAJUAN LAIN
+            if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tidak dapat mengajukan lembur karena Anda sudah mengajukan ' . ucfirst($absensi->tipe) . ' hari ini.'
-                ], 400);
+                    'message' => 'Anda sudah memiliki pengajuan tipe lain (' . ucfirst($absensi->tipe) . ') yang sedang diproses. Mohon selesaikan pengajuan tersebut terlebih dahulu.'
+                ], 409);
             }
 
             // NOTE: check_out_at check dihapus — lembur sekarang independen dari absen pulang
@@ -1050,11 +1051,12 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
             }
 
-            if ($absensi->tipe === 'sakit' || $absensi->tipe === 'izin') {
+            // ✅ FIX: CEK AGAR TIDAK MENIMPA PENGAJUAN LAIN
+            if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tidak dapat mengajukan lembur karena Anda sudah mengajukan ' . ucfirst($absensi->tipe) . ' hari ini.'
-                ], 400);
+                    'message' => 'Anda sudah memiliki pengajuan tipe lain (' . ucfirst($absensi->tipe) . ') yang sedang diproses. Mohon selesaikan pengajuan tersebut terlebih dahulu.'
+                ], 409);
             }
 
             // NOTE: Tidak ada check check_out_at — lembur independen dari absen pulang
@@ -1626,11 +1628,11 @@ public function pengajuanTelat(Request $request)
         }
 
         // Cek kalau sudah pernah ajukan telat untuk absensi ini
-        if ($absensi->tipe === 'telat' && in_array($absensi->status_approval, ['pending', 'approved'])) {
+        if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Anda sudah mengajukan keterangan telat untuk hari ini.'
+                'message' => 'Anda sudah memiliki pengajuan tipe lain (' . ucfirst($absensi->tipe) . ') yang sedang diproses.'
             ], 409);
         }
 
