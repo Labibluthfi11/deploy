@@ -613,6 +613,29 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                     
                         DB::transaction(function () use ($absensi, $workflowStatus, $overtimeMinutes, $overtimePay, $newFinalSalary, $currentApprover, $submissionType, $targetPage) {
 
+                            // 🔥 FIX: JIKA INI RECORD ANAK, UPDATE DATA KE PARENT
+                            if ($absensi->parent_id) {
+                                $parent = \App\Models\Absensi::find($absensi->parent_id);
+                                if ($parent) {
+                                    // Jika anak adalah 'telat', reset parent's late_minutes ke 0
+                                    if ($absensi->tipe === 'telat') {
+                                        $parent->update([
+                                            'late_minutes' => 0,
+                                            'late_penalty' => 0,
+                                            'final_salary' => $parent->base_salary + ($parent->overtime_pay ?? 0),
+                                        ]);
+                                    }
+                                    // Jika anak adalah 'lembur', update parent's overtime
+                                    if ($absensi->tipe === 'lembur') {
+                                        $parent->update([
+                                            'overtime_minutes' => ($parent->overtime_minutes ?? 0) + $overtimeMinutes,
+                                            'overtime_pay' => ($parent->overtime_pay ?? 0) + $overtimePay,
+                                            'final_salary' => ($parent->base_salary ?? 0) - ($parent->late_penalty ?? 0) + (($parent->overtime_pay ?? 0) + $overtimePay),
+                                        ]);
+                                    }
+                                }
+                            }
+
                             // ✅ KALAU TIPE TELAT DAN DIAPPROVE → RESET JAM MASUK KE 08:00 & LATE MINUTES KE 0
                             $updateData = [
                                 'status_approval' => 'approved',
