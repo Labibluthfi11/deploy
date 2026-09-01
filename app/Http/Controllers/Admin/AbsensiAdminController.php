@@ -505,13 +505,19 @@ class AbsensiAdminController extends Controller
 
         // Query dasar
         $query = Absensi::where('user_id', $user->id);
+        
+        // 🔥 QUERY UNTUK LIST (HANYA PARENT)
+        $queryList = (clone $query)->whereNull('parent_id');
 
         // --- LOGIKA FILTER ---
         if ($filterType === 'yearly') {
             $query->whereYear('check_in_at', $year);
+            $queryList->whereYear('check_in_at', $year);
 
         } elseif ($filterType === 'monthly') {
             $query->whereYear('check_in_at', $year)
+                  ->whereMonth('check_in_at', $month);
+            $queryList->whereYear('check_in_at', $year)
                   ->whereMonth('check_in_at', $month);
 
         } elseif ($filterType === 'weekly') {
@@ -523,6 +529,7 @@ class AbsensiAdminController extends Controller
             $endDate = (clone $startDate)->endOfWeek();
 
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
+            $queryList->whereBetween('check_in_at', [$startDate, $endDate]);
 
         } elseif ($filterType === 'custom') {
             $startDate = $request->input('start_date');
@@ -533,14 +540,21 @@ class AbsensiAdminController extends Controller
                     \Carbon\Carbon::parse($startDate)->startOfDay(),
                     \Carbon\Carbon::parse($endDate)->endOfDay()
                 ]);
+                $queryList->whereBetween('check_in_at', [
+                    \Carbon\Carbon::parse($startDate)->startOfDay(),
+                    \Carbon\Carbon::parse($endDate)->endOfDay()
+                ]);
             }
         }
 
-        // 🔥 AMBIL DATA BIASA (JANGAN UBAH QUERY)
-        $absensi = $query->orderBy('check_in_at', 'desc')->get();
+        // 🔥 AMBIL DATA BIASA (HANYA PARENT)
+        $absensi = $queryList->orderBy('check_in_at', 'desc')->get();
+        
+        // AMBIL SEMUA DATA UNTUK STATISTIK
+        $allRecords = $query->get();
 
         // 🔥 FORCE REFRESH DATA APPROVED (Re-fetch dari DB)
-        $absensi = $absensi->map(function($item) {
+        $allRecords = $allRecords->map(function($item) {
             if ($item->status_approval === 'approved') {
                 // Force reload dari database (bypass cache)
                 return Absensi::find($item->id);
@@ -550,7 +564,7 @@ class AbsensiAdminController extends Controller
 
         // Filter data yang approved untuk statistik
         // ✅ AMBIL SEMUA DATA (APPROVED + REJECTED YANG PUNYA GAJI)
-        $approvedAbsensi = $absensi->whereIn('status_approval', ['approved', 'rejected']);
+        $approvedAbsensi = $allRecords->whereIn('status_approval', ['approved', 'rejected']);
         // Hitung statistik berdasarkan data yang sudah difilter
             $absensiStats = [
             'hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
