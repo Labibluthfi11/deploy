@@ -512,8 +512,8 @@ public function meAbsensi(Request $request)
         \Log::info("📡 [ME ABSENSI] URL Called: " . $request->fullUrl());
         \Log::info("📡 [ME ABSENSI] All Inputs:", $request->all());
 
-        // 1. Inisialisasi Query Dasar
-        $query = Absensi::with('user')->where('user_id', $userId);
+        // 1. Inisialisasi Query Dasar (Hanya Parent)
+        $query = Absensi::with(['user', 'children'])->where('user_id', $userId)->whereNull('parent_id');
 
         // 2. LOGIKA FILTER
         if ($request->filled('search_date')) {
