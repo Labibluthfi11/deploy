@@ -617,9 +617,11 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             if ($absensi->parent_id) {
                                 $parent = \App\Models\Absensi::find($absensi->parent_id);
                                 if ($parent) {
-                                    // Jika anak adalah 'telat', reset parent's late_minutes ke 0
+                                    // Jika anak adalah 'telat', reset parent's late_minutes ke 0 DAN JAM MASUK KE 08:00
                                     if ($absensi->tipe === 'telat') {
+                                        $checkInDate = \Carbon\Carbon::parse($parent->check_in_at)->format('Y-m-d');
                                         $parent->update([
+                                            'check_in_at' => $checkInDate . ' 08:00:00', // <--- Pindah ke parent!
                                             'late_minutes' => 0,
                                             'late_penalty' => 0,
                                             'final_salary' => $parent->base_salary + ($parent->overtime_pay ?? 0),
@@ -636,7 +638,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                                 }
                             }
 
-                            // ✅ KALAU TIPE TELAT DAN DIAPPROVE → RESET JAM MASUK KE 08:00 & LATE MINUTES KE 0
+                            // ✅ KALAU TIPE TELAT DAN DIAPPROVE → STATUS APPROVED
                             $updateData = [
                                 'status_approval' => 'approved',
                                 'approved_at'     => now(),
@@ -649,21 +651,12 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             ];
 
                             if (strtolower($absensi->tipe ?? '') === 'telat') {
-                                // Reset jam masuk ke 08:00 (dianggap tidak telat)
-                                $checkInDate = \Carbon\Carbon::parse($absensi->check_in_at)->format('Y-m-d');
-                                $updateData['check_in_at']  = $checkInDate . ' 08:00:00';
-                                $updateData['late_minutes'] = 0;
-                                $updateData['rounded_late_minutes'] = 0;
-                                $updateData['late_penalty'] = 0;
-                                $updateData['tipe']         = null; // Reset tipe biar ga keliatan telat lagi
+                                // Tipe tetap telat di child, tapi parent sudah direset
+                                $updateData['tipe'] = 'telat'; 
                                 
-                                // Recalculate final salary tanpa potongan
-                                $updateData['final_salary'] = $absensi->base_salary ?? $newFinalSalary;
-                                
-                                Log::info('✅ [TELAT APPROVED] Reset check_in_at to 08:00', [
+                                Log::info('✅ [TELAT APPROVED] Parent record updated', [
                                     'id' => $absensi->id,
-                                    'original_check_in' => $absensi->check_in_at,
-                                    'new_check_in' => $checkInDate . ' 08:00:00',
+                                    'parent_id' => $absensi->parent_id
                                 ]);
                             }
 
