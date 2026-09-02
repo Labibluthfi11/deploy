@@ -533,6 +533,9 @@ public function meAbsensi(Request $request)
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
         }
 
+        // 3. PAGINATION
+        $absensi = $query->orderBy('check_in_at', 'desc')->orderBy('id', 'desc')->paginate(30);
+
         // 4. MAPPING URL (Balik ke cara lama yang aman tapi rapi)
         $absensi->getCollection()->transform(function($item) {
             $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
