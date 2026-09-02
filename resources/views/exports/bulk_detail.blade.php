@@ -72,10 +72,12 @@
 
             @foreach($allDates as $date)
                 @php
-                    // ... (logika item sama, tidak diubah)
+                    // ✅ FIX: PRIORITASKAN PARENT RECORD (parent_id = NULL) UNTUK JAM MASUK/KELUAR
                     $item = $userAbsensi->filter(function($absen) use ($date) {
                         return \Carbon\Carbon::parse($absen->check_in_at)->isSameDay($date);
-                    })->sortByDesc('id')->first();
+                    })->sortBy(function($absen) {
+                        return ($absen->parent_id === null) ? 0 : 1;
+                    })->first();
 
                     $isWeekday = $date->dayOfWeek >= 1 && $date->dayOfWeek <= 5;
                     $cellStyle = 'text-align: center; border: 1px solid #000000;';
