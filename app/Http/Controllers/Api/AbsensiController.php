@@ -84,7 +84,6 @@ class AbsensiController extends Controller
         return $resetWorkflow;
     }
 
-    // 🆕 METHOD: Hitung keterlambatan
     private function calculateLateMinutes($checkInTime, bool $isWeekend = false): int
     {
         $checkIn = Carbon::parse($checkInTime);
@@ -112,7 +111,6 @@ class AbsensiController extends Controller
 
         $today = Carbon::today();
 
-        // 🆕 CEK HARI LIBUR
         if ($request->status === 'hadir' && \App\Models\Holiday::isHoliday($today)) {
             $holiday = \App\Models\Holiday::where('holiday_date', $today->toDateString())->first();
             return response()->json([
@@ -120,13 +118,12 @@ class AbsensiController extends Controller
             ], 403);
         }
 
-        //  FIX #1: CEK SEMUA STATUS (termasuk REJECTED)
         $existingAbsensi = Absensi::where('user_id', $user->id)
             ->whereBetween('check_in_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
             ->first();
 
         if ($existingAbsensi) {
-            //  CASE 1: Izin APPROVED (Disetujui) → BLOKIR
+
             if (in_array($existingAbsensi->status_approval, ['approved', 'pending'])
                 && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
 
@@ -139,13 +136,13 @@ class AbsensiController extends Controller
                 ], 409);
             }
 
-            //  CASE 2: Izin REJECTED → UPDATE jadi HADIR
+
             if ($existingAbsensi->status_approval == 'rejected'
                 && in_array($existingAbsensi->tipe, ['sakit', 'izin'])) {
 
                 $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
 
-                $lokasiMasuk = $request->lat . ',' . $request->lng; // ✅ FIX: Quote lurus
+                $lokasiMasuk = $request->lat . ',' . $request->lng;
                 $checkInTime = now();
                 $isWeekend = Absensi::isWeekend($checkInTime);
                 $lateMinutes = 0;
@@ -153,7 +150,7 @@ class AbsensiController extends Controller
                 if ($request->status === 'hadir') {
                     $kategori = $user->kategori_absensi;
 
-                    // Organik dan Magang flexible time (tidak ada telat)
+
                     if ($kategori !== 'organik' && $kategori !== 'magang') {
                         $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
                     }
@@ -170,7 +167,7 @@ class AbsensiController extends Controller
                 );
 
 
-                //  UPDATE record yang REJECTED jadi HADIR
+                
 
                 $existingAbsensi->update([
                     'check_in_at' => $checkInTime,
@@ -205,7 +202,7 @@ class AbsensiController extends Controller
                 ], 200);
             }
 
-            //  CASE 3: Udah Hadir Sebelumnya
+            
             if ($existingAbsensi->status == 'hadir' && $existingAbsensi->check_in_at) {
                 return response()->json([
                     'message' => 'Anda sudah absen masuk hari ini.'
@@ -213,9 +210,9 @@ class AbsensiController extends Controller
             }
         }
 
-        //  CASE 4: Belum Ada Data → CREATE BARU (Normal Flow)
+        
         $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
-        $lokasiMasuk = $request->lat . ',' . $request->lng; // ✅ FIX: Quote lurus
+        $lokasiMasuk = $request->lat . ',' . $request->lng; 
 
         $checkInTime = now();
         $employment = strtolower($user->work_location ?? 'office');
@@ -226,18 +223,18 @@ class AbsensiController extends Controller
         if ($request->status === 'hadir') {
             $kategori = $user->kategori_absensi;
 
-            // Organik dan Magang flexible time (tidak ada telat)
+            
             if ($kategori !== 'organik' && $kategori !== 'magang') {
                 $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
             }
         }
 
         $salaryData = Absensi::calculateSalary(
-    $lateMinutes, 
-    $request->status, 
-    null, 
+    $lateMinutes,
+    $request->status,
+    null,
     $isWeekend,
-    $checkInTime,  
+    $checkInTime,
     null,
     $kategori
 );
@@ -323,7 +320,7 @@ class AbsensiController extends Controller
 
             $checkInTimeParsed = \Carbon\Carbon::parse($absensi->check_in_at);
 
-            // 🆕 FLAG PELANGGARAN DURASI
+            
             $isKurang8Jam = false;
 
             // ATURAN WAKTU KERJA
@@ -339,32 +336,23 @@ class AbsensiController extends Controller
                 $minutesWorked = $checkInTimeParsed->diffInMinutes($currentTime);
                 $isAfterFivePM = $currentTime->hour >= 17;
 
-                // 🆕 Cek apakah kurang dari 9 jam (8 kerja + 1 istirahat)
+                
                 if ($minutesWorked < 540) {
                     $isKurang8Jam = true;
                 }
 
-                // Freelance & Borongan boleh pulang asal sudah jam 5 sore (17:00)
+                
                 if ($isFreelance || $isBorongan) {
                     if (!$isAfterFivePM && $minutesWorked < 540) {
                         return response()->json([
-                            'message' => 'Freelance/Borongan baru boleh pulang kalau sudah jam 17:00 (5 sore) atau sudah kerja 9 jam. Semangat bang!'
+                            'message' => 'Freelance/Borongan baru boleh pulang kalau sudah jam 17:00 (5 sore) atau sudah kerja 8 jam. Semangat Para Pejuang Rupiah!'
                         ], 400);
                     }
-                } 
-                // Organik & Magang: Dulu wajib 9 jam, sekarang IZINKAN pulang, TAPI tandai sebagai pelanggaran
-                // else {
-                //     if ($minutesWorked < 540) {
-                //         return response()->json([
-                //             'message' => 'Anda belum memenuhi waktu kerja wajib 9 jam (8 jam kerja + 1 jam istirahat). Organik dilarang pulang gasik!'
-                //         ], 400);
-                //     }
-                // }
+                }
+                
             }
 
-            // CEK IZIN KELUAR RULES
-
-            // 1. Cek ada pelanggaran hari ini?
+            
             $hasPelanggaran = \App\Models\IzinKeluar::where('user_id', $user->id)
                 ->whereBetween('waktu_keluar', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
                 ->where('is_pelanggaran', true)
@@ -377,33 +365,32 @@ class AbsensiController extends Controller
                 ], 403);
             }
 
-            // 2. Cek Izin Keluar yang masih berjalan
+            
             $activeIzin = \App\Models\IzinKeluar::where('user_id', $user->id)
                 ->where('status_izin', 'berjalan')
                 ->first();
 
             if ($activeIzin) {
                 if ($activeIzin->tipe_izin === 'tugas_kantor') {
-                    // AUTO-CLOSE jika tugas kantor karena bisa dari luar kantor
+                    
                     $activeIzin->update([
                         'waktu_kembali' => now(),
                         'status_izin' => 'selesai',
                         'keterangan_kembali' => 'Ditutup Otomatis oleh Sistem saat Absen Pulang dari luar kantor.'
                     ]);
                 } else {
-                    // TOLAK JIKA MENDESAK belum ditutup
-                    // Cek apakah sudah > 2 jam dan belum ditutup?
-                    $diffMinutes = Carbon::parse($activeIzin->waktu_keluar)->diffInMinutes(now());
                     
+                    $diffMinutes = Carbon::parse($activeIzin->waktu_keluar)->diffInMinutes(now());
+
                     if ($diffMinutes > 120) {
-                        // Flag pelanggaran otomatis & Cabut gaji
+                        
                         $activeIzin->update([
                             'waktu_kembali' => now(),
                             'status_izin' => 'selesai',
                             'keterangan_kembali' => 'Ditutup Otomatis karena melanggar/melebihi batas 2 jam saat mau absen pulang.',
                             'is_pelanggaran' => true
                         ]);
-                        
+
                         $kategori = $user->kategori_absensi;
 
                         if (in_array($kategori, ['freelance', 'borongan'])) {
@@ -418,7 +405,7 @@ class AbsensiController extends Controller
                             'message' => 'Absen Pulang Ditolak karena Izin Keluar Mendesak telah terlewat lebih dari 2 jam (Pelanggaran Otomatis).'
                         ], 403);
                     } else {
-                        // Belum 2 jam tapi belum nutup sesi
+                        
                         return response()->json([
                             'message' => 'Harap lampirkan bukti foto Izin Keluar terlebih dahulu untuk menyelesaikan sesi izin, baru Anda dapat melakukan absensi pulang.'
                         ], 400);
@@ -463,7 +450,7 @@ class AbsensiController extends Controller
 
                 $absensi->update([
                 'check_out_at' => $checkOutTime,
-                'is_kurang_8_jam' => $isKurang8Jam, // 🆕 TAMBAHKAN INI
+                'is_kurang_8_jam' => $isKurang8Jam, 
                 'foto_pulang' => $fotoPath,
                 'foto_pulang_2' => $fotoPath2,
                 'foto_pulang_3' => $fotoPath3,
@@ -507,15 +494,15 @@ public function meAbsensi(Request $request)
 {
     try {
         $userId = Auth::id();
+
         
-        // MATA-MATAIN URL LENGKAP DARI FLUTTER
         \Log::info("📡 [ME ABSENSI] URL Called: " . $request->fullUrl());
         \Log::info("📡 [ME ABSENSI] All Inputs:", $request->all());
 
-        // 1. Inisialisasi Query Dasar (Hanya Parent)
+        
         $query = Absensi::with(['user', 'children'])->where('user_id', $userId)->whereNull('parent_id');
 
-        // 2. LOGIKA FILTER
+        
         if ($request->filled('search_date')) {
             $searchDate = Carbon::parse($request->input('search_date'));
             $query->whereBetween('check_in_at', [$searchDate->copy()->startOfDay(), $searchDate->copy()->endOfDay()]);
@@ -533,10 +520,10 @@ public function meAbsensi(Request $request)
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
         }
 
-        // 3. PAGINATION
+        
         $absensi = $query->orderBy('check_in_at', 'desc')->orderBy('id', 'desc')->paginate(30);
 
-        // 4. MAPPING URL (Balik ke cara lama yang aman tapi rapi)
+        
         $absensi->getCollection()->transform(function($item) {
             $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
             $item->foto_pulang_url = $item->foto_pulang ? Storage::url($item->foto_pulang) : null;
@@ -547,16 +534,15 @@ public function meAbsensi(Request $request)
             $item->foto_pulang_6_url = $item->foto_pulang_6 ? Storage::url($item->foto_pulang_6) : null;
             $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
 
-            // 🆕 TRICK "MASQUERADE" AGAR FLUTTER TIDAK PERLU DIUBAH SAMA SEKALI
-            // Kita inject status anak yang aktif (pending/approved) ke parent secara dinamis hanya untuk respon API
+            
             if ($item->children && $item->children->isNotEmpty()) {
-                // 1. Cari apakah ada anak yang statusnya 'pending'
+                
                 $pendingChild = $item->children->where('status_approval', 'pending')->first();
                 if ($pendingChild) {
                     $item->tipe = $pendingChild->tipe;
                     $item->status_approval = 'pending';
+
                     
-                    // Kalau pendingnya lembur, set data lembur sementara biar kebaca di Flutter
                     if ($pendingChild->tipe === 'lembur') {
                         $item->lembur_start = $pendingChild->lembur_start;
                         $item->lembur_end = $pendingChild->lembur_end;
@@ -567,13 +553,13 @@ public function meAbsensi(Request $request)
                         $item->keterangan_izin_sakit = $pendingChild->keterangan_izin_sakit;
                     }
                 } else {
-                    // 2. Jika tidak ada yang pending, cari apakah ada anak yang approved
+                    
                     $approvedChild = $item->children->where('status_approval', 'approved')->first();
                     if ($approvedChild) {
                         $item->tipe = $approvedChild->tipe;
                         $item->status_approval = 'approved';
-                        // ✅ INJECT WORKFLOW STATUS ANAK KE PARENT
-                        $item->workflow_status = $approvedChild->workflow_status; 
+                        
+                        $item->workflow_status = $approvedChild->workflow_status;
                     }
                 }
             }
@@ -588,7 +574,7 @@ public function meAbsensi(Request $request)
     } catch (\Exception $e) {
         \Log::error("❌ [ME ABSENSI] Error: " . $e->getMessage());
         return response()->json([
-            'success' => false, 
+            'success' => false,
             'message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')
         ], 500);
     }
@@ -604,9 +590,9 @@ public function meAbsensi(Request $request)
         $user = Auth::user();
         $submissionType = $request->catatan_admin ?? null;
 
-        // Organik tidak boleh ngajuin izin biasa — harus lewat cuti
+        
         if ($user->employment_type === 'organik') {
-            // Kalau submission_type adalah jenis cuti yang valid, lanjutkan
+            
             $validCutiTypes = [
                 'cuti_tahunan', 'cuti_melahirkan', 'cuti_keguguran',
                 'cuti_haji', 'cuti_umroh', 'cuti_menikah', 'cuti_khitanan',
@@ -623,9 +609,7 @@ public function meAbsensi(Request $request)
         return $this->handlePengajuanIzinSakit($request, 'izin');
     }
 
-    /**
-     * Helper Unified logic for Sick and Leave requests
-     */
+    
     private function handlePengajuanIzinSakit(Request $request, string $defaultStatus)
     {
         DB::beginTransaction();
@@ -642,10 +626,10 @@ public function meAbsensi(Request $request)
 
             $user = Auth::user();
             $status = $request->status ?? $defaultStatus;
-            $submissionType = $request->catatan_admin ?? null; // Pastikan ini di-assign sebelum validasi
+            $submissionType = $request->catatan_admin ?? null; 
             $jamPulangRencana = $request->jam_pulang_rencana;
+
             
-            // 🆕 TAMBAH VALIDASI: Tidak boleh izin/cuti jika sudah absen masuk (kecuali lembur & izin_pulang_cepat)
             if ($status !== 'lembur' && $submissionType !== 'izin_pulang_cepat') {
                 $today = \Carbon\Carbon::today();
                 $hasCheckInToday = Absensi::where('user_id', $user->id)
@@ -661,7 +645,7 @@ public function meAbsensi(Request $request)
                 }
             }
 
-            // Ketentuan per jenis cuti
+            
             $cutiConfig = [
                 'cuti_tahunan'    => ['maxDays' => 12,  'potongJatah' => true,  'gratisHari' => 0],
                 'cuti_melahirkan' => ['maxDays' => 90,  'potongJatah' => false, 'gratisHari' => 0],
@@ -679,7 +663,7 @@ public function meAbsensi(Request $request)
             $startDateInput = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
             $endDateInput = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : $startDateInput->copy()->startOfDay();
 
-            // Saring hari kerja efektif (Opsi 2 - Backend Pintar)
+            
             $calendarCutiTypes = ['cuti_melahirkan', 'cuti_keguguran', 'unpaid_leave'];
             $isCalendarLeave = in_array($submissionType, $calendarCutiTypes);
 
@@ -704,7 +688,7 @@ public function meAbsensi(Request $request)
             $endDate = end($validDates);
             $totalDays = count($validDates);
 
-            // Validasi maxDays per jenis cuti
+            
             $maxDays = 30;
             $gratisHari = 0;
             $potongJatah = false;
@@ -719,7 +703,7 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => "Pengajuan {$submissionType} maksimal {$maxDays} hari."], 422);
             }
 
-            // Hitung hari potong cuti tahunan (haji/umroh ada gratis N hari)
+            
             $hariPotongCuti = 0;
             $hariUnpaid = 0;
             if ($submissionType && $gratisHari > 0 && $totalDays > $gratisHari) {
@@ -740,7 +724,7 @@ public function meAbsensi(Request $request)
                 }
             }
 
-            // Check overlap
+            
             $existingAbsensi = Absensi::where('user_id', $user->id)
                 ->where(function($query) use ($startDate, $endDate) {
                     $query->whereBetween('check_in_at', [$startDate, $endDate])
@@ -770,7 +754,7 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            // Cek apakah sudah ada record absensi untuk tanggal ini
+            
             $existingTodayAbsensi = Absensi::where('user_id', $user->id)
                 ->whereDate('check_in_at', $startDate)
                 ->first();
@@ -814,10 +798,10 @@ public function meAbsensi(Request $request)
                 ]);
             }
 
-            // Bulk Insert Children
+            
             $childRecords = [];
             foreach ($validDates as $index => $date) {
-                if ($index > 0) { // Lewati hari pertama (induk)
+                if ($index > 0) { 
                     $childRecords[] = [
                         'user_id' => $user->id,
                         'parent_id' => $parentAbsensi->id,
@@ -850,9 +834,7 @@ public function meAbsensi(Request $request)
 
             DB::commit();
 
-            // 🔥 Potongan sisa_cuti TIDAK lagi terjadi di sini. Jatah cuti baru dipotong
-            // saat admin approve final (lihat ApprovalController). Nilai hari_potong_cuti
-            // sudah tersimpan di row Absensi di atas, tinggal dipakai nanti pas approve.
+            
             if ($hariPotongCuti > 0 || $hariUnpaid > 0) {
                 Log::info('📝 [CUTI] Pengajuan tercatat, menunggu approval', [
                     'user' => $user->name,
@@ -882,13 +864,13 @@ public function meAbsensi(Request $request)
             if (isset($fileBuktiPath)) Storage::disk('public')->delete($fileBuktiPath);
             \Log::error("❌ [API {$defaultStatus}] Error: " . $e->getMessage());
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')
             ], 500);
         }
     }
 
-    // Resubmit methods tetap sama...
+    
     public function absenLembur(Request $request)
     {
         try {
@@ -906,18 +888,18 @@ public function meAbsensi(Request $request)
                 'foto_6'        => 'nullable|image|max:2048',
                 'lat'           => 'required|numeric',
                 'lng'           => 'required|numeric',
-                'is_weekend'    => 'nullable|boolean', // 🆕 Parameter baru dari Flutter
+                'is_weekend'    => 'nullable|boolean', 
                 'is_mocked'     => 'nullable|boolean',
             ]);
 
             $jamMulai = Carbon::createFromFormat('H:i', $request->jam_mulai);
             $jamSelesai = Carbon::createFromFormat('H:i', $request->jam_selesai);
-            
+
             if ($jamSelesai->lte($jamMulai)) {
                 return response()->json(['success' => false, 'message' => 'Jam selesai harus lebih dari jam mulai.'], 422);
             }
 
-            // ✅ FIX SECURITY #2: Batas Maksimal Lembur 5 Jam
+            
             if ($jamMulai->diffInHours($jamSelesai) > 5) {
                 return response()->json(['success' => false, 'message' => 'Durasi lembur tidak wajar (Maksimal 5 jam sehari). Harap hubungi HR untuk lembur khusus.'], 422);
             }
@@ -934,7 +916,7 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
             }
 
-            // ✅ FIX: CEK AGAR TIDAK MENIMPA PENGAJUAN LAIN
+            
             if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
                 return response()->json([
                     'success' => false,
@@ -942,7 +924,7 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
-            // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN LEMBUR SEBELUMNYA (MENCEGAH DUPLIKAT)
+            
             $alreadyHasLembur = Absensi::where('parent_id', $absensi->id)
                 ->where('tipe', 'lembur')
                 ->whereIn('status_approval', ['pending', 'approved'])
@@ -955,7 +937,7 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
-            // NOTE: check_out_at check dihapus — lembur sekarang independen dari absen pulang
+        
 
             $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
             $fotoPath2 = $request->hasFile('foto_2') ? $request->file('foto_2')->store('absensi_foto', 'public') : null;
@@ -968,20 +950,20 @@ public function meAbsensi(Request $request)
             $lemburStart = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_mulai);
             $lemburEnd = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_selesai);
 
-            // 🆕 CEK WEEKEND (Dari request atau auto-detect)
+            
             $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
 
-            // 🆕 HITUNG LEMBUR DENGAN MULTIPLIER WEEKEND
+            
             $overtimeData = Absensi::calculateOvertimeFromInput(
                 $lemburStart,
                 $lemburEnd,
                 $request->istirahat,
-                $isWeekendOvertime // 🔥 Pass parameter weekend
+                $isWeekendOvertime 
             );
 
 
             $kategori = $user->kategori_absensi;
-            $lateMinutes = $absensi->late_minutes ?? 0; // ✅ FIX: Ambil data telat dari absen masuk
+            $lateMinutes = $absensi->late_minutes ?? 0; 
             $salaryData = Absensi::calculateSalary(
                 $lateMinutes,
                 $absensi->status,
@@ -995,15 +977,15 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            // ✅ FIX: AUTO-CHECKOUT MENGGUNAKAN JAM SELESAI LEMBUR & FOTO LEMBUR
+            
             if (!$absensi->check_out_at) {
                 $absensi->update([
                     'check_out_at' => $lemburEnd,
-                    'foto_pulang'  => $fotoPath, // Pakai foto lembur sebagai foto pulang
+                    'foto_pulang'  => $fotoBukti, 
                 ]);
             }
 
-            // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
+            
             $childLembur = Absensi::create([
                 'user_id'               => $user->id,
                 'parent_id'             => $absensi->id,
@@ -1053,10 +1035,7 @@ public function meAbsensi(Request $request)
         }
     }
 
-    /**
-     * Submit Lembur Independen (tanpa foto selfie, lat, lng)
-     * Flutter method: submitLembur()
-     */
+    
     public function submitLembur(Request $request)
     {
         try {
@@ -1077,7 +1056,7 @@ public function meAbsensi(Request $request)
 
             $jamMulai = Carbon::createFromFormat('H:i', $request->jam_mulai);
             $jamSelesai = Carbon::createFromFormat('H:i', $request->jam_selesai);
-            
+
             if ($jamSelesai->lte($jamMulai)) {
                 return response()->json(['success' => false, 'message' => 'Jam selesai harus lebih dari jam mulai.'], 422);
             }
@@ -1090,7 +1069,7 @@ public function meAbsensi(Request $request)
             $user = Auth::user();
             $today = Carbon::today();
 
-            // Cari absensi hari ini (harus sudah absen masuk)
+            
             $absensi = Absensi::where('user_id', $user->id)
                 ->whereBetween('check_in_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
                 ->whereIn('status_approval', ['pending', 'approved'])
@@ -1100,7 +1079,7 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
             }
 
-            // ✅ FIX: CEK AGAR TIDAK MENIMPA PENGAJUAN LAIN
+            
             if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
                 return response()->json([
                     'success' => false,
@@ -1108,7 +1087,7 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
-            // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN LEMBUR SEBELUMNYA (MENCEGAH DUPLIKAT)
+            
             $alreadyHasLembur = Absensi::where('parent_id', $absensi->id)
                 ->where('tipe', 'lembur')
                 ->whereIn('status_approval', ['pending', 'approved'])
@@ -1121,9 +1100,9 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
-            // NOTE: Tidak ada check check_out_at — lembur independen dari absen pulang
+            
 
-            // Upload foto bukti (opsional)
+            
             $fotoBukti = $request->hasFile('foto_bukti') ? $request->file('foto_bukti')->store('absensi_foto', 'public') : null;
             $fotoPath2 = $request->hasFile('foto_2') ? $request->file('foto_2')->store('absensi_foto', 'public') : null;
             $fotoPath3 = $request->hasFile('foto_3') ? $request->file('foto_3')->store('absensi_foto', 'public') : null;
@@ -1143,7 +1122,7 @@ public function meAbsensi(Request $request)
             );
 
             $kategori = $user->kategori_absensi;
-            $lateMinutes = $absensi->late_minutes ?? 0; // ✅ FIX: Ambil data telat dari absen masuk
+            $lateMinutes = $absensi->late_minutes ?? 0; 
             $salaryData = Absensi::calculateSalary(
                 $lateMinutes,
                 $absensi->status,
@@ -1157,15 +1136,15 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
-            // ✅ FIX: AUTO-CHECKOUT MENGGUNAKAN JAM SELESAI LEMBUR & FOTO LEMBUR
+            
             if (!$absensi->check_out_at) {
                 $absensi->update([
                     'check_out_at' => $lemburEnd,
-                    'foto_pulang'  => $fotoPath, // Pakai foto lembur sebagai foto pulang
+                    'foto_pulang'  => $fotoBukti,
                 ]);
             }
 
-            // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
+            
             $childLembur = Absensi::create([
                 'user_id'               => $user->id,
                 'parent_id'             => $absensi->id,
@@ -1212,9 +1191,7 @@ public function meAbsensi(Request $request)
         }
     }
 
-    /**
-     * Unified Resubmit API Endpoint
-     */
+    
     public function resubmit(Request $request, $id)
     {
         // 1. Coba cari di Absensi (Sakit, Izin, Lembur, Telat)
@@ -1230,12 +1207,12 @@ public function meAbsensi(Request $request)
             } elseif ($type === 'lembur') {
                 return $this->handleResubmitLembur($request, $id);
             } elseif ($type === 'telat') {
-                // Bisa pakai handler izin/sakit karena tabelnya sama
+                
                 return $this->handleResubmitIzinSakit($request, $id, 'telat');
             }
         }
 
-        // 2. Jika tidak ada di Absensi, coba cari di IzinKeluar
+        
         $izinKeluar = \App\Models\IzinKeluar::find($id);
         if ($izinKeluar) {
             if ($izinKeluar->user_id !== Auth::id()) {
@@ -1244,7 +1221,7 @@ public function meAbsensi(Request $request)
             return $this->handleResubmitIzinKeluar($request, $id);
         }
 
-        // 3. Coba cari di ScheduledLembur (Lembur Terjadwal)
+        
         $scheduledLembur = \App\Models\ScheduledLembur::find($id);
         if ($scheduledLembur) {
             if ($scheduledLembur->user_id !== Auth::id()) {
@@ -1256,13 +1233,11 @@ public function meAbsensi(Request $request)
         return response()->json(['success' => false, 'message' => 'Data tidak ditemukan atau tipe tidak didukung.'], 404);
     }
 
-    /**
-     * Handler for Izin Keluar Resubmission
-     */
+    
     private function handleResubmitIzinKeluar(Request $request, $id)
     {
         $izin = \App\Models\IzinKeluar::findOrFail($id);
-        
+
         if (!in_array($izin->status_approval, ['rejected', 'ditolak'])) {
             return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
         }
@@ -1279,9 +1254,7 @@ public function meAbsensi(Request $request)
         return response()->json(['success' => true, 'message' => 'Pengajuan Izin Keluar berhasil diajukan ulang.'], 200);
     }
 
-    /**
-     * Handler for Scheduled Lembur Resubmission
-     */
+    
     private function handleResubmitScheduledLembur(Request $request, $id)
     {
         $lembur = \App\Models\ScheduledLembur::findOrFail($id);
@@ -1317,9 +1290,7 @@ public function meAbsensi(Request $request)
     }
 
 
-    /**
-     * Helper for Lembur resubmission logic (extracted from resubmitLembur)
-     */
+    
     private function handleResubmitLembur(Request $request, $id)
     {
         // ... (Logika lama resubmitLembur pindah ke sini)
@@ -1329,9 +1300,7 @@ public function meAbsensi(Request $request)
     public function resubmitSakit(Request $request, $id) { return $this->resubmit($request, $id); }
     public function resubmitIzin(Request $request, $id) { return $this->resubmit($request, $id); }
 
-    /**
-     * Helper Unified logic for Resubmitting Sick and Leave requests
-     */
+    
     private function handleResubmitIzinSakit(Request $request, $id, string $type)
     {
         DB::beginTransaction();
@@ -1341,7 +1310,7 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'ID tidak valid.'], 400);
             }
 
-            // Validasi tanggal: Boleh mundur karena ini revisi
+            
             $request->validate([
                 'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
                 'keterangan_izin_sakit' => 'nullable|string|max:500',
@@ -1361,11 +1330,11 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
             }
 
-            // Hitung tanggal baru jika diberikan
+            
             $startDateInput = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : Carbon::parse($absensi->check_in_at)->startOfDay();
             $endDateInput = $request->end_date ? Carbon::parse($request->end_date)->startOfDay() : ($absensi->end_date ? Carbon::parse($absensi->end_date)->startOfDay() : $startDateInput->copy());
 
-            // Saring hari kerja efektif (Opsi 2 - Backend Pintar)
+            
             $calendarCutiTypes = ['cuti_melahirkan', 'cuti_keguguran', 'unpaid_leave'];
             $isCalendarLeave = in_array($absensi->submission_type, $calendarCutiTypes);
 
@@ -1395,7 +1364,7 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => "Pengajuan ulang maksimal 30 hari."], 422);
             }
 
-            // Delete old file
+            
             if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
                 Storage::disk('public')->delete($absensi->file_bukti);
             }
@@ -1423,14 +1392,14 @@ public function meAbsensi(Request $request)
 
             $absensi->update($updateData);
 
-            // Bersihkan data anak lama
+            
             Absensi::where('parent_id', $absensi->id)->delete();
 
-            // Buat ulang data anak jika lebih dari 1 hari
+            
             if ($totalDays > 1) {
                 $childRecords = [];
                 foreach ($validDates as $index => $date) {
-                    if ($index > 0) { // Lewati hari pertama (induk)
+                    if ($index > 0) { 
                         $childRecords[] = [
                             'user_id' => $absensi->user_id,
                             'parent_id' => $absensi->id,
@@ -1470,7 +1439,7 @@ public function meAbsensi(Request $request)
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Server error. ' . (config('app.debug') ? $e->getMessage() : '')
             ], 500);
         }
@@ -1507,12 +1476,12 @@ public function meAbsensi(Request $request)
 
             $jamMulai = Carbon::createFromFormat('H:i', $request->jam_mulai);
             $jamSelesai = Carbon::createFromFormat('H:i', $request->jam_selesai);
-            
+
             if ($jamSelesai->lte($jamMulai)) {
                 return response()->json(['success' => false, 'message' => 'Jam selesai harus lebih dari jam mulai.'], 422);
             }
 
-            // ✅ FIX SECURITY #2: Batas Maksimal Lembur 5 Jam
+            
             if ($jamMulai->diffInHours($jamSelesai) > 5) {
                 return response()->json(['success' => false, 'message' => 'Durasi lembur tidak wajar (Maksimal 5 jam sehari). Harap hubungi HR untuk lembur khusus.'], 422);
             }
@@ -1526,14 +1495,14 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
             }
 
-            // --- 1. HANDLE PHOTOS (CLEAN WAY) ---
+            
             $photoFields = ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'];
             $requestFields = ['foto', 'foto_2', 'foto_3', 'foto_4', 'foto_5', 'foto_6'];
             $newPaths = [];
 
             foreach ($photoFields as $index => $field) {
                 $reqField = $requestFields[$index];
-                
+
                 if ($request->hasFile($reqField)) {
                     // Delete old
                     if ($absensi->$field && Storage::disk('public')->exists($absensi->$field)) {
@@ -1558,7 +1527,7 @@ public function meAbsensi(Request $request)
             $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
 
             $overtimeData = Absensi::calculateOvertimeFromInput($lemburStart, $lemburEnd, $request->istirahat, $isWeekendOvertime);
-            
+
             $kategori = $absensi->user->kategori_absensi;
             $salaryData = Absensi::calculateSalary(
                 $absensi->late_minutes ?? 0,
@@ -1625,7 +1594,7 @@ public function meAbsensi(Request $request)
 public function getDetailAbsensi($id)
 {
     try {
-        // ✅ VALIDASI ID
+        
         if (!is_numeric($id) || $id <= 0) {
             return response()->json([
                 'success' => false,
@@ -1642,7 +1611,7 @@ public function getDetailAbsensi($id)
             ], 404);
         }
 
-        //  CEK OWNERSHIP
+        
         if ($absensi->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
@@ -1676,7 +1645,7 @@ public function pengajuanTelat(Request $request)
 
         $user = Auth::user();
 
-        // Ambil absensi yang dimaksud
+        
         $absensi = Absensi::where('id', $request->absensi_id)
             ->where('user_id', $user->id)
             ->first();
@@ -1689,7 +1658,7 @@ public function pengajuanTelat(Request $request)
             ], 404);
         }
 
-        // Pastikan sudah absen masuk
+        
         if (!$absensi->check_in_at) {
             DB::rollBack();
             return response()->json([
@@ -1698,7 +1667,7 @@ public function pengajuanTelat(Request $request)
             ], 400);
         }
 
-        // Cek kalau sudah pernah ajukan telat untuk absensi ini
+        
         if ($absensi->tipe !== null && $absensi->tipe !== 'hadir') {
             DB::rollBack();
             return response()->json([
@@ -1707,7 +1676,7 @@ public function pengajuanTelat(Request $request)
             ], 409);
         }
 
-        // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN KETERANGAN TELAT SEBELUMNYA (MENCEGAH DUPLIKAT)
+        
         $alreadyHasTelat = Absensi::where('parent_id', $absensi->id)
             ->where('tipe', 'telat')
             ->whereIn('status_approval', ['pending', 'approved'])
@@ -1721,7 +1690,7 @@ public function pengajuanTelat(Request $request)
             ], 409);
         }
 
-        // Hitung keterlambatan dari jam absen masuk
+        
         $checkIn = Carbon::parse($absensi->check_in_at);
         $standardTime = $checkIn->copy()->setTime(8, 0, 0);
         $lateMinutes = $checkIn->greaterThan($standardTime)
@@ -1736,15 +1705,15 @@ public function pengajuanTelat(Request $request)
             ], 400);
         }
 
-        // Hapus file bukti lama kalau ada
+        
         if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
             Storage::disk('public')->delete($absensi->file_bukti);
         }
 
-        // Upload file bukti baru
+        
         $fileBuktiPath = $request->file('file_bukti')->store('bukti_telat', 'public');
 
-        // Tentukan workflow berdasarkan employment type
+        
         $employment = strtolower($user->work_location ?? 'office');
 
         if ($employment === 'freelance') {
@@ -1760,13 +1729,13 @@ public function pengajuanTelat(Request $request)
             ];
         }
 
-        // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK TELAT
+        
         $childTelat = Absensi::create([
             'user_id'               => $user->id,
             'parent_id'             => $absensi->id,
             'check_in_at'           => $absensi->check_in_at,
-            'status'                => 'hadir', // Status asli tetap hadir
-            'tipe'                  => 'telat', // Tipe pengajuan telat
+            'status'                => 'hadir', 
+            'tipe'                  => 'telat', 
             'status_approval'       => 'pending',
             'file_bukti'            => $fileBuktiPath,
             'keterangan_izin_sakit' => $request->keterangan,
@@ -1775,7 +1744,7 @@ public function pengajuanTelat(Request $request)
             'late_minutes'          => $lateMinutes,
         ]);
 
-        // Notifikasi
+        
         Notification::create([
             'user_id'     => $user->id,
             'title'       => 'Pengajuan Keterangan Telat',
