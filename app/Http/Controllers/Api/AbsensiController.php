@@ -995,6 +995,14 @@ public function meAbsensi(Request $request)
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
+            // ✅ FIX: AUTO-CHECKOUT MENGGUNAKAN JAM SELESAI LEMBUR & FOTO LEMBUR
+            if (!$absensi->check_out_at) {
+                $absensi->update([
+                    'check_out_at' => $lemburEnd,
+                    'foto_pulang'  => $fotoPath, // Pakai foto lembur sebagai foto pulang
+                ]);
+            }
+
             // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
             $childLembur = Absensi::create([
                 'user_id'               => $user->id,
@@ -1148,6 +1156,14 @@ public function meAbsensi(Request $request)
 
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
+
+            // ✅ FIX: AUTO-CHECKOUT MENGGUNAKAN JAM SELESAI LEMBUR & FOTO LEMBUR
+            if (!$absensi->check_out_at) {
+                $absensi->update([
+                    'check_out_at' => $lemburEnd,
+                    'foto_pulang'  => $fotoPath, // Pakai foto lembur sebagai foto pulang
+                ]);
+            }
 
             // ✅ FIX: BUAT RECORD ANAK (CHILD) UNTUK LEMBUR
             $childLembur = Absensi::create([

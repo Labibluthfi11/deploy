@@ -43,29 +43,33 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
         });
 
         foreach ($grouped as $date => $items) {
-            // Cari record parent (Induk)
-            $parent = $items->firstWhere('parent_id', null) ?? $items->first();
+            // ✅ FIX: Cari record parent (Induk) secara ketat
+            $parent = $items->firstWhere('parent_id', null);
             
             // Cari record lembur (Anak)
             $childLembur = $items->firstWhere('tipe', 'lembur');
 
+            // Jika tidak ada parent, jam tidak bisa ditampilkan (jangan asal ambil child!)
+            $checkIn = $parent ? Carbon::parse($parent->check_in_at)->format('H:i') : '-';
+            $checkOut = ($parent && $parent->check_out_at) ? Carbon::parse($parent->check_out_at)->format('H:i') : '-';
+
             $data->push([
                 'no' => $no++,
                 'tanggal' => Carbon::parse($date)->format('d M Y'),
-                // Jam In/Out ambil dari Parent (Absen utama)
-                'check_in' => Carbon::parse($parent->check_in_at)->format('H:i'),
-                'check_out' => $parent->check_out_at ? Carbon::parse($parent->check_out_at)->format('H:i') : '-',
-                'status' => ($parent->status === 'hadir' && strtolower($parent->tipe ?? '') === 'sakit') ? 'Hadir & Sakit' : ucfirst($parent->status ?? '-'),
-                'tipe' => ucfirst($parent->tipe ?? '-'),
-                'telat' => ($parent->late_minutes ?? 0) . ' Menit',
+                // Jam In/Out hanya ambil dari Parent yang valid
+                'check_in' => $checkIn,
+                'check_out' => $checkOut,
+                'status' => ($parent && $parent->status === 'hadir' && strtolower($parent->tipe ?? '') === 'sakit') ? 'Hadir & Sakit' : ucfirst($parent->status ?? '-'),
+                'tipe' => $parent ? ucfirst($parent->tipe ?? '-') : '-',
+                'telat' => ($parent && $parent->late_minutes ? ($parent->late_minutes . ' Menit') : '-'),
                 // Data Lembur ambil dari Child
-                'menit_lembur' => ($childLembur ? ($childLembur->overtime_minutes ?? 0) : ($parent->overtime_minutes ?? 0)) . ' Menit',
-                'gaji_lembur' => 'Rp ' . number_format($childLembur ? ($childLembur->overtime_pay ?? 0) : ($parent->overtime_pay ?? 0), 0, ',', '.'),
-                'gaji_pokok' => 'Rp ' . number_format($parent->base_salary ?? 0, 0, ',', '.'),
-                'potongan' => 'Rp ' . number_format($parent->late_penalty ?? 0, 0, ',', '.'),
-                'adjustment' => 'Rp ' . number_format($parent->adjustment_salary ?? 0, 0, ',', '.'),
+                'menit_lembur' => ($childLembur ? ($childLembur->overtime_minutes ?? 0) : 0) . ' Menit',
+                'gaji_lembur' => 'Rp ' . number_format($childLembur ? ($childLembur->overtime_pay ?? 0) : 0, 0, ',', '.'),
+                'gaji_pokok' => 'Rp ' . number_format($parent ? ($parent->base_salary ?? 0) : 0, 0, ',', '.'),
+                'potongan' => 'Rp ' . number_format($parent ? ($parent->late_penalty ?? 0) : 0, 0, ',', '.'),
+                'adjustment' => 'Rp ' . number_format($parent ? ($parent->adjustment_salary ?? 0) : 0, 0, ',', '.'),
                 'alasan_adj' => $parent->adjustment_reason ?? '-',
-                'gaji_bersih' => 'Rp ' . number_format($parent->final_salary ?? 0, 0, ',', '.'),
+                'gaji_bersih' => 'Rp ' . number_format($parent ? ($parent->final_salary ?? 0) : 0, 0, ',', '.'),
                 'approval' => ucfirst($parent->status_approval ?? '-'),
             ]);
         }
