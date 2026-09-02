@@ -533,9 +533,6 @@ public function meAbsensi(Request $request)
             $query->whereBetween('check_in_at', [$startDate, $endDate]);
         }
 
-        // 3. PAGINATION
-        $absensi = $query->orderBy('check_in_at', 'desc')->orderBy('id', 'desc')->paginate(30);
-
         // 4. MAPPING URL (Balik ke cara lama yang aman tapi rapi)
         $absensi->getCollection()->transform(function($item) {
             $item->foto_masuk_url = $item->foto_masuk ? Storage::url($item->foto_masuk) : null;
@@ -546,6 +543,36 @@ public function meAbsensi(Request $request)
             $item->foto_pulang_5_url = $item->foto_pulang_5 ? Storage::url($item->foto_pulang_5) : null;
             $item->foto_pulang_6_url = $item->foto_pulang_6 ? Storage::url($item->foto_pulang_6) : null;
             $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
+
+            // 🆕 TRICK "MASQUERADE" AGAR FLUTTER TIDAK PERLU DIUBAH SAMA SEKALI
+            // Kita inject status anak yang aktif (pending/approved) ke parent secara dinamis hanya untuk respon API
+            if ($item->children && $item->children->isNotEmpty()) {
+                // 1. Cari apakah ada anak yang statusnya 'pending'
+                $pendingChild = $item->children->where('status_approval', 'pending')->first();
+                if ($pendingChild) {
+                    $item->tipe = $pendingChild->tipe;
+                    $item->status_approval = 'pending';
+                    
+                    // Kalau pendingnya lembur, set data lembur sementara biar kebaca di Flutter
+                    if ($pendingChild->tipe === 'lembur') {
+                        $item->lembur_start = $pendingChild->lembur_start;
+                        $item->lembur_end = $pendingChild->lembur_end;
+                        $item->overtime_minutes = $pendingChild->overtime_minutes;
+                    }
+                    if ($pendingChild->tipe === 'telat') {
+                        $item->file_bukti_url = $pendingChild->file_bukti ? Storage::url($pendingChild->file_bukti) : null;
+                        $item->keterangan_izin_sakit = $pendingChild->keterangan_izin_sakit;
+                    }
+                } else {
+                    // 2. Jika tidak ada yang pending, cari apakah ada anak yang approved
+                    $approvedChild = $item->children->where('status_approval', 'approved')->first();
+                    if ($approvedChild) {
+                        $item->tipe = $approvedChild->tipe;
+                        $item->status_approval = 'approved';
+                    }
+                }
+            }
+
             return $item;
         });
 
@@ -910,6 +937,19 @@ public function meAbsensi(Request $request)
                 ], 409);
             }
 
+            // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN LEMBUR SEBELUMNYA (MENCEGAH DUPLIKAT)
+            $alreadyHasLembur = Absensi::where('parent_id', $absensi->id)
+                ->where('tipe', 'lembur')
+                ->whereIn('status_approval', ['pending', 'approved'])
+                ->exists();
+
+            if ($alreadyHasLembur) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah mengajukan lembur untuk hari ini.'
+                ], 409);
+            }
+
             // NOTE: check_out_at check dihapus — lembur sekarang independen dari absen pulang
 
             $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
@@ -1052,6 +1092,19 @@ public function meAbsensi(Request $request)
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda sudah memiliki pengajuan tipe lain (' . ucfirst($absensi->tipe) . ') yang sedang diproses. Mohon selesaikan pengajuan tersebut terlebih dahulu.'
+                ], 409);
+            }
+
+            // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN LEMBUR SEBELUMNYA (MENCEGAH DUPLIKAT)
+            $alreadyHasLembur = Absensi::where('parent_id', $absensi->id)
+                ->where('tipe', 'lembur')
+                ->whereIn('status_approval', ['pending', 'approved'])
+                ->exists();
+
+            if ($alreadyHasLembur) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah mengajukan lembur untuk hari ini.'
                 ], 409);
             }
 
@@ -1630,6 +1683,20 @@ public function pengajuanTelat(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Anda sudah memiliki pengajuan tipe lain (' . ucfirst($absensi->tipe) . ') yang sedang diproses.'
+            ], 409);
+        }
+
+        // ✅ FIX: CEK JIKA SUDAH PERNAH MENGAJUKAN KETERANGAN TELAT SEBELUMNYA (MENCEGAH DUPLIKAT)
+        $alreadyHasTelat = Absensi::where('parent_id', $absensi->id)
+            ->where('tipe', 'telat')
+            ->whereIn('status_approval', ['pending', 'approved'])
+            ->exists();
+
+        if ($alreadyHasTelat) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda sudah mengajukan keterangan telat untuk hari ini.'
             ], 409);
         }
 
