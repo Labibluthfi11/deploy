@@ -37,23 +37,36 @@ class AbsensiUserExport implements FromCollection, WithHeadings, WithStyles, Wit
         $data = collect();
         $no = 1;
 
-        foreach ($this->absensi as $item) {
+        // Group records by date to handle Parent+Child aggregation
+        $grouped = $this->absensi->groupBy(function($item) {
+            return Carbon::parse($item->check_in_at)->format('Y-m-d');
+        });
+
+        foreach ($grouped as $date => $items) {
+            // Cari record parent (Induk)
+            $parent = $items->firstWhere('parent_id', null) ?? $items->first();
+            
+            // Cari record lembur (Anak)
+            $childLembur = $items->firstWhere('tipe', 'lembur');
+
             $data->push([
                 'no' => $no++,
-                'tanggal' => Carbon::parse($item->check_in_at)->format('d M Y'),
-                'check_in' => Carbon::parse($item->check_in_at)->format('H:i'),
-                'check_out' => $item->check_out_at ? Carbon::parse($item->check_out_at)->format('H:i') : '-',
-                'status' => ($item->status === 'hadir' && strtolower($item->tipe ?? '') === 'sakit') ? 'Hadir & Sakit' : ucfirst($item->status ?? '-'),
-                'tipe' => ucfirst($item->tipe ?? '-'),
-                'telat' => ($item->late_minutes ?? 0) . ' Menit',
-                'menit_lembur' => ($item->overtime_minutes ?? 0) . ' Menit',
-                'gaji_lembur' => 'Rp ' . number_format($item->overtime_pay ?? 0, 0, ',', '.'),
-                'gaji_pokok' => 'Rp ' . number_format($item->base_salary ?? 0, 0, ',', '.'),
-                'potongan' => 'Rp ' . number_format($item->late_penalty ?? 0, 0, ',', '.'),
-                'adjustment' => 'Rp ' . number_format($item->adjustment_salary ?? 0, 0, ',', '.'),
-                'alasan_adj' => $item->adjustment_reason ?? '-',
-                'gaji_bersih' => 'Rp ' . number_format($item->final_salary ?? 0, 0, ',', '.'),
-                'approval' => ucfirst($item->status_approval ?? '-'),
+                'tanggal' => Carbon::parse($date)->format('d M Y'),
+                // Jam In/Out ambil dari Parent (Absen utama)
+                'check_in' => Carbon::parse($parent->check_in_at)->format('H:i'),
+                'check_out' => $parent->check_out_at ? Carbon::parse($parent->check_out_at)->format('H:i') : '-',
+                'status' => ($parent->status === 'hadir' && strtolower($parent->tipe ?? '') === 'sakit') ? 'Hadir & Sakit' : ucfirst($parent->status ?? '-'),
+                'tipe' => ucfirst($parent->tipe ?? '-'),
+                'telat' => ($parent->late_minutes ?? 0) . ' Menit',
+                // Data Lembur ambil dari Child
+                'menit_lembur' => ($childLembur ? ($childLembur->overtime_minutes ?? 0) : ($parent->overtime_minutes ?? 0)) . ' Menit',
+                'gaji_lembur' => 'Rp ' . number_format($childLembur ? ($childLembur->overtime_pay ?? 0) : ($parent->overtime_pay ?? 0), 0, ',', '.'),
+                'gaji_pokok' => 'Rp ' . number_format($parent->base_salary ?? 0, 0, ',', '.'),
+                'potongan' => 'Rp ' . number_format($parent->late_penalty ?? 0, 0, ',', '.'),
+                'adjustment' => 'Rp ' . number_format($parent->adjustment_salary ?? 0, 0, ',', '.'),
+                'alasan_adj' => $parent->adjustment_reason ?? '-',
+                'gaji_bersih' => 'Rp ' . number_format($parent->final_salary ?? 0, 0, ',', '.'),
+                'approval' => ucfirst($parent->status_approval ?? '-'),
             ]);
         }
 

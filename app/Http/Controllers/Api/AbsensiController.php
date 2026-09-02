@@ -572,6 +572,8 @@ public function meAbsensi(Request $request)
                     if ($approvedChild) {
                         $item->tipe = $approvedChild->tipe;
                         $item->status_approval = 'approved';
+                        // ✅ INJECT WORKFLOW STATUS ANAK KE PARENT
+                        $item->workflow_status = $approvedChild->workflow_status; 
                     }
                 }
             }
