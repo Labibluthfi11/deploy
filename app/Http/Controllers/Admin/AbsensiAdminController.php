@@ -1040,6 +1040,7 @@ public function bulkExportPdf(Request $request)
         $approvedAbsensi = Absensi::where('user_id', $user->id)
             ->whereBetween('check_in_at', [$startDate, $endDate])
             ->where('status_approval', 'approved')
+            ->whereNull('parent_id') // FIX: Exclude child records
             ->get();
 
         $periodeStr = $startDate->translatedFormat('d M Y') . ' - ' . $endDate->translatedFormat('d M Y');
@@ -1059,8 +1060,8 @@ public function bulkExportPdf(Request $request)
             'gajiPokok'        => $approvedAbsensi->sum('base_salary'),
             'totalGajiPokok'   => $approvedAbsensi->sum('base_salary'), // Alias
 
-            'totalPotongan'    => $approvedAbsensi->sum('late_penalty'),
-            'potongan'         => $approvedAbsensi->sum('late_penalty'), // Alias
+            'totalPotongan'    => $approvedAbsensi->where('late_penalty', '>', 0)->sum('late_penalty'), // FIX: Only sum actual penalties
+            'potongan'         => $approvedAbsensi->where('late_penalty', '>', 0)->sum('late_penalty'), // Alias
 
             'totalLembur'      => $approvedAbsensi->sum('overtime_pay'), // Uang lembur
             'gajiLembur'       => $approvedAbsensi->sum('overtime_pay'), // Alias
