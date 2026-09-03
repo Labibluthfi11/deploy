@@ -30,6 +30,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->whereIn('status_approval', ['approved', 'rejected', 'pending'])
+            ->whereNull('parent_id')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
@@ -88,7 +89,7 @@ class BulkDetailExport implements FromView, ShouldAutoSize, WithTitle
             // 🔥 Gaji lembur HANYA hitung yang approved
             $lemburFinal = $latestDailyRecords->where('status_approval', 'approved')->map(fn($a) => round($a->overtime_pay ?? 0))->sum();
             
-            $dendaTelatIndividual = $latestDailyRecords->map(fn($a) => round($a->late_penalty ?? 0))->sum();
+            $dendaTelatIndividual = $latestDailyRecords->filter(fn($a) => ($a->late_penalty ?? 0) > 0)->map(fn($a) => round($a->late_penalty ?? 0))->sum();
             $adjMinus = round(abs((float) $latestDailyRecords->where('adjustment_salary', '<', 0)->sum('adjustment_salary')));
             $potonganFinal = $dendaTelatIndividual + $adjMinus;
 

@@ -39,6 +39,7 @@ class BulkSimpleExport implements FromView, ShouldAutoSize, WithTitle
         $absensiData = Absensi::whereIn('user_id', $this->userIds)
             ->whereBetween('check_in_at', [$this->startDate, $this->endDate])
             ->where('status_approval', 'approved')
+            ->whereNull('parent_id')
             ->orderBy('check_in_at', 'asc')
             ->get();
 
