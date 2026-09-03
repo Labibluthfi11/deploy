@@ -638,6 +638,7 @@ class AbsensiAdminController extends Controller
         $absensiUser = Absensi::where('user_id', $user->id)
             ->whereBetween('check_in_at', [$startDate, $endDate])
             ->whereIn('status_approval', ['approved', 'rejected'])
+            ->whereNull('parent_id')
             ->get();
 
         // 🔥 FORCE REFRESH
@@ -693,7 +694,7 @@ class AbsensiAdminController extends Controller
             'total_sakit' => $totalSakit,
             'total_cuti' => $absensiUser->where('status', 'izin')->filter(fn($item) => str_starts_with($item->submission_type ?? '', 'cuti'))->where('status_approval', 'approved')->count(),
             'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
-            'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
+            'total_telat' => $absensiUser->where('late_minutes', '>', 0)->where('late_penalty', '>', 0)->count(),
             'total_menit_telat' => $absensiUser->sum('late_minutes'),
             'total_menit_lembur' => $totalMenitLembur,
             'total_gaji_lembur' => $totalGajiLembur,
