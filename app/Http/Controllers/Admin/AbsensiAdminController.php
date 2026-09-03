@@ -1076,7 +1076,8 @@ public function bulkExportPdf(Request $request)
             'totalIzin'        => $approvedAbsensi->where('status', 'izin')->count(),
 
             'totalMenitLembur' => $approvedAbsensi->sum('overtime_minutes'),
-            'durasiLembur'     => $approvedAbsensi->sum('overtime_minutes'), // 👈 INI YANG TADI ERROR
+            'durasiLembur'     => $approvedAbsensi->sum('overtime_minutes'),
+            'adjustment'       => 0, // 👈 FIX: Tambahkan variabel yang hilang
 
             // 🔥 TAMBAH INI - YANG PALING PENTING! 🔥
             'terbilang'        => ucwords($terbilangString), // 👈 INI YANG KURANG!
