@@ -64,148 +64,96 @@
     </div>
 </div>
 
-{{-- TABLE SECTION --}}
-<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-    {{-- Table Header --}}
-    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-600 dark:text-gray-400">
-                Menampilkan <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> data
+{{-- GRID SECTION --}}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @forelse ($submissions as $submission)
+        @php
+            $user = $submission->user ?? null;
+            $statusApproval = $submission->status_approval ?? 'pending';
+            $typeColor = match($submission->tipe) {
+                'lembur' => 'border-indigo-500',
+                'izin' => 'border-yellow-500',
+                'sakit' => 'border-red-500',
+                default => 'border-gray-200',
+            };
+        @endphp
+        
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-l-4 {{ $typeColor }} p-5 hover:shadow-lg transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $user->name ?? '-' }}</h3>
+                    <p class="text-sm text-gray-500">{{ $user->employee_id ?? 'ID: -' }}</p>
+                </div>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
+                    {{ $submission->tipe }}
+                </span>
+            </div>
+            
+            <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <p>📅 {{ $submission->check_in_at ? \Carbon\Carbon::parse($submission->check_in_at)->isoFormat('DD MMM YYYY') : '-' }}</p>
+                @if($submission->tipe === 'lembur')
+                    <p>⏱️ Durasi: {{ floor($submission->lembur_start ? \Carbon\Carbon::parse($submission->lembur_start)->diffInMinutes(\Carbon\Carbon::parse($submission->lembur_end))/60 : 0) }}j {{ ($submission->lembur_start ? \Carbon\Carbon::parse($submission->lembur_start)->diffInMinutes(\Carbon\Carbon::parse($submission->lembur_end))%60 : 0) }}m</p>
+                @endif
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <p class="text-sm text-gray-700 dark:text-gray-300 truncate italic">"{{ $submission->tipe === 'lembur' ? ($submission->lembur_keterangan ?? '-') : ($submission->keterangan_izin_sakit ?? '-') }}"</p>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div class="font-semibold text-xs text-gray-500 mb-2">BUKTI:</div>
+                <div class="flex flex-wrap gap-2">
+                    @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat')
+                        @if ($submission->file_bukti)
+                            <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank" class="text-indigo-600 hover:underline text-xs">Lihat Bukti</a>
+                        @else
+                            <span class="text-xs text-gray-400 italic">Tidak ada</span>
+                        @endif
+                    @elseif ($submission->tipe === 'lembur')
+                        @php
+                            $allFotos = array_values(array_filter([
+                                $submission->foto_pulang, $submission->foto_pulang_2, $submission->foto_pulang_3,
+                                $submission->foto_pulang_4, $submission->foto_pulang_5, $submission->foto_pulang_6,
+                            ]));
+                        @endphp
+                        @if (count($allFotos) > 0)
+                            @foreach($allFotos as $i => $foto)
+                                <a href="{{ asset('storage/' . $foto) }}" target="_blank" class="text-purple-600 hover:underline text-xs">Bukti {{ $i + 1 }}</a>
+                            @endforeach
+                        @else
+                            <span class="text-xs text-gray-400 italic">Tidak ada foto</span>
+                        @endif
+                    @endif
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border {{ match($statusApproval) {
+                    'pending' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+                    'approved_hrga' => 'bg-green-500/10 text-green-400 border-green-500/20',
+                    'rejected' => 'bg-red-500/10 text-red-400 border-red-500/20',
+                    default => 'bg-gray-100 text-gray-600'
+                } }}">
+                    {{ ucfirst(str_replace('_', ' ', $statusApproval)) }}
+                </span>
+                
+                @if ($statusApproval === 'pending')
+                    <div class="flex gap-2">
+                        <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'approve']) }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="catatan_admin" value="Disetujui">
+                            <button type="submit" class="text-green-600 font-bold hover:text-green-800">✓</button>
+                        </form>
+                        <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}" method="POST" class="flex items-center">
+                            @csrf
+                            <input type="text" name="catatan_admin" placeholder="Alasan..." class="border rounded px-1 text-xs w-20" required>
+                            <button type="submit" class="text-red-600 font-bold hover:text-red-800 ml-1">✕</button>
+                        </form>
+                    </div>
+                @endif
             </div>
         </div>
-    </div>
-
-    {{-- Table --}}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-800/50">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Karyawan</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Jenis / Tanggal</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Durasi</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Bukti</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
-                </tr>
-            </thead>
-
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                @forelse ($submissions as $index => $submission)
-                    @php
-                        $user = $submission->user ?? null;
-                        $statusApproval = $submission->status_approval ?? 'pending';
-
-                        $statusLabel = match($statusApproval) {
-                            'pending' => ['text' => 'Menunggu', 'color' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', 'icon' => '⏱️'],
-                            'approved_supervisor' => ['text' => 'Approved SPV', 'color' => 'bg-blue-500/10 text-blue-400 border-blue-500/20', 'icon' => '✓'],
-                            'approved_manager' => ['text' => 'Approved MGR', 'color' => 'bg-purple-500/10 text-purple-400 border-purple-500/20', 'icon' => '✓✓'],
-                            'approved_hrga' => ['text' => 'Final Approved', 'color' => 'bg-green-500/10 text-green-400 border-green-500/20', 'icon' => '✓✓✓'],
-                            'rejected' => ['text' => 'Ditolak', 'color' => 'bg-red-500/10 text-red-400 border-red-500/20', 'icon' => '✕'],
-                            default => ['text' => ucfirst($statusApproval), 'color' => 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600', 'icon' => '•']
-                        };
-
-                        $isOvertime = ($submission->tipe === 'lembur');
-                        $duration = '-';
-                        if ($isOvertime && $submission->lembur_start && $submission->lembur_end) {
-                            $start = \Carbon\Carbon::parse($submission->lembur_start);
-                            $end = \Carbon\Carbon::parse($submission->lembur_end);
-                            $diff = $start->diffInMinutes($end);
-                            if ($submission->lembur_rest == 1) $diff = max(0, $diff - 30);
-                            $duration = floor($diff / 60) . 'j ' . ($diff % 60) . 'm';
-                        }
-                    @endphp
-
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm shadow-lg">
-                                    {{ strtoupper(substr($user->name ?? 'U', 0, 2)) }}
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $user->name ?? '-' }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $user->employee_id ?? 'N/A' }}</div>
-                                </div>
-                            </div>
-                        </td>
-
-                        <td class="px-6 py-4">
-                            <div class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
-                                {{ $submission->submission_type ?? ucfirst($submission->tipe) }}
-                            </div>
-                            <div class="text-sm text-gray-900 dark:text-white font-medium mt-1">
-                                {{ $submission->check_in_at ? \Carbon\Carbon::parse($submission->check_in_at)->isoFormat('DD MMM YYYY') : '-' }}
-                            </div>
-                        </td>
-
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $isOvertime ? $duration : '-' }}
-                        </td>
-
-                        <td class="px-6 py-4">
-                            @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat')
-                                @if ($submission->file_bukti)
-                                    <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank" class="text-indigo-600 hover:underline">Lihat Bukti</a>
-                                @else
-                                    <span class="text-xs text-gray-400 italic">Tidak ada</span>
-                                @endif
-                            @elseif ($submission->tipe === 'lembur')
-                                @php
-                                    $allFotos = array_values(array_filter([
-                                        $submission->foto_pulang, $submission->foto_pulang_2, $submission->foto_pulang_3,
-                                        $submission->foto_pulang_4, $submission->foto_pulang_5, $submission->foto_pulang_6,
-                                    ]));
-                                @endphp
-                                @if (count($allFotos) > 0)
-                                    <div class="flex flex-col gap-1">
-                                        @foreach($allFotos as $i => $foto)
-                                            <a href="{{ asset('storage/' . $foto) }}" target="_blank" class="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                                Lihat Bukti {{ $i + 1 }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <span class="text-xs text-gray-400 italic">Tidak ada foto</span>
-                                @endif
-                            @endif
-                        </td>
-
-                        <td class="px-6 py-4">
-                            <p class="text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate">
-                                {{ $isOvertime ? ($submission->lembur_keterangan ?? '-') : ($submission->keterangan_izin_sakit ?? '-') }}
-                            </p>
-                        </td>
-
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border {{ $statusLabel['color'] }}">
-                                {{ $statusLabel['text'] }}
-                            </span>
-                        </td>
-
-                        <td class="px-6 py-4 whitespace-nowrap text-center">
-                            @if ($statusApproval === 'pending')
-                                <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'approve']) }}" method="POST" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-green-600 hover:text-green-900 font-bold">✓</button>
-                                </form>
-                                <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}" method="POST" class="inline ml-2">
-                                    @csrf
-                                    <input type="text" name="catatan_admin" placeholder="Alasan..." class="border rounded px-1 text-xs" required>
-                                    <button type="submit" class="text-red-600 hover:text-red-900 font-bold">✕</button>
-                                </form>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">Tidak ada data</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+    @empty
+        <div class="col-span-full py-12 text-center text-gray-500">Tidak ada data pengajuan.</div>
+    @endforelse
 </div>
