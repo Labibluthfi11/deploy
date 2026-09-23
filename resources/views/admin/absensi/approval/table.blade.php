@@ -353,17 +353,21 @@
             alert("Terjadi kesalahan.");
         }
     };
-
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.view-detail-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const submission = JSON.parse(this.dataset.submission);
+    
+    // Pasang listener langsung ke dokumen
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-detail-btn')) {
+            console.log("Tombol Detail diklik!");
+            try {
+                const submission = JSON.parse(e.target.dataset.submission);
                 window.openDetailModal(submission);
-            });
-        });
-        
-        const overlay = document.getElementById('detailOverlay');
-        if (overlay) overlay.addEventListener('click', window.closeDetailModal);
+            } catch (err) {
+                console.error("Error parsing data:", err);
+            }
+        }
+        if (e.target.id === 'detailOverlay') {
+            window.closeDetailModal();
+        }
     });
 </script>
 
