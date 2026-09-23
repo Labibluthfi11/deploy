@@ -64,17 +64,13 @@
     </div>
 </div>
 
-{{-- TABLE SECTION --}}
+{{-- GRID SECTION --}}
 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-    {{-- Grid View --}}
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @forelse ($submissions as $submission)
             @php
                 $user = $submission->user ?? null;
-                $statusApproval = $submission->status_approval ?? 'pending';
                 $isOvertime = ($submission->tipe === 'lembur');
-                
-                // Menentukan warna kartu berdasarkan tipe
                 $typeColor = match($submission->tipe) {
                     'lembur' => 'border-indigo-500',
                     'izin' => 'border-yellow-500',
@@ -103,8 +99,8 @@
                 
                 <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
                     <button type="button"
-                        class="view-detail-btn text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
-                        data-submission='@json($submission)'>
+                        class="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                        onclick="window.openDetailModal(@json($submission))">
                         Lihat Detail
                     </button>
                 </div>
@@ -115,13 +111,12 @@
             </div>
         @endforelse
     </div>
-
 </div>
 
 {{-- MODAL DETAIL --}}
 <div id="modalDetail" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen px-4">
-        <div id="detailOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
+        <div id="detailOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75" onclick="window.closeDetailModal()"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg z-[10000]">
             <div class="p-6">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white" id="modalTitle">Detail Pengajuan</h3>
@@ -136,82 +131,6 @@
         </div>
     </div>
 </div>
-
-<div id="modalViewReason" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
-...
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div id="reasonModalOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
-        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md z-[10000]">
-            <div class="bg-gradient-to-r from-red-600 to-red-500 rounded-t-xl p-5">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-white font-bold text-lg">Alasan Penolakan</h3>
-                            <p id="reasonModalName" class="text-red-100 text-xs mt-0.5"></p>
-                        </div>
-                    </div>
-                    <button id="reasonModalCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="p-6">
-                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                    <p id="reasonModalText" class="text-sm text-red-800 dark:text-red-300 leading-relaxed italic"></p>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button id="reasonModalCloseBtnBottom" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">
-                        Tutup
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="modalGallery" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 py-8">
-        <div id="galleryOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-90"></div>
-        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl z-[10000]">
-            <div class="bg-gradient-to-r from-purple-600 to-purple-500 rounded-t-xl p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-white font-bold text-lg">Foto Bukti Lembur</h3>
-                        <p id="galleryName" class="text-purple-100 text-xs mt-0.5"></p>
-                    </div>
-                    <button id="galleryCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="p-4">
-                <div id="galleryMain" class="w-full h-80 bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden mb-3 flex items-center justify-center">
-                    <img id="galleryMainImg" src="" alt="Foto lembur" class="max-h-full max-w-full object-contain rounded-xl">
-                </div>
-                <div id="galleryThumbs" class="flex gap-2 overflow-x-auto pb-1"></div>
-                <div class="flex items-center justify-between mt-3">
-                    <button id="galleryPrev" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">← Prev</button>
-                    <span id="galleryCounter" class="text-sm text-gray-500 dark:text-gray-400"></span>
-                    <button id="galleryNext" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">Next →</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-
-
 
 <script nonce="{{ config('app.csp_nonce') }}">
     window.closeDetailModal = function() {
@@ -249,7 +168,7 @@
                             ${fotos.map(f => `<img src="${f}" class="w-20 h-20 object-cover rounded-lg cursor-pointer" onclick="window.open('${f}', '_blank')">`).join('')}
                         </div>
                     </div>
-                ` : '}
+                ` : ''}
             `;
 
             if (submission.status_approval === 'pending') {
@@ -266,26 +185,14 @@
                     </form>
                 `;
             } else {
-                modalActions.innerHTML = `<button type="button" class="px-4 py-2 bg-gray-500 text-white rounded-lg" onclick="closeDetailModal()">Tutup</button>`;
+                modalActions.innerHTML = `<button type="button" class="px-4 py-2 bg-gray-500 text-white rounded-lg" onclick="window.closeDetailModal()">Tutup</button>`;
             }
 
             modalDetail.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
         } catch (e) {
             console.error("Error:", e);
+            alert("Terjadi kesalahan.");
         }
     };
-
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.view-detail-btn');
-        if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            const submission = JSON.parse(btn.dataset.submission);
-            window.openDetailModal(submission);
-        }
-        if (e.target.id === 'detailOverlay') {
-            window.closeDetailModal();
-        }
-    });
 </script>

@@ -81,3 +81,4 @@ class DatabaseSeeder extends Seeder
         }
     }
 }
+
