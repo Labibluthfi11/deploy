@@ -99,8 +99,8 @@
                 
                 <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
                     <button type="button"
-                        class="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
-                        onclick="window.openDetailModal(@json($submission))">
+                        class="detail-btn text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                        data-submission='@json($submission)'>
                         Lihat Detail
                     </button>
                 </div>
@@ -116,7 +116,7 @@
 {{-- MODAL DETAIL --}}
 <div id="modalDetail" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen px-4">
-        <div id="detailOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75" onclick="window.closeDetailModal()"></div>
+        <div id="detailOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg z-[10000]">
             <div class="p-6">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white" id="modalTitle">Detail Pengajuan</h3>
@@ -133,66 +133,85 @@
 </div>
 
 <script nonce="{{ config('app.csp_nonce') }}">
-    window.closeDetailModal = function() {
-        document.getElementById('modalDetail').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    };
-
-    window.openDetailModal = function(submission) {
+    document.addEventListener('DOMContentLoaded', function() {
         const modalDetail = document.getElementById('modalDetail');
         const modalContent = document.getElementById('modalContent');
         const modalActions = document.getElementById('modalActions');
-        
-        try {
-            document.getElementById('modalTitle').textContent = 'Detail ' + (submission.tipe ? submission.tipe.toUpperCase() : 'Pengajuan');
-            
-            let fotos = [];
-            if (submission.tipe === 'lembur') {
-                ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'].forEach(key => {
-                    if (submission[key]) fotos.push('/storage/' + submission[key]);
-                });
-            } else if (submission.file_bukti) {
-                fotos.push('/storage/' + submission.file_bukti);
-            }
+        const overlay = document.getElementById('detailOverlay');
 
-            modalContent.innerHTML = `
-                <p><strong>Nama:</strong> ${submission.user ? submission.user.name : '-'}</p>
-                <p><strong>Jenis:</strong> ${submission.tipe ? submission.tipe.toUpperCase() : '-'}</p>
-                <p><strong>Tanggal:</strong> ${submission.check_in_at || '-'}</p>
-                <p><strong>Keterangan:</strong> ${submission.keterangan_goals || submission.keterangan_izin_sakit || '-'}</p>
+        window.closeDetailModal = function() {
+            modalDetail.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        window.openDetailModal = function(submission) {
+            try {
+                document.getElementById('modalTitle').textContent = 'Detail ' + (submission.tipe ? submission.tipe.toUpperCase() : 'Pengajuan');
                 
-                ${fotos.length > 0 ? `
-                    <div class="mt-4">
-                        <p class="font-bold mb-2">Bukti (${fotos.length} Foto):</p>
-                        <div class="flex gap-2 overflow-x-auto pb-2">
-                            ${fotos.map(f => `<img src="${f}" class="w-20 h-20 object-cover rounded-lg cursor-pointer" onclick="window.open('${f}', '_blank')">`).join('')}
+                let fotos = [];
+                if (submission.tipe === 'lembur') {
+                    ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'].forEach(key => {
+                        if (submission[key]) fotos.push('/storage/' + submission[key]);
+                    });
+                } else if (submission.file_bukti) {
+                    fotos.push('/storage/' + submission.file_bukti);
+                }
+
+                modalContent.innerHTML = `
+                    <p><strong>Nama:</strong> ${submission.user ? submission.user.name : '-'}</p>
+                    <p><strong>Jenis:</strong> ${submission.tipe ? submission.tipe.toUpperCase() : '-'}</p>
+                    <p><strong>Tanggal:</strong> ${submission.check_in_at || '-'}</p>
+                    <p><strong>Keterangan:</strong> ${submission.keterangan_goals || submission.keterangan_izin_sakit || '-'}</p>
+                    
+                    ${fotos.length > 0 ? `
+                        <div class="mt-4">
+                            <p class="font-bold mb-2">Bukti (${fotos.length} Foto):</p>
+                            <div class="flex gap-2 overflow-x-auto pb-2">
+                                ${fotos.map(f => `<img src="${f}" class="foto-bukti-img w-20 h-20 object-cover rounded-lg cursor-pointer" data-src="${f}">`).join('')}
+                            </div>
                         </div>
-                    </div>
-                ` : ''}
-            `;
-
-            if (submission.status_approval === 'pending') {
-                modalActions.innerHTML = `
-                    <form action="/admin/absensi/approval/${submission.id}/approve" method="POST">
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="catatan_admin" value="Disetujui">
-                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg">Approve</button>
-                    </form>
-                    <form action="/admin/absensi/approval/${submission.id}/reject" method="POST" class="flex gap-2">
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="text" name="catatan_admin" placeholder="Alasan reject..." required class="border rounded-lg px-2 text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg">Reject</button>
-                    </form>
+                    ` : ''}
                 `;
-            } else {
-                modalActions.innerHTML = `<button type="button" class="px-4 py-2 bg-gray-500 text-white rounded-lg" onclick="window.closeDetailModal()">Tutup</button>`;
-            }
 
-            modalDetail.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        } catch (e) {
-            console.error("Error:", e);
-            alert("Terjadi kesalahan.");
-        }
-    };
+                modalContent.querySelectorAll('.foto-bukti-img').forEach(function(img) {
+                    img.addEventListener('click', function() {
+                        window.open(img.dataset.src, '_blank');
+                    });
+                });
+
+                if (submission.status_approval === 'pending') {
+                    modalActions.innerHTML = `
+                        <form action="/admin/absensi/approval/${submission.id}/approve" method="POST">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="catatan_admin" value="Disetujui">
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg">Approve</button>
+                        </form>
+                        <form action="/admin/absensi/approval/${submission.id}/reject" method="POST" class="flex gap-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <input type="text" name="catatan_admin" placeholder="Alasan reject..." required class="border rounded-lg px-2 text-sm dark:bg-gray-700 dark:border-gray-600">
+                            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg">Reject</button>
+                        </form>
+                    `;
+                } else {
+                    modalActions.innerHTML = `<button type="button" class="close-modal-btn px-4 py-2 bg-gray-500 text-white rounded-lg">Tutup</button>`;
+                    modalActions.querySelector('.close-modal-btn').addEventListener('click', window.closeDetailModal);
+                }
+
+                modalDetail.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } catch (e) {
+                console.error("Error:", e);
+                alert("Terjadi kesalahan.");
+            }
+        };
+
+        document.querySelectorAll('.detail-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const submission = JSON.parse(btn.dataset.submission);
+                window.openDetailModal(submission);
+            });
+        });
+
+        if (overlay) overlay.addEventListener('click', window.closeDetailModal);
+    });
 </script>
