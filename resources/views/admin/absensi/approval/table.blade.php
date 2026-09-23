@@ -80,9 +80,6 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-indigo-500 focus:ring-indigo-500">
-                    </th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Karyawan</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Jenis / Tanggal</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Durasi</th>
@@ -108,35 +105,22 @@
                             default => ['text' => ucfirst($statusApproval), 'color' => 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600', 'icon' => '•']
                         };
 
-                        $duration = '-';
                         $isOvertime = ($submission->tipe === 'lembur');
+                        $duration = '-';
                         if ($isOvertime && $submission->lembur_start && $submission->lembur_end) {
                             $start = \Carbon\Carbon::parse($submission->lembur_start);
                             $end = \Carbon\Carbon::parse($submission->lembur_end);
                             $diff = $start->diffInMinutes($end);
-                            if ($submission->lembur_rest == 1) {
-                                $diff = max(0, $diff - 30);
-                            }
-                            $hours = floor($diff / 60);
-                            $minutes = $diff % 60;
-                            $duration = $hours . 'j ' . $minutes . 'm';
+                            if ($submission->lembur_rest == 1) $diff = max(0, $diff - 30);
+                            $duration = floor($diff / 60) . 'j ' . ($diff % 60) . 'm';
                         }
-
-                        $displayDate = $submission->check_in_at;
                     @endphp
 
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-indigo-500 focus:ring-indigo-500">
-                        </td>
-
-                        {{-- KARYAWAN --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
-                                <div class="flex-shrink-0 h-10 w-10">
-                                    <div class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm shadow-lg">
-                                        {{ strtoupper(substr($user->name ?? 'U', 0, 2)) }}
-                                    </div>
+                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm shadow-lg">
+                                    {{ strtoupper(substr($user->name ?? 'U', 0, 2)) }}
                                 </div>
                                 <div class="ml-4">
                                     <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $user->name ?? '-' }}</div>
@@ -145,436 +129,83 @@
                             </div>
                         </td>
 
-                        {{-- JENIS / TANGGAL & WAKTU --}}
                         <td class="px-6 py-4">
-                            @php
-                                $cutiLabels = [
-                                    'cuti_tahunan' => 'Cuti Tahunan',
-                                    'cuti_melahirkan' => 'Cuti Melahirkan',
-                                    'cuti_keguguran' => 'Cuti Keguguran',
-                                    'cuti_haji' => 'Cuti Ibadah Haji',
-                                    'cuti_umroh' => 'Cuti Ibadah Umroh',
-                                    'cuti_menikah' => 'Cuti Menikah',
-                                    'cuti_khitanan' => 'Cuti Khitanan Anak',
-                                    'cuti_baptis' => 'Cuti Baptis Anak',
-                                    'cuti_meninggal' => 'Cuti Meninggal Keluarga',
-                                    'change_off' => 'Change Off',
-                                    'unpaid_leave' => 'Unpaid Leave',
-                                    'izin_pulang_cepat' => 'Izin Setengah Hari',
-                                ];
-                                
-                                if($submission->id == 7048) {
-                                    dd($submission->submission_type);
-                                }
-                                
-                                $jenisLabel = isset($cutiLabels[$submission->submission_type ?? ''])
-                                    ? $cutiLabels[$submission->submission_type]
-                                    : ($submission->tipe ? ucfirst($submission->tipe) : (ucfirst($submission->status) ?? 'Absensi'));
-                            @endphp
                             <div class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
-                                {{ $jenisLabel }}
+                                {{ $submission->submission_type ?? ucfirst($submission->tipe) }}
                             </div>
                             <div class="text-sm text-gray-900 dark:text-white font-medium mt-1">
-                                {{ $displayDate ? \Carbon\Carbon::parse($displayDate)->isoFormat('DD MMM YYYY') : '-' }}
+                                {{ $submission->check_in_at ? \Carbon\Carbon::parse($submission->check_in_at)->isoFormat('DD MMM YYYY') : '-' }}
                             </div>
-
-                            @if($isOvertime)
-                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
-                                    <span>{{ $submission->lembur_start ? \Carbon\Carbon::parse($submission->lembur_start)->format('H:i') : '-' }}</span>
-                                    <span class="text-gray-400 dark:text-gray-500">→</span>
-                                    <span>{{ $submission->lembur_end ? \Carbon\Carbon::parse($submission->lembur_end)->format('H:i') : '-' }}</span>
-                                    @if($submission->lembur_rest == 1)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 1 0 4 14h12a1 1 0 0 0 .707-1.707L16 11.586V8a6 6 0 0 0-6-6zM10 18a3 3 0 0 1-3-3h6a3 3 0 0 1-3 3z"/>
-                                            </svg>
-                                            Istirahat
-                                        </span>
-                                    @endif
-                                </div>
-                            @endif
                         </td>
 
-                        {{-- DURASI --}}
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($isOvertime)
-                                <div class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    {{ $duration }}
-                                </div>
-                            @else
-                                <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
-                            @endif
+                            {{ $isOvertime ? $duration : '-' }}
                         </td>
 
-                        {{-- BUKTI --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat')
                                 @if ($submission->file_bukti)
-                                    <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank"
-                                       class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                        Lihat Bukti
-                                    </a>
+                                    <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank" class="text-indigo-600 hover:underline">Lihat Bukti</a>
                                 @else
-                                    <span class="text-xs text-gray-400 dark:text-gray-500 italic">Tidak ada</span>
+                                    <span class="text-xs text-gray-400 italic">Tidak ada</span>
                                 @endif
                             @elseif ($submission->tipe === 'lembur')
                                 @php
-                                    $fotoLembur = $submission->foto_pulang ?? $submission->foto_pulang_2 ?? null;
-                                @endphp
-                                @php
                                     $allFotos = array_values(array_filter([
-                                        $submission->foto_pulang,
-                                        $submission->foto_pulang_2,
-                                        $submission->foto_pulang_3,
-                                        $submission->foto_pulang_4,
-                                        $submission->foto_pulang_5,
-                                        $submission->foto_pulang_6,
+                                        $submission->foto_pulang, $submission->foto_pulang_2, $submission->foto_pulang_3,
+                                        $submission->foto_pulang_4, $submission->foto_pulang_5, $submission->foto_pulang_6,
                                     ]));
                                 @endphp
                                 @if (count($allFotos) > 0)
-                                    <button type="button"
-                                        class="open-gallery-btn inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all"
-                                        data-fotos="{{ json_encode(array_map(fn($f) => asset('storage/' . $f), $allFotos)) }}"
-                                        data-name="{{ $submission->user->name ?? '-' }}">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                        </svg>
-                                        {{ count($allFotos) }} Foto Lembur
-                                    </button>
+                                    <div class="flex flex-col gap-1">
+                                        @foreach($allFotos as $i => $foto)
+                                            <a href="{{ asset('storage/' . $foto) }}" target="_blank" class="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                Lihat Bukti {{ $i + 1 }}
+                                            </a>
+                                        @endforeach
+                                    </div>
                                 @else
-                                    <span class="text-xs text-gray-400 dark:text-gray-500 italic">Tidak ada foto</span>
+                                    <span class="text-xs text-gray-400 italic">Tidak ada foto</span>
                                 @endif
-                            @else
-                                <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
                             @endif
                         </td>
 
-                        @php
-                            $mainKeterangan = $isOvertime
-                                ? ($submission->lembur_keterangan ?? $submission->keterangan_goals ?? '-')
-                                : ($submission->keterangan_izin_sakit ?? $submission->keterangan_goals ?? '-');
-                        @endphp
-                        {{-- KETERANGAN --}}
                         <td class="px-6 py-4">
-                            <p class="font-medium text-gray-900 dark:text-white max-w-[220px] break-words line-clamp-5">
-                                {{ $mainKeterangan }}
+                            <p class="text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate">
+                                {{ $isOvertime ? ($submission->lembur_keterangan ?? '-') : ($submission->keterangan_izin_sakit ?? '-') }}
                             </p>
-
-                                @if (!empty($submission->rejected_by) && !empty($submission->catatan_admin) && $submission->status_approval === 'pending')
-                                <div class="mt-2 p-2.5 bg-amber-500/10 border-l-4 border-amber-500 rounded text-xs leading-relaxed">
-                                    <div class="flex items-start gap-2">
-                                        <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <div class="flex-1">
-                                            <p class="font-bold text-amber-300 mb-1">⚠️ Pernah Ditolak oleh {{ strtoupper(str_replace(['_', '-'], ' ', $submission->rejected_by)) }}</p>
-                                            <p class="text-amber-200 italic leading-tight">"{{ $submission->catatan_admin }}"</p>
-                                            @if($submission->rejected_at)
-                                                <p class="text-amber-400 mt-1.5 text-xs">📅 {{ \Carbon\Carbon::parse($submission->rejected_at)->isoFormat('DD MMM YYYY, HH:mm') }} <span class="text-amber-500">({{ \Carbon\Carbon::parse($submission->rejected_at)->diffForHumans() }})</span></p>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
-
-                                @if ($submission->status_approval === 'rejected' && !empty($submission->catatan_admin))
-                                <div class="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 leading-snug">
-                                    <strong class="block mb-1">❌ Ditolak Saat Ini</strong>
-                                    <p class="italic">"{{ $submission->catatan_admin }}"</p>
-                                </div>
-                                @endif
-
-                                @if ($submission->tipe !== 'lembur')
-                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{{ $submission->status ? 'Pengajuan ' . ucfirst($submission->status) : 'Absensi Reguler' }}</p>
-                                @else
-                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">Diajukan {{ $submission->created_at ? \Carbon\Carbon::parse($submission->created_at)->diffForHumans() : '-' }}</p>
-                                @endif
                         </td>
 
-                        {{-- STATUS --}}
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border {{ $statusLabel['color'] }}">
-                                <span class="mr-1">{{ $statusLabel['icon'] }}</span>
                                 {{ $statusLabel['text'] }}
                             </span>
                         </td>
 
-                        {{-- AKSI --}}
                         <td class="px-6 py-4 whitespace-nowrap text-center">
                             @if ($statusApproval === 'pending')
-                                <div class="flex items-center justify-center gap-2">
-                                    <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'approve']) }}"
-                                        method="POST" class="inline">
-                                        @csrf
-                                        <input type="hidden" name="catatan_admin" value="Disetujui">
-                                        <button type="submit"
-                                            class="approve-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-all shadow-sm hover:shadow">
-                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                            </svg>
-                                            Approve
-                                        </button>
-                                    </form>
-
-                                    <button
-                                    type="button"
-                                    class="reject-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-all shadow-sm hover:shadow"
-                                    data-absensi-id="{{ $submission->id }}"
-                                    data-reject-url="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}">
-                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                    </svg>
-                                    Reject
-                                </button>
-                                 </div>
-                            @elseif (in_array($statusApproval, ['approved_supervisor', 'approved_manager']))
-                                <span class="inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                    <svg class="animate-spin h-3.5 w-3.5 mr-1.5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Pending approval
-                                </span>
-                            @elseif ($statusApproval === 'approved_hrga')
-                                <span class="inline-flex items-center text-xs text-green-600 dark:text-green-400 font-medium">
-                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Completed
-                                </span>
-                            @elseif ($statusApproval === 'rejected')
-                                <button type="button"
-                                    class="view-reason-btn inline-flex items-center text-xs text-red-600 dark:text-red-400 font-medium hover:text-red-500 dark:hover:text-red-300 cursor-pointer"
-                                    data-reason="{{ addslashes($submission->catatan_admin ?? 'Tidak ada keterangan') }}"
-                                    data-name="{{ $submission->user->name ?? '-' }}">
-                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    View reason
-                                </button>
-                            @else
-                                <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'approve']) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-green-600 hover:text-green-900 font-bold">✓</button>
+                                </form>
+                                <form action="{{ route('admin.absensi.approval.action', ['absensi' => $submission->id, 'action' => 'reject']) }}" method="POST" class="inline ml-2">
+                                    @csrf
+                                    <input type="text" name="catatan_admin" placeholder="Alasan..." class="border rounded px-1 text-xs" required>
+                                    <button type="submit" class="text-red-600 hover:text-red-900 font-bold">✕</button>
+                                </form>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            <h3 class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tidak ada data</h3>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-500">Belum ada pengajuan yang perlu di-review.</p>
-                        </td>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">Tidak ada data</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-
-    {{-- Pagination --}}
-    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-600 dark:text-gray-400">
-                 Showing <span class="font-medium text-gray-900 dark:text-white">1</span> to <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> of <span class="font-medium text-gray-900 dark:text-white">{{ $submissions->count() }}</span> results
-            </div>
-            <div class="flex items-center gap-2">
-                <button class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Previous
-                </button>
-                <button class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-                    1
-                </button>
-                <button class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                    2
-                </button>
-                <button class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                    Next
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
-
-<div id="modalViewReason" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
-...
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div id="reasonModalOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
-        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md z-[10000]">
-            <div class="bg-gradient-to-r from-red-600 to-red-500 rounded-t-xl p-5">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-white font-bold text-lg">Alasan Penolakan</h3>
-                            <p id="reasonModalName" class="text-red-100 text-xs mt-0.5"></p>
-                        </div>
-                    </div>
-                    <button id="reasonModalCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="p-6">
-                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                    <p id="reasonModalText" class="text-sm text-red-800 dark:text-red-300 leading-relaxed italic"></p>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button id="reasonModalCloseBtnBottom" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">
-                        Tutup
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="modalGallery" class="hidden fixed inset-0 z-[9999] overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 py-8">
-        <div id="galleryOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-90"></div>
-        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl z-[10000]">
-            <div class="bg-gradient-to-r from-purple-600 to-purple-500 rounded-t-xl p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-white font-bold text-lg">Foto Bukti Lembur</h3>
-                        <p id="galleryName" class="text-purple-100 text-xs mt-0.5"></p>
-                    </div>
-                    <button id="galleryCloseBtn" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-all">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="p-4">
-                <div id="galleryMain" class="w-full h-80 bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden mb-3 flex items-center justify-center">
-                    <img id="galleryMainImg" src="" alt="Foto lembur" class="max-h-full max-w-full object-contain rounded-xl">
-                </div>
-                <div id="galleryThumbs" class="flex gap-2 overflow-x-auto pb-1"></div>
-                <div class="flex items-center justify-between mt-3">
-                    <button id="galleryPrev" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">← Prev</button>
-                    <span id="galleryCounter" class="text-sm text-gray-500 dark:text-gray-400"></span>
-                    <button id="galleryNext" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-all">Next →</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script nonce="{{ config('app.csp_nonce') }}">
-    function openReasonModal(reason, name) {
-        document.getElementById('reasonModalText').textContent = reason || 'Tidak ada keterangan';
-        document.getElementById('reasonModalName').textContent = name || '';
-        document.getElementById('modalViewReason').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-    }
-
-    function closeReasonModal() {
-        document.getElementById('modalViewReason').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
-
-    document.getElementById('reasonModalOverlay').addEventListener('click', closeReasonModal);
-    document.getElementById('reasonModalCloseBtn').addEventListener('click', closeReasonModal);
-    document.getElementById('reasonModalCloseBtnBottom').addEventListener('click', closeReasonModal);
-    
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeReasonModal();
-    });
-
-</script>
-<script nonce="{{ config('app.csp_nonce') }}">
-    document.addEventListener('DOMContentLoaded', function() {
-        let galleryFotos = [];
-        let galleryIndex = 0;
-
-        function openGallery(fotos, name) {
-            galleryFotos = fotos;
-            galleryIndex = 0;
-            document.getElementById('galleryName').textContent = name;
-            renderGallery();
-            document.getElementById('modalGallery').classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        }
-
-        function closeGallery() {
-            document.getElementById('modalGallery').classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-
-        function renderGallery() {
-            const img = document.getElementById('galleryMainImg');
-            img.src = '';
-            img.src = galleryFotos[galleryIndex];
-            document.getElementById('galleryCounter').textContent = (galleryIndex + 1) + ' / ' + galleryFotos.length;
-            const thumbs = document.getElementById('galleryThumbs');
-            thumbs.innerHTML = '';
-            galleryFotos.forEach(function(url, i) {
-                const t = document.createElement('img');
-                t.loading = 'lazy';
-                t.src = i === galleryIndex ? url : '';
-                t.dataset.src = url;
-                t.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid ' + (i === galleryIndex ? '#7c3aed' : 'transparent') + ';flex-shrink:0;background:#e5e7eb;';
-                t.addEventListener('click', function() {
-                    if (!this.src || this.src === window.location.href) this.src = this.dataset.src;
-                    galleryIndex = i;
-                    renderGallery();
-                });
-                thumbs.appendChild(t);
-            });
-            document.getElementById('galleryPrev').style.display = galleryFotos.length > 1 ? '' : 'none';
-            document.getElementById('galleryNext').style.display = galleryFotos.length > 1 ? '' : 'none';
-        }
-
-        document.getElementById('galleryPrev').addEventListener('click', function() {
-            galleryIndex = (galleryIndex - 1 + galleryFotos.length) % galleryFotos.length;
-            renderGallery();
-        });
-        document.getElementById('galleryNext').addEventListener('click', function() {
-            galleryIndex = (galleryIndex + 1) % galleryFotos.length;
-            renderGallery();
-        });
-        document.getElementById('galleryCloseBtn').addEventListener('click', closeGallery);
-        document.getElementById('galleryOverlay').addEventListener('click', closeGallery);
-
-        document.querySelectorAll('.open-gallery-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const fotos = JSON.parse(this.dataset.fotos);
-                openGallery(fotos, this.dataset.name);
-            });
-        });
-
-        document.querySelectorAll('.view-reason-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                openReasonModal(this.dataset.reason, this.dataset.name);
-            });
-        });
-
-        document.querySelectorAll('.approve-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                // langsung submit tanpa confirm
-            });
-        });
-
-        document.querySelectorAll('.reject-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                openRejectModal(this.dataset.absensiId, this.dataset.rejectUrl);
-            });
-        });
-    });
-</script>
-
-
