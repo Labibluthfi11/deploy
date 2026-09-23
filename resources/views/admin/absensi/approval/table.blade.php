@@ -11,7 +11,24 @@
             $user = $submission->user ?? null;
             $isOvertime = ($submission->tipe === 'lembur');
             $status = $submission->status_approval ?? 'pending';
-            
+
+            // Perbaikan perhitungan durasi
+            $durationStr = '-';
+            if ($isOvertime && $submission->lembur_start && $submission->lembur_end) {
+                $start = \Carbon\Carbon::parse($submission->lembur_start);
+                $end = \Carbon\Carbon::parse($submission->lembur_end);
+                $diffInMinutes = $start->diffInMinutes($end);
+
+                // Logika potong istirahat 30 menit
+                if ($submission->lembur_rest == 1) {
+                    $diffInMinutes = max(0, $diffInMinutes - 30);
+                }
+
+                $hours = floor($diffInMinutes / 60);
+                $minutes = $diffInMinutes % 60;
+                $durationStr = $hours . ' jam ' . $minutes . ' menit';
+            }
+
             // Minimalist status colors
             $statusColors = [
                 'pending' => 'text-amber-600 bg-amber-50',
@@ -43,8 +60,7 @@
                     <div class="text-sm">
                         <p class="text-gray-400 text-xs">Durasi</p>
                         <p class="text-gray-900 dark:text-gray-200">
-                            {{ floor($submission->lembur_start ? \Carbon\Carbon::parse($submission->lembur_start)->diffInMinutes(\Carbon\Carbon::parse($submission->lembur_end))/60 : 0) }} jam 
-                            {{ ($submission->lembur_start ? \Carbon\Carbon::parse($submission->lembur_start)->diffInMinutes(\Carbon\Carbon::parse($submission->lembur_end))%60 : 0) }} menit
+                            {{ $durationStr }}
                         </p>
                     </div>
                 @endif
