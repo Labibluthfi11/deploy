@@ -208,95 +208,18 @@
     </div>
 </div>
 
+
+
+
+
+
 <script nonce="{{ config('app.csp_nonce') }}">
-    document.addEventListener('DOMContentLoaded', function() {
-        const modalDetail = document.getElementById('modalDetail');
-        const modalContent = document.getElementById('modalContent');
-        const modalActions = document.getElementById('modalActions');
-        const overlay = document.getElementById('detailOverlay');
-
-        function openDetailModal(submission) {
-            // Update Title
-            document.getElementById('modalTitle').textContent = 'Detail ' + submission.tipe.toUpperCase();
-            
-            // Siapkan Data Foto
-            let fotos = [];
-            if (submission.tipe === 'lembur') {
-                ['foto_pulang', 'foto_pulang_2', 'foto_pulang_3', 'foto_pulang_4', 'foto_pulang_5', 'foto_pulang_6'].forEach(key => {
-                    if (submission[key]) fotos.push('/storage/' + submission[key]);
-                });
-            } else if (submission.file_bukti) {
-                fotos.push('/storage/' + submission.file_bukti);
-            }
-
-            // Fill Content
-            modalContent.innerHTML = `
-                <p><strong>Nama:</strong> ${submission.user ? submission.user.name : '-'}</p>
-                <p><strong>Jenis:</strong> ${submission.tipe.toUpperCase()}</p>
-                <p><strong>Tanggal:</strong> ${submission.check_in_at}</p>
-                <p><strong>Keterangan:</strong> ${submission.keterangan_goals || submission.keterangan_izin_sakit || '-'}</p>
-                
-                ${fotos.length > 0 ? `
-                    <div class="mt-4">
-                        <p class="font-bold mb-2">Bukti (${fotos.length} Foto):</p>
-                        <div class="flex gap-2 overflow-x-auto pb-2">
-                            ${fotos.map(f => `<img src="${f}" class="w-20 h-20 object-cover rounded-lg cursor-pointer" onclick="window.open('${f}', '_blank')">`).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-            `;
-
-            // Setup Actions
-            if (submission.status_approval === 'pending') {
-                modalActions.innerHTML = `
-                    <form action="/admin/absensi/approval/${submission.id}/approve" method="POST">
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="catatan_admin" value="Disetujui">
-                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg">Approve</button>
-                    </form>
-                    <form action="/admin/absensi/approval/${submission.id}/reject" method="POST" class="flex gap-2">
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="text" name="catatan_admin" placeholder="Alasan reject..." required class="border rounded-lg px-2 text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg">Reject</button>
-                    </form>
-                `;
-            } else {
-                modalActions.innerHTML = `<button type="button" class="px-4 py-2 bg-gray-500 text-white rounded-lg" onclick="closeDetailModal()">Tutup</button>`;
-            }
-
-            modalDetail.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        }
-
-        window.closeDetailModal = function() {
-            modalDetail.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        };
-
-        overlay.addEventListener('click', closeDetailModal);
-
-        document.querySelectorAll('.view-detail-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                console.log("DEBUG: Tombol diklik.");
-                try {
-                    const submission = JSON.parse(this.dataset.submission);
-                    window.openDetailModal(submission);
-                } catch (e) {
-                    console.error("DEBUG ERROR: Error parsing JSON:", e);
-                }
-            });
-        });
-    });
-</script>
-<script nonce="{{ config('app.csp_nonce') }}">
-    // Fungsi agar bisa dipanggil dari HTML/Event listener
     window.closeDetailModal = function() {
         document.getElementById('modalDetail').classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
     };
 
     window.openDetailModal = function(submission) {
-        console.log("Membuka modal:", submission);
         const modalDetail = document.getElementById('modalDetail');
         const modalContent = document.getElementById('modalContent');
         const modalActions = document.getElementById('modalActions');
@@ -326,7 +249,7 @@
                             ${fotos.map(f => `<img src="${f}" class="w-20 h-20 object-cover rounded-lg cursor-pointer" onclick="window.open('${f}', '_blank')">`).join('')}
                         </div>
                     </div>
-                ` : ''}
+                ` : '}
             `;
 
             if (submission.status_approval === 'pending') {
@@ -350,25 +273,19 @@
             document.body.classList.add('overflow-hidden');
         } catch (e) {
             console.error("Error:", e);
-            alert("Terjadi kesalahan.");
         }
     };
-    
-    // Pasang listener langsung ke dokumen
+
     document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('view-detail-btn')) {
-            console.log("Tombol Detail diklik!");
-            try {
-                const submission = JSON.parse(e.target.dataset.submission);
-                window.openDetailModal(submission);
-            } catch (err) {
-                console.error("Error parsing data:", err);
-            }
+        const btn = e.target.closest('.view-detail-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const submission = JSON.parse(btn.dataset.submission);
+            window.openDetailModal(submission);
         }
         if (e.target.id === 'detailOverlay') {
             window.closeDetailModal();
         }
     });
 </script>
-
-
