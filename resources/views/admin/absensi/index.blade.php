@@ -305,660 +305,205 @@
             {{-- 🔥 TODAY'S STATUS: 4 TABEL (ORGANIK, FREELANCE, BORONGAN, MAGANG) --}}
             @if($currentStatus === 'semua')
                 {{-- Tabel Organik --}}
-                            <div id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-    <div class="flex items-center gap-3 mb-6">
-        <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
-            <i class="fas fa-users-cog text-white"></i>
-        </div>
-        <div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Organik Hari Ini</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-        </div>
-    </div>
+                <div id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
+                            <i class="fas fa-users-cog text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Organik Hari Ini</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                        </div>
+                    </div>
 
-    {{-- Form Pencarian Organik --}}
-    <form action="{{ url()->current() }}" method="GET" class="mb-4">
-        <div class="flex items-center gap-2">
-            <div class="relative flex-grow">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
-                </div>
-                <input type="search" name="search_organik" id="search_organik" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan organik..." value="{{ request('search_organik') }}">
-            </div>
-            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cari
-            </button>
-            @if(request('search_organik'))
-                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
-                    Reset
-                </a>
-            @endif
-        </div>
-    </form>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-                </tr>
-            </thead>
-           <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-    @forelse ($dailyStatusesOrganik as $daily)
-        @php
-            $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
-
-            // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI
-            $warningLevel = 0; // Organik: flexible time, tidak ada peringatan telat
-        @endphp
-
-        <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                    <div class="flex items-center gap-2">
-                        <div class="font-semibold {{ $belumAbsen ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} group-hover:text-indigo-600">
-                            {{ $daily['user']->name }}
-                            @if($belumAbsen)
-                                <i class="fas fa-exclamation-triangle text-red-600 ml-2 animate-pulse"></i>
+                    {{-- Form Pencarian Organik --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_organik" id="search_organik" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan organik..." value="{{ request('search_organik') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_organik'))
+                                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
                             @endif
                         </div>
+                    </form>
 
-                        {{-- 🔥 BADGE PERINGATAN --}}
-                        @if($warningLevel > 0)
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold {{ $warningColor }}" title="{{ $telatCount }}x telat/alpha bulan ini">
-                                <i class="fas {{ $warningIcon }}"></i>
-                                P{{ $warningLevel }}
-                            </span>
-                        @endif
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesOrganik as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="organik" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_organik'))
+                                                    <p class="text-gray-500">Karyawan organik dengan nama "<strong class="text-indigo-600">{{ request('search_organik') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan organik hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
-                            Organik
-                        </span>
-
-                        {{-- 🔥 TEXT PERINGATAN DETAIL --}}
-                        @if($warningLevel > 0)
-                            <span class="text-xs text-gray-600 dark:text-gray-400">
-                                {{ $telatCount }}x telat bulan ini
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- 🔥 ALERT MERAH BESAR UNTUK LEVEL 3 --}}
-                    @if($warningLevel === 3)
-                        <div class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 border-l-4 border-red-600 rounded">
-                            <p class="text-xs font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                                <i class="fas fa-bell animate-bounce"></i>
-                                {{ $warningText }}
-                            </p>
-                        </div>
-                    @endif
-                </a>
-            </td>
-
-            {{-- ... kolom lainnya tetap sama ... --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($belumAbsen)
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-2 border-red-300 dark:border-red-700">
-                        <i class="fas fa-times-circle animate-pulse"></i>
-                        Belum Absen
-                    </span>
-                @else
-                    <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
-                @endif
-            </td>
-
-            {{-- Check-in --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_in_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Keterlambatan --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-gray-400 text-sm">-</span>
-            </td>
-
-            {{-- Check-out --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_out_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Detail --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 {{ $belumAbsen ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' }} rounded-lg text-sm font-medium transition-all">
-                    <i class="fas fa-eye"></i>
-                    <span>Detail</span>
-                </a>
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="6" class="text-center py-12">
-                <div class="flex flex-col items-center">
-                    <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                    @if(request('search_organik'))
-                        <p class="text-gray-500">Karyawan organik dengan nama "<strong class="text-indigo-600">{{ request('search_organik') }}</strong>" tidak ditemukan.</p>
-                    @else
-                        <p class="text-gray-500">Tidak ada karyawan organik hari ini</p>
-                    @endif
                 </div>
-            </td>
-        </tr>
-            @endforelse
-        </tbody>
-        </table>
-    </div>
-</div>
 
                 {{-- Tabel Freelance --}}
-                                <div id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-    <div class="flex items-center gap-3 mb-6">
-        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
-            <i class="fas fa-users text-white"></i>
-        </div>
-        <div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Freelance Hari Ini</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-        </div>
-    </div>
+                <div id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Freelance Hari Ini</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                        </div>
+                    </div>
 
-    {{-- Form Pencarian Freelance --}}
-    <form action="{{ url()->current() }}" method="GET" class="mb-4">
-        <div class="flex items-center gap-2">
-            <div class="relative flex-grow">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
-                </div>
-                <input type="search" name="search_freelance" id="search_freelance" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama freelance..." value="{{ request('search_freelance') }}">
-            </div>
-            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cari
-            </button>
-            @if(request('search_freelance'))
-                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
-                    Reset
-                </a>
-            @endif
-        </div>
-    </form>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-                </tr>
-            </thead>
-
-        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-    @forelse ($dailyStatusesFreelance as $daily)
-        @php
-            $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
-
-            // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI
-            $userId = $daily['user']->id;
-            $telatCount = \App\Models\Absensi::where('user_id', $userId)
-                ->whereMonth('check_in_at', now()->month)
-                ->whereYear('check_in_at', now()->year)
-                ->where(function($q) {
-                    $q->where('late_minutes', '>', 0)  // Telat
-                      ->orWhereNull('check_in_at');     // Alpha (ga masuk)
-                })
-                ->count();
-
-            // 🔥 TENTUKAN LEVEL PERINGATAN
-            $warningLevel = 0;
-            $warningText = '';
-            $warningColor = '';
-            $warningIcon = '';
-
-            if ($telatCount >= 5) {
-                $warningLevel = 3;
-                $warningText = 'PERINGATAN 3 - Akan Dipanggil HRD!';
-                $warningColor = 'bg-red-600 text-white animate-pulse';
-                $warningIcon = 'fa-exclamation-circle';
-            } elseif ($telatCount >= 3) {
-                $warningLevel = 2;
-                $warningText = 'Peringatan 2 - Perhatian Serius';
-                $warningColor = 'bg-orange-500 text-white';
-                $warningIcon = 'fa-exclamation-triangle';
-            } elseif ($telatCount >= 1) {
-                $warningLevel = 1;
-                $warningText = 'Peringatan 1';
-                $warningColor = 'bg-yellow-500 text-white';
-                $warningIcon = 'fa-info-circle';
-            }
-        @endphp
-
-        <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                    <div class="flex items-center gap-2">
-                        <div class="font-semibold {{ $belumAbsen ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} group-hover:text-indigo-600">
-                            {{ $daily['user']->name }}
-                            @if($belumAbsen)
-                                <i class="fas fa-exclamation-triangle text-red-600 ml-2 animate-pulse"></i>
+                    {{-- Form Pencarian Freelance --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_freelance" id="search_freelance" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama freelance..." value="{{ request('search_freelance') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_freelance'))
+                                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
                             @endif
                         </div>
+                    </form>
 
-                        {{-- 🔥 BADGE PERINGATAN --}}
-                        @if($warningLevel > 0)
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold {{ $warningColor }}" title="{{ $telatCount }}x telat/alpha bulan ini">
-                                <i class="fas {{ $warningIcon }}"></i>
-                                P{{ $warningLevel }}
-                            </span>
-                        @endif
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesFreelance as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="freelance" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_freelance'))
+                                                    <p class="text-gray-500">Karyawan freelance dengan nama "<strong class="text-indigo-600">{{ request('search_freelance') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan freelance hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
+                </div>
 
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
-                            Freelance
-                        </span>
-
-                        {{-- 🔥 TEXT PERINGATAN DETAIL --}}
-                        @if($warningLevel > 0)
-                            <span class="text-xs text-gray-600 dark:text-gray-400">
-                                {{ $telatCount }}x telat bulan ini
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- 🔥 ALERT MERAH BESAR UNTUK LEVEL 3 --}}
-                    @if($warningLevel === 3)
-                        <div class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 border-l-4 border-red-600 rounded">
-                            <p class="text-xs font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                                <i class="fas fa-bell animate-bounce"></i>
-                                {{ $warningText }}
-                            </p>
+                {{-- Tabel Borongan --}}
+                <div id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
+                            <i class="fas fa-hammer text-white"></i>
                         </div>
-                    @endif
-                </a>
-            </td>
-
-            {{-- ... kolom lainnya tetap sama ... --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($belumAbsen)
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-2 border-red-300 dark:border-red-700">
-                        <i class="fas fa-times-circle animate-pulse"></i>
-                        Belum Absen
-                    </span>
-                @else
-                    <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
-                @endif
-            </td>
-
-            {{-- Check-in --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_in_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                        </span>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Borongan Hari Ini</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                        </div>
                     </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
 
-            {{-- Keterlambatan --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @php
-                    $lateMinutes = $daily['late_minutes'] ?? 0;
-                @endphp
-                @if($belumAbsen)
-                    <span class="text-red-600 dark:text-red-400 text-sm font-bold">
-                        <i class="fas fa-exclamation-circle"></i> -
-                    </span>
-                @elseif($lateMinutes > 0)
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                        <i class="fas fa-clock"></i>
-                        @if($lateMinutes < 60)
-                            {{ $lateMinutes }} menit
-                        @else
-                            @php
-                                $hours = floor($lateMinutes / 60);
-                                $mins = $lateMinutes % 60;
-                            @endphp
-                            {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                        @endif
-                    </span>
-                @else
-                    <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                @endif
-            </td>
-
-            {{-- Check-out --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_out_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Detail --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 {{ $belumAbsen ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' }} rounded-lg text-sm font-medium transition-all">
-                    <i class="fas fa-eye"></i>
-                    <span>Detail</span>
-                </a>
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="6" class="text-center py-12">
-                <div class="flex flex-col items-center">
-                    <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                    @if(request('search_freelance'))
-                        <p class="text-gray-500">Karyawan freelance dengan nama "<strong class="text-indigo-600">{{ request('search_organik') }}</strong>" tidak ditemukan.</p>
-                    @else
-                        <p class="text-gray-500">Tidak ada karyawan freelance hari ini</p>
-                    @endif
-                </div>
-            </td>
-        </tr>
-    @endforelse
-</tbody>
-        </table>
-    </div>
-</div>
-
-                {{-- 🔥 TABEL BARU: BORONGAN (WITH RED ALERT) 🔥 --}}
-<div id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-    <div class="flex items-center gap-3 mb-6">
-        <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
-            <i class="fas fa-hammer text-white"></i>
-        </div>
-        <div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Borongan Hari Ini</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
-        </div>
-    </div>
-
-    {{-- Form Pencarian Borongan --}}
-    <form action="{{ url()->current() }}" method="GET" class="mb-4">
-        <div class="flex items-center gap-2">
-            <div class="relative flex-grow">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
-                </div>
-                <input type="search" name="search_borongan" id="search_borongan" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan borongan..." value="{{ request('search_borongan') }}">
-            </div>
-            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cari
-            </button>
-            @if(request('search_borongan'))
-                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
-                    Reset
-                </a>
-            @endif
-        </div>
-    </form>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-    @forelse ($dailyStatusesBorongan as $daily)
-        @php
-            $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
-
-            // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI
-            $userId = $daily['user']->id;
-            $telatCount = \App\Models\Absensi::where('user_id', $userId)
-                ->whereMonth('check_in_at', now()->month)
-                ->whereYear('check_in_at', now()->year)
-                ->where(function($q) {
-                    $q->where('late_minutes', '>', 0)  // Telat
-                      ->orWhereNull('check_in_at');     // Alpha (ga masuk)
-                })
-                ->count();
-
-            // 🔥 TENTUKAN LEVEL PERINGATAN
-            $warningLevel = 0;
-            $warningText = '';
-            $warningColor = '';
-            $warningIcon = '';
-
-            if ($telatCount >= 5) {
-                $warningLevel = 3;
-                $warningText = 'PERINGATAN 3 - Akan Dipanggil HRD!';
-                $warningColor = 'bg-red-600 text-white animate-pulse';
-                $warningIcon = 'fa-exclamation-circle';
-            } elseif ($telatCount >= 3) {
-                $warningLevel = 2;
-                $warningText = 'Peringatan 2 - Perhatian Serius';
-                $warningColor = 'bg-orange-500 text-white';
-                $warningIcon = 'fa-exclamation-triangle';
-            } elseif ($telatCount >= 1) {
-                $warningLevel = 1;
-                $warningText = 'Peringatan 1';
-                $warningColor = 'bg-yellow-500 text-white';
-                $warningIcon = 'fa-info-circle';
-            }
-        @endphp
-
-        <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                    <div class="flex items-center gap-2">
-                        <div class="font-semibold {{ $belumAbsen ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} group-hover:text-indigo-600">
-                            {{ $daily['user']->name }}
-                            @if($belumAbsen)
-                                <i class="fas fa-exclamation-triangle text-red-600 ml-2 animate-pulse"></i>
+                    {{-- Form Pencarian Borongan --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_borongan" id="search_borongan" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan borongan..." value="{{ request('search_borongan') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_borongan'))
+                                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
                             @endif
                         </div>
+                    </form>
 
-                        {{-- 🔥 BADGE PERINGATAN --}}
-                        @if($warningLevel > 0)
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold {{ $warningColor }}" title="{{ $telatCount }}x telat/alpha bulan ini">
-                                <i class="fas {{ $warningIcon }}"></i>
-                                P{{ $warningLevel }}
-                            </span>
-                        @endif
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesBorongan as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="borongan" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_borongan'))
+                                                    <p class="text-gray-500">Karyawan borongan dengan nama "<strong class="text-indigo-600">{{ request('search_borongan') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan borongan hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
-                            Borongan
-                        </span>
-
-                        {{-- 🔥 TEXT PERINGATAN DETAIL --}}
-                        @if($warningLevel > 0)
-                            <span class="text-xs text-gray-600 dark:text-gray-400">
-                                {{ $telatCount }}x telat bulan ini
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- 🔥 ALERT MERAH BESAR UNTUK LEVEL 3 --}}
-                    @if($warningLevel === 3)
-                        <div class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 border-l-4 border-red-600 rounded">
-                            <p class="text-xs font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                                <i class="fas fa-bell animate-bounce"></i>
-                                {{ $warningText }}
-                            </p>
-                        </div>
-                    @endif
-                </a>
-            </td>
-
-            {{-- ... kolom lainnya tetap sama ... --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($belumAbsen)
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-2 border-red-300 dark:border-red-700">
-                        <i class="fas fa-times-circle animate-pulse"></i>
-                        Belum Absen
-                    </span>
-                @else
-                    <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
-                @endif
-            </td>
-
-            {{-- Check-in --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_in_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Keterlambatan --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @php
-                    $lateMinutes = $daily['late_minutes'] ?? 0;
-                @endphp
-                @if($belumAbsen)
-                    <span class="text-red-600 dark:text-red-400 text-sm font-bold">
-                        <i class="fas fa-exclamation-circle"></i> -
-                    </span>
-                @elseif($lateMinutes > 0)
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                        <i class="fas fa-clock"></i>
-                        @if($lateMinutes < 60)
-                            {{ $lateMinutes }} menit
-                        @else
-                            @php
-                                $hours = floor($lateMinutes / 60);
-                                $mins = $lateMinutes % 60;
-                            @endphp
-                            {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                        @endif
-                    </span>
-                @else
-                    <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                @endif
-            </td>
-
-            {{-- Check-out --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_out_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Detail --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 {{ $belumAbsen ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' }} rounded-lg text-sm font-medium transition-all">
-                    <i class="fas fa-eye"></i>
-                    <span>Detail</span>
-                </a>
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="6" class="text-center py-12">
-                <div class="flex flex-col items-center">
-                    <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                    @if(request('search_Borongan'))
-                        <p class="text-gray-500">Karyawan borongan dengan nama "<strong class="text-indigo-600">{{ request('search_Borongan') }}</strong>" tidak ditemukan.</p>
-                    @else
-                        <p class="text-gray-500">Tidak ada karyawan Borongan hari ini</p>
-                    @endif
                 </div>
-            </td>
-        </tr>
-    @endforelse
-</tbody>
-        </table>
-    </div>
-</div>
 
-                {{-- 🔥 TABEL BARU: MAGANG 🔥 --}}
-                                <div id="tabel-magang" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                {{-- Tabel Magang --}}
+                <div id="tabel-magang" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-xl">
                             <i class="fas fa-graduation-cap text-white"></i>
@@ -968,6 +513,7 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
                         </div>
                     </div>
+
                     {{-- Form Pencarian Magang --}}
                     <form action="{{ url()->current() }}" method="GET" class="mb-4">
                         <div class="flex items-center gap-2">
@@ -1000,193 +546,24 @@
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
                                 </tr>
                             </thead>
-<tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-    @forelse ($dailyStatusesMagang as $daily)
-        @php
-            $belumAbsen = !$daily['check_in_time'] && str_contains($daily['status'] ?? '', 'Belum');
-
-            // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI
-            $userId = $daily['user']->id;
-            $telatCount = \App\Models\Absensi::where('user_id', $userId)
-                ->whereMonth('check_in_at', now()->month)
-                ->whereYear('check_in_at', now()->year)
-                ->where(function($q) {
-                    $q->where('late_minutes', '>', 0)  // Telat
-                      ->orWhereNull('check_in_at');     // Alpha (ga masuk)
-                })
-                ->count();
-
-            // 🔥 TENTUKAN LEVEL PERINGATAN
-            $warningLevel = 0;
-            $warningText = '';
-            $warningColor = '';
-            $warningIcon = '';
-
-            if ($telatCount >= 5) {
-                $warningLevel = 3;
-                $warningText = 'PERINGATAN 3 - Akan Dipanggil HRD!';
-                $warningColor = 'bg-red-600 text-white animate-pulse';
-                $warningIcon = 'fa-exclamation-circle';
-            } elseif ($telatCount >= 3) {
-                $warningLevel = 2;
-                $warningText = 'Peringatan 2 - Perhatian Serius';
-                $warningColor = 'bg-orange-500 text-white';
-                $warningIcon = 'fa-exclamation-triangle';
-            } elseif ($telatCount >= 1) {
-                $warningLevel = 1;
-                $warningText = 'Peringatan 1';
-                $warningColor = 'bg-yellow-500 text-white';
-                $warningIcon = 'fa-info-circle';
-            }
-        @endphp
-
-        <tr class="transition-colors {{ $belumAbsen ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-l-4 border-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="block group">
-                    <div class="flex items-center gap-2">
-                        <div class="font-semibold {{ $belumAbsen ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} group-hover:text-indigo-600">
-                            {{ $daily['user']->name }}
-                            @if($belumAbsen)
-                                <i class="fas fa-exclamation-triangle text-red-600 ml-2 animate-pulse"></i>
-                            @endif
-                        </div>
-
-                        {{-- 🔥 BADGE PERINGATAN --}}
-                        @if($warningLevel > 0)
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold {{ $warningColor }}" title="{{ $telatCount }}x telat/alpha bulan ini">
-                                <i class="fas {{ $warningIcon }}"></i>
-                                P{{ $warningLevel }}
-                            </span>
-                        @endif
-                    </div>
-
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
-                            Magang
-                        </span>
-
-                        {{-- 🔥 TEXT PERINGATAN DETAIL --}}
-                        @if($warningLevel > 0)
-                            <span class="text-xs text-gray-600 dark:text-gray-400">
-                                {{ $telatCount }}x telat bulan ini
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- 🔥 ALERT MERAH BESAR UNTUK LEVEL 3 --}}
-                    @if($warningLevel === 3)
-                        <div class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 border-l-4 border-red-600 rounded">
-                            <p class="text-xs font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                                <i class="fas fa-bell animate-bounce"></i>
-                                {{ $warningText }}
-                            </p>
-                        </div>
-                    @endif
-                </a>
-            </td>
-
-            {{-- ... kolom lainnya tetap sama ... --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($belumAbsen)
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-2 border-red-300 dark:border-red-700">
-                        <i class="fas fa-times-circle animate-pulse"></i>
-                        Belum Absen
-                    </span>
-                @else
-                    <span class="text-sm text-gray-600 dark:text-gray-300">{{ $daily['status'] ?? '-' }}</span>
-                @endif
-            </td>
-
-            {{-- Check-in --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_in_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-in-alt text-green-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_in_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Keterlambatan --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @php
-                    $lateMinutes = $daily['late_minutes'] ?? 0;
-                @endphp
-                @if($belumAbsen)
-                    <span class="text-red-600 dark:text-red-400 text-sm font-bold">
-                        <i class="fas fa-exclamation-circle"></i> -
-                    </span>
-                @elseif($lateMinutes > 0)
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                        <i class="fas fa-clock"></i>
-                        @if($lateMinutes < 60)
-                            {{ $lateMinutes }} menit
-                        @else
-                            @php
-                                $hours = floor($lateMinutes / 60);
-                                $mins = $lateMinutes % 60;
-                            @endphp
-                            {{ $hours }} jam {{ $mins > 0 ? $mins . ' menit' : '' }}
-                        @endif
-                    </span>
-                @else
-                    <span class="text-green-600 dark:text-green-400 text-sm font-semibold">✓ Tepat waktu</span>
-                @endif
-            </td>
-
-            {{-- Check-out --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                @if($daily['check_out_time'])
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\Carbon::parse($daily['check_out_time'])->format('H:i') }}
-                        </span>
-                    </div>
-                @else
-                    <span class="{{ $belumAbsen ? 'text-red-500 dark:text-red-400 font-bold' : 'text-gray-400' }} text-sm">
-                        @if($belumAbsen)
-                            <i class="fas fa-ban"></i> Tidak ada
-                        @else
-                            -
-                        @endif
-                    </span>
-                @endif
-            </td>
-
-            {{-- Detail --}}
-            <td class="px-6 py-4 whitespace-nowrap">
-                <a href="{{ route('admin.absensi.user', $daily['user']->id) }}" class="inline-flex items-center gap-2 px-4 py-2 {{ $belumAbsen ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' }} rounded-lg text-sm font-medium transition-all">
-                    <i class="fas fa-eye"></i>
-                    <span>Detail</span>
-                </a>
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="6" class="text-center py-12">
-                <div class="flex flex-col items-center">
-                    <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
-                    @if(request('search_Magang'))
-                        <p class="text-gray-500">Karyawan Magang dengan nama "<strong class="text-indigo-600">{{ request('search_Magang') }}</strong>" tidak ditemukan.</p>
-                    @else
-                        <p class="text-gray-500">Tidak ada adick adick Magang hari ini</p>
-                    @endif
-                </div>
-            </td>
-        </tr>
-    @endforelse
-</tbody>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesMagang as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="magang" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_magang'))
+                                                    <p class="text-gray-500">Karyawan magang dengan nama "<strong class="text-indigo-600">{{ request('search_magang') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan magang hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
                         </table>
                     </div>
                 </div>
