@@ -302,10 +302,36 @@
                 </div>
             </div>
 
-            {{-- 🔥 TODAY'S STATUS: 4 TABEL (ORGANIK, FREELANCE, BORONGAN, MAGANG) --}}
+            {{-- 🔥 TODAY'S STATUS: 4 TABEL DENGAN ALPINE.JS TABS 🔥 --}}
             @if($currentStatus === 'semua')
-                {{-- Tabel Organik --}}
-                <div id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div x-data="{ activeTab: 'semua' }" class="space-y-6">
+                    
+                    {{-- Tab Navigation Pills --}}
+                    <div class="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-3 rounded-2xl shadow-md border border-gray-200/50 dark:border-gray-700/50">
+                        <button @click="activeTab = 'semua'" :class="activeTab === 'semua' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-th-large"></i>
+                            <span>Semua Status</span>
+                        </button>
+                        <button @click="activeTab = 'organik'" :class="activeTab === 'organik' ? 'bg-emerald-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-users-cog"></i>
+                            <span>Organik</span>
+                        </button>
+                        <button @click="activeTab = 'freelance'" :class="activeTab === 'freelance' ? 'bg-cyan-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-users"></i>
+                            <span>Freelance</span>
+                        </button>
+                        <button @click="activeTab = 'borongan'" :class="activeTab === 'borongan' ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-hammer"></i>
+                            <span>Borongan</span>
+                        </button>
+                        <button @click="activeTab = 'magang'" :class="activeTab === 'magang' ? 'bg-sky-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-graduation-cap"></i>
+                            <span>Magang</span>
+                        </button>
+                    </div>
+
+                    {{-- Tabel Organik --}}
+                    <div x-show="activeTab === 'semua' || activeTab === 'organik'" x-transition.opacity id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
                             <i class="fas fa-users-cog text-white"></i>
@@ -371,7 +397,7 @@
                 </div>
 
                 {{-- Tabel Freelance --}}
-                <div id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div x-show="activeTab === 'semua' || activeTab === 'freelance'" x-transition.opacity id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
                             <i class="fas fa-users text-white"></i>
@@ -437,7 +463,7 @@
                 </div>
 
                 {{-- Tabel Borongan --}}
-                <div id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div x-show="activeTab === 'semua' || activeTab === 'borongan'" x-transition.opacity id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
                             <i class="fas fa-hammer text-white"></i>
@@ -447,6 +473,129 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
                         </div>
                     </div>
+
+                    {{-- Form Pencarian Borongan --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_borongan" id="search_borongan" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan borongan..." value="{{ request('search_borongan') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_borongan'))
+                                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesBorongan as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="borongan" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_borongan'))
+                                                    <p class="text-gray-500">Karyawan borongan dengan nama "<strong class="text-indigo-600">{{ request('search_borongan') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan borongan hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Tabel Magang --}}
+                <div x-show="activeTab === 'semua' || activeTab === 'magang'" x-transition.opacity id="tabel-magang" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-3 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-xl">
+                            <i class="fas fa-graduation-cap text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Status Karyawan Magang Hari Ini</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::today()->format('d M Y') }}</p>
+                        </div>
+                    </div>
+
+                    {{-- Form Pencarian Magang --}}
+                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="search" name="search_magang" id="search_magang" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan magang..." value="{{ request('search_magang') }}">
+                            </div>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cari
+                            </button>
+                            @if(request('search_magang'))
+                                <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
+                                    Reset
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @forelse ($dailyStatusesMagang as $daily)
+                                    <x-admin.absensi-row :daily="$daily" type="magang" />
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-12">
+                                            <div class="flex flex-col items-center">
+                                                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+                                                @if(request('search_magang'))
+                                                    <p class="text-gray-500">Karyawan magang dengan nama "<strong class="text-indigo-600">{{ request('search_magang') }}</strong>" tidak ditemukan.</p>
+                                                @else
+                                                    <p class="text-gray-500">Tidak ada karyawan magang hari ini</p>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                </div>
+            @else
 
                     {{-- Form Pencarian Borongan --}}
                     <form action="{{ url()->current() }}" method="GET" class="mb-4">
