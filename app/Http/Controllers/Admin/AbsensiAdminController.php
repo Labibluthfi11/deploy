@@ -550,8 +550,8 @@ class AbsensiAdminController extends Controller
         // 🔥 AMBIL DATA BIASA (HANYA PARENT)
         $absensi = $queryList->orderBy('check_in_at', 'desc')->get();
         
-        // AMBIL SEMUA DATA UNTUK STATISTIK
-        $allRecords = $query->get();
+        // AMBIL SEMUA DATA UNTUK STATISTIK (HANYA PARENT)
+        $allRecords = $query->whereNull('parent_id')->get();
 
         // 🔥 FORCE REFRESH DATA APPROVED (Re-fetch dari DB)
         $allRecords = $allRecords->map(function($item) {
@@ -571,13 +571,13 @@ class AbsensiAdminController extends Controller
             'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
             'izin' => $approvedAbsensi->where('status', 'izin')->where('status_approval', 'approved')->count(),
             'sakit' => $approvedAbsensi->where('status', 'sakit')->where('status_approval', 'approved')->count(),
-            'lembur' => $approvedAbsensi->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+            'lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('overtime_minutes', '>', 0)->count(),
             'total_absensi' => $approvedAbsensi->count(),
             'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
             'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-            'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
+            'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_pay'),
             'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-            'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
+            'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_minutes'),
         ];
 
         // Variabel dummy untuk mingguan (biar view gak error)
@@ -588,7 +588,7 @@ class AbsensiAdminController extends Controller
                 'sakit' => $approvedAbsensi->where('status', 'sakit')->count(),
                 'izin' => $approvedAbsensi->where('status', 'izin')->count(),
                 'telat' => $approvedAbsensi->where('late_minutes', '>', 0)->count(),
-                'lembur' => $approvedAbsensi->where('tipe', 'lembur')->count(),
+                'lembur' => $approvedAbsensi->where('overtime_minutes', '>', 0)->count(),
                 'total_menit_telat' => $approvedAbsensi->sum('late_minutes'),
                 'total_menit_lembur' => $approvedAbsensi->sum('overtime_minutes'),
                 'total_gaji' => $approvedAbsensi->sum('final_salary'),
@@ -904,7 +904,9 @@ class AbsensiAdminController extends Controller
     }
 
     // Ambil data yang DI-APPROVE AJA
-    $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])->get();
+    $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])
+        ->whereNull('parent_id')
+        ->get();
 
     $approvedAbsensi = $approvedAbsensi->map(function($item) {
         return Absensi::find($item->id);
@@ -914,9 +916,9 @@ class AbsensiAdminController extends Controller
         'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
         'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
         'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-        'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
+        'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_pay'),
         'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-        'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
+        'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_minutes'),
     ];
 
     // Nama File
@@ -983,7 +985,9 @@ public function exportSlipGajiPdf(Request $request, $id)
         }
     }
 
-   $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])->get();
+   $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])
+       ->whereNull('parent_id')
+       ->get();
 
 $approvedAbsensi = $approvedAbsensi->map(function($item) {
     return Absensi::find($item->id);
@@ -993,9 +997,9 @@ $absensiStats = [
     'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
     'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
     'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-    'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_pay'),
+    'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_pay'),
     'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-    'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->where('tipe', 'lembur')->sum('overtime_minutes'),
+    'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_minutes'),
 ];
 
     $exporter = new SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
