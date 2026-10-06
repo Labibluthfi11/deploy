@@ -134,6 +134,65 @@
                 </div>
             </div>
 
+            {{-- Attendance Today Summary (Produksi vs Office) --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="p-4 bg-orange-100 dark:bg-orange-900/30 rounded-2xl">
+                            <i class="fas fa-industry text-orange-600 dark:text-orange-400 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kehadiran Produksi</h3>
+                            <div class="flex items-baseline gap-2 mt-1">
+                                <span class="text-3xl font-bold text-gray-800 dark:text-white">{{ $statsProduksi['hadir'] }}</span>
+                                <span class="text-lg text-gray-500">/ {{ $statsProduksi['total'] }}</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Karyawan hadir hari ini</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:block">
+                        @php
+                            $percentProduksi = $statsProduksi['total'] > 0 ? ($statsProduksi['hadir'] / $statsProduksi['total']) * 100 : 0;
+                        @endphp
+                        <div class="relative inline-flex items-center justify-center">
+                            <svg class="w-20 h-20 transform -rotate-90">
+                                <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="transparent" class="text-gray-200 dark:text-gray-700" />
+                                <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="{{ 2 * pi() * 34 }}" stroke-dashoffset="{{ (1 - $percentProduksi/100) * (2 * pi() * 34) }}" class="text-orange-500" stroke-linecap="round" />
+                            </svg>
+                            <span class="absolute text-sm font-bold text-gray-700 dark:text-gray-300">{{ round($percentProduksi) }}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl">
+                            <i class="fas fa-building text-blue-600 dark:text-blue-400 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kehadiran Office</h3>
+                            <div class="flex items-baseline gap-2 mt-1">
+                                <span class="text-3xl font-bold text-gray-800 dark:text-white">{{ $statsOffice['hadir'] }}</span>
+                                <span class="text-lg text-gray-500">/ {{ $statsOffice['total'] }}</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Karyawan hadir hari ini</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:block">
+                        @php
+                            $percentOffice = $statsOffice['total'] > 0 ? ($statsOffice['hadir'] / $statsOffice['total']) * 100 : 0;
+                        @endphp
+                        <div class="relative inline-flex items-center justify-center">
+                            <svg class="w-20 h-20 transform -rotate-90">
+                                <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="transparent" class="text-gray-200 dark:text-gray-700" />
+                                <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="{{ 2 * pi() * 34 }}" stroke-dashoffset="{{ (1 - $percentOffice/100) * (2 * pi() * 34) }}" class="text-blue-500" stroke-linecap="round" />
+                            </svg>
+                            <span class="absolute text-sm font-bold text-gray-700 dark:text-gray-300">{{ round($percentOffice) }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- Comparison Cards --}}
             @if($currentStatus === 'semua' && $comparison)
                 <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">

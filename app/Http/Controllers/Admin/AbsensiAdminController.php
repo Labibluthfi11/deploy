@@ -254,6 +254,10 @@ class AbsensiAdminController extends Controller
         $dailyStatusesBorongan = [];
         $dailyStatusesMagang = [];
 
+        // 🔥 STATS PRODUKSI VS OFFICE
+        $statsProduksi = ['total' => 0, 'hadir' => 0];
+        $statsOffice = ['total' => 0, 'hadir' => 0];
+
         foreach ($users as $user) {
             $absensiTodayApproved = Absensi::where('user_id', $user->id)
                 ->whereDate('check_in_at', $today)
@@ -294,6 +298,19 @@ class AbsensiAdminController extends Controller
                     $checkInTime = $pendingAbsensiToday->check_in_at;
                     $fotoCheckIn = $pendingAbsensiToday->foto_masuk;
                     $lateMinutes = $pendingAbsensiToday->late_minutes ?? 0;
+                }
+            }
+
+            // 🔥 HITUNG STATS PRODUKSI VS OFFICE
+            if ($user->work_location === 'produksi') {
+                $statsProduksi['total']++;
+                if (str_starts_with($statusHariIni, 'Hadir')) {
+                    $statsProduksi['hadir']++;
+                }
+            } else {
+                $statsOffice['total']++;
+                if (str_starts_with($statusHariIni, 'Hadir')) {
+                    $statsOffice['hadir']++;
                 }
             }
 
@@ -492,7 +509,9 @@ class AbsensiAdminController extends Controller
             'totalSakit',
             'totalLembur',
             'dashboardTitle',
-            'comparison'
+            'comparison',
+            'statsProduksi',
+            'statsOffice'
         ))->with('currentStatus', $type ?? 'semua');
     }
 
