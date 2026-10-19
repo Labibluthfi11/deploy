@@ -64,10 +64,10 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
         
         // Profile routes
         Route::get('/user/profile', [UserProfileController::class, 'show']);
-        Route::put('/user/profile', [UserProfileController::class, 'update'])
+        Route::match(['post', 'put'], '/user/profile', [UserProfileController::class, 'update'])
             ->middleware('throttle:10,1');  // ✅ Max 10x/menit untuk update profile
         
-        Route::put('/user/update-employment-status', [AuthController::class, 'updateEmploymentStatus'])
+        Route::match(['post', 'put'], '/user/update-employment-status', [AuthController::class, 'updateEmploymentStatus'])
             ->middleware('throttle:5,1');  // ✅ Max 5x/menit untuk update status
         
         // ========== ABSENSI - POST ENDPOINTS (dengan rate limit) ==========

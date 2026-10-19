@@ -158,6 +158,14 @@ class AuthController extends Controller
     /**
      * Update the user's employment type (organik/freelance).
      */
+    public function updateEmploymentStatus(Request $request)
+    {
+        return $this->updateEmploymentType($request);
+    }
+
+    /**
+     * Update the user's employment type (organik/freelance).
+     */
     public function updateEmploymentType(Request $request)
     {
         if (!Auth::check()) {
