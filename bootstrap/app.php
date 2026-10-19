@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+			$middleware->trustProxies(at: '*');
+		
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
             'super_admin' => \App\Http\Middleware\IsSuperAdmin::class, 

@@ -660,6 +660,13 @@ class AbsensiAdminController extends Controller
             ->whereNull('parent_id')
             ->get();
 
+        // ✅ QUERY TERPISAH UNTUK LEMBUR (punya parent_id)
+        $lemburUser = Absensi::where('user_id', $user->id)
+            ->whereBetween('check_in_at', [$startDate, $endDate])
+            ->where('tipe', 'lembur')
+            ->where('status_approval', 'approved')
+            ->get();
+
         // 🔥 FORCE REFRESH
         $absensiUser = $absensiUser->map(function($item) {
             return Absensi::find($item->id);
@@ -712,7 +719,7 @@ class AbsensiAdminController extends Controller
             'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),
             'total_sakit' => $totalSakit,
             'total_cuti' => $absensiUser->where('status', 'izin')->filter(fn($item) => str_starts_with($item->submission_type ?? '', 'cuti'))->where('status_approval', 'approved')->count(),
-            'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+            'total_lembur' => $lemburUser->count(),
             'total_telat' => $absensiUser->where('late_minutes', '>', 0)->where('late_penalty', '>', 0)->count(),
             'total_menit_telat' => $absensiUser->sum('late_minutes'),
             'total_menit_lembur' => $totalMenitLembur,
@@ -795,7 +802,7 @@ class AbsensiAdminController extends Controller
                 'total_cuti_tahunan' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->where('submission_type', 'cuti_tahunan')->count(),
                 'total_cuti_spesial' => $absensiUser->where('status', 'izin')->where('status_approval', 'approved')->filter(fn($item) => !empty($item->submission_type) && $item->submission_type !== 'cuti_tahunan')->count(),
                 'total_sakit' => $absensiUser->where('status', 'sakit')->where('status_approval', 'approved')->count(),
-                'total_lembur' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'approved')->count(),
+                'total_lembur' => $lemburUser->count(),
                 'total_lembur_pending' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'pending')->count(),
                 'total_lembur_ditolak' => $absensiUser->where('tipe', 'lembur')->where('status_approval', 'rejected')->count(),
                 'total_telat' => $absensiUser->where('late_minutes', '>', 0)->count(),
