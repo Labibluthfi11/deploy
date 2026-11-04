@@ -38,8 +38,6 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         // Detail absensi per user
         Route::get('/user/{user}', [AbsensiAdminController::class, 'show'])->name('admin.absensi.user')->middleware('block.pkl');
 
-        // Export data
-        Route::get('/user/{id}/export', [AbsensiAdminController::class, 'exportUser'])->name('admin.absensi.user.export')->middleware('block.pkl');
         Route::get('/recap', [AbsensiAdminController::class, 'recap'])->name('admin.absensi.recap');
         Route::get('/recap/export', [AbsensiAdminController::class, 'exportRecap'])->name('admin.absensi.recap.export')->middleware('block.pkl');
         
@@ -51,7 +49,6 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         Route::middleware('super_admin')->group(function () {
             Route::get('/organik', [AbsensiAdminController::class, 'indexOrganik'])->name('admin.absensi.organik');
             Route::get('/user/{user}/export-slip', [AbsensiAdminController::class, 'exportSlipGaji'])->name('admin.absensi.user.export-slip')->middleware('block.pkl');
-            Route::get('/user/{id}/export-slip-pdf', [AbsensiAdminController::class, 'exportSlipGajiPdf'])->name('admin.absensi.user.export-slip-pdf')->middleware('block.pkl');
             Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])->name('admin.absensi.bulk-export-pdf')->middleware('block.pkl');
             Route::get('/activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
         });

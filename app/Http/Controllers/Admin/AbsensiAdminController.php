@@ -12,9 +12,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AbsensiRekapExport;
-use App\Exports\AbsensiUserExport;
 use App\Exports\SlipGajiExport;
-use App\Exports\SlipGajiPdfExport;
 use App\Exports\BulkDetailExport;
 use App\Exports\BulkSimpleExport;
 use Illuminate\Support\Facades\Log;
@@ -855,49 +853,6 @@ class AbsensiAdminController extends Controller
         return $user->employment_type ?? 'organik';
     }
 
-    public function exportUser(Request $request, $id)
-    {
-        $user = User::findOrFail($id);
-        $query = Absensi::where('user_id', $id);
-
-        if ($request->filter_type === 'monthly') {
-            $query->whereMonth('check_in_at', $request->month)
-                  ->whereYear('check_in_at', $request->year);
-        } elseif ($request->filter_type === 'weekly') {
-            $query->whereYear('check_in_at', $request->year)
-                  ->whereMonth('check_in_at', $request->month)
-                  ->where('week_number', $request->week);
-        } elseif ($request->filter_type === 'yearly') {
-            $query->whereYear('check_in_at', $request->year);
-        } elseif ($request->filter_type === 'custom') {
-            $startDate = $request->input('start_date');
-            $endDate = $request->input('end_date');
-            if ($startDate && $endDate) {
-                $query->whereBetween('check_in_at', [
-                    \Carbon\Carbon::parse($startDate)->startOfDay(),
-                    \Carbon\Carbon::parse($endDate)->endOfDay(),
-                ]);
-            }
-        }
-
-        $absensi = $query->get();
-
-        // 🔥 FORCE REFRESH DATA APPROVED
-        $absensi = $absensi->map(function($item) {
-            if ($item->status_approval === 'approved') {
-                return Absensi::find($item->id);
-            }
-            return $item;
-        });
-
-        $fileName = "Absensi_{$user->name}_" . now()->format('Ymd_His') . ".xlsx";
-
-        return Excel::download(
-            new AbsensiUserExport($absensi, $user, $request->filter_type, $request->month, $request->year, $request->week),
-            $fileName
-        );
-    }
-
     public function exportSlipGaji(Request $request, User $user)
     {
         $filterType = $request->input('filter_type', 'all');
@@ -978,63 +933,6 @@ public function bulkExportDetail(Request $request)
     );
 }
 
-
-public function exportSlipGajiPdf(Request $request, $id)
-{
-    // ✅ Manual query user
-    $user = User::findOrFail($id);
-
-    $filterType = $request->input('filter_type', 'all');
-    $query = Absensi::where('user_id', $user->id);
-    $periodeLabel = "Semua Data";
-
-    if ($filterType === 'monthly') {
-        $year = $request->input('year', now()->year);
-        $month = $request->input('month', now()->month);
-
-        $query->whereYear('check_in_at', $year)
-              ->whereMonth('check_in_at', $month);
-
-        $periodeLabel = \Carbon\Carbon::createFromFormat('!m', $month)->translatedFormat('F') . " {$year}";
-
-    } elseif ($filterType === 'custom') {
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-
-        if ($startDate && $endDate) {
-            $start = \Carbon\Carbon::parse($startDate)->startOfDay();
-            $end = \Carbon\Carbon::parse($endDate)->endOfDay();
-
-            $query->whereBetween('check_in_at', [$start, $end]);
-
-            $periodeLabel = \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') . " - " . \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y');
-        }
-    }
-
-   $approvedAbsensi = $query->whereIn('status_approval', ['approved', 'rejected'])
-       ->whereNull('parent_id')
-       ->get();
-
-$approvedAbsensi = $approvedAbsensi->map(function($item) {
-    return Absensi::find($item->id);
-});
-
-$absensiStats = [
-    'total_hadir' => $approvedAbsensi->where('status', 'hadir')->count(),
-    'total_gaji_pokok' => $approvedAbsensi->sum('base_salary'),
-    'total_potongan' => $approvedAbsensi->sum('late_penalty'),
-    'total_gaji_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_pay'),
-    'total_gaji_bersih' => $approvedAbsensi->sum('final_salary'),
-    'total_menit_lembur' => $approvedAbsensi->where('status_approval', 'approved')->sum('overtime_minutes'),
-];
-
-    $exporter = new SlipGajiPdfExport($user, $absensiStats, $periodeLabel);
-    $pdf = $exporter->generate();
-
-    $fileName = "Slip_Gaji_{$user->name}_{$filterType}_" . date('Ymd_His') . ".pdf";
-
-    return $pdf->download($fileName);
-}
 
 public function bulkExportPdf(Request $request)
 {

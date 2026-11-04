@@ -374,33 +374,6 @@
         <i class="fas fa-file-excel"></i> Export Slip Gaji (Excel)
     </a>
 
-    {{-- 🆕 Tombol Export Slip Gaji (PDF - GA BISA DIEDIT) --}}
-   <a href="{{ route('admin.absensi.user.export-slip-pdf', [
-            'id' => $user->id,  {{-- ⚠️ GANTI DARI 'user' JADI 'id' --}}
-            'filter_type' => request('filter_type', 'all'),
-            'month' => request('month', now()->month),
-            'year' => request('year', now()->year),
-            'start_date' => request('start_date'),
-            'end_date' => request('end_date')
-        ]) }}"
-       class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200 h-[46px]"
-       title="Format PDF - Tidak bisa diedit">
-        <i class="fas fa-file-pdf"></i> Export Slip Gaji (PDF) 🔒
-    </a>
-
-    {{-- Tombol Export Detail (LAMA) --}}
-    <a href="{{ route('admin.absensi.user.export', [
-            'id' => $user->id,
-            'filter_type' => request('filter_type', 'all'),
-            'month' => request('month', now()->month),
-            'year' => request('year', now()->year),
-            'start_date' => request('start_date'),
-            'end_date' => request('end_date'),
-        ]) }}"
-       class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium shadow-sm transition-all duration-200">
-        <i class="fas fa-file-excel"></i>
-        Export Detail (Tabel)
-    </a>
 </div>
 
             {{-- Tabel --}}
