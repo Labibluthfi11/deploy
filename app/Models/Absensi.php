@@ -136,7 +136,8 @@ class Absensi extends Model
     bool $isWeekend = false,
     ?\Carbon\Carbon $checkIn = null,
     ?\Carbon\Carbon $checkOut = null,
-    string $kategori = 'organik'
+    string $kategori = 'organik',
+    ?string $adminNote = null
 ): array
 {
     $baseSalary = 0;
@@ -171,7 +172,7 @@ class Absensi extends Model
             $workedMinutes = self::calculateWorkedMinutes($effectiveCheckIn, $checkOut);
             
             // 🔥 LOGIC AUTO-FLAG PENGINGAT ADMIN UNTUK ORGANIK
-            if ($kategori === 'organik' && $this->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN') {
+            if ($kategori === 'organik' && $adminNote === 'AUTO_CHECKOUT_LUPA_ABSEN') {
                 $workedMinutes = 0; // Set ke 0 agar gaji tidak terhitung otomatis
             }
         } else {

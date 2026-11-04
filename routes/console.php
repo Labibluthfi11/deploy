@@ -39,16 +39,11 @@ Schedule::call(function () {
         ->get();
 
     foreach ($forgottenAbsences as $absensi) {
-        $updateData = [
-            'check_out_at' => $today->copy()->setTime(17, 0, 0),
-        ];
-
-        // Hanya tandai untuk organik
-        if ($absensi->user && $absensi->user->employment_status === 'organik') {
-            $updateData['catatan_admin'] = 'AUTO_CHECKOUT_LUPA_ABSEN';
+        $absensi->check_out_at = $today->copy()->setTime(17, 0, 0);
+        if (!$absensi->catatan_admin) {
+            $absensi->catatan_admin = 'AUTO_CHECKOUT_LUPA_ABSEN';
         }
-
-        $absensi->update($updateData);
+        $absensi->save();
     }
 })->dailyAt('23:59');
 

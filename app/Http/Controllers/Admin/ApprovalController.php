@@ -339,6 +339,11 @@ class ApprovalController extends Controller
         'final_salary'  => $finalSalary, // ✅ Gaji pokok - potongan (tanpa lembur)
     ]);
 
+    if ($absensi->tipe === 'koreksi lupa absen pulang') {
+        $absensi->catatan_admin = $request->catatan_admin;
+        $absensi->save();
+    }
+
     \App\Models\ActivityLog::log('Reject Pengajuan', "Pengajuan ID: {$absensi->id} dari {$absensi->user->name}", "Alasan: {$request->catatan_admin}");
 
     Log::info('✅ [REJECT] Updated main record', [
@@ -367,12 +372,17 @@ class ApprovalController extends Controller
     }
 
     // ✅ NOTIFIKASI
+    $isForgottenCheckout = $absensi->tipe === 'koreksi lupa absen pulang';
     Notification::create([
         'user_id' => $absensi->user_id,
-        'title' => "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
-        'message' => "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin,
-        'type' => "{$submissionType}_rejected",
-        'target_page' => $targetPage,
+        'title' => $isForgottenCheckout
+            ? 'Pengajuan Lupa Absen Pulang Ditolak'
+            : "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
+        'message' => $isForgottenCheckout
+            ? "Pengajuan jam pulang kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin
+            : "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin,
+        'type' => $isForgottenCheckout ? 'koreksi_lupa_pulang_rejected' : "{$submissionType}_rejected",
+        'target_page' => $isForgottenCheckout ? '/absensi_detail' : $targetPage,
         'target_id' => $absensi->id,
     ]);
 
@@ -388,6 +398,95 @@ class ApprovalController extends Controller
 
             if ($currentLevel >= $maxLevel) {
                 // FINAL APPROVAL (HRGA)
+
+                    if ($absensi->tipe === 'koreksi lupa absen pulang') {
+                        $updated = DB::transaction(function () use ($absensi, $workflowStatus) {
+                            $parent = Absensi::with('user')
+                                ->whereKey($absensi->parent_id)
+                                ->lockForUpdate()
+                                ->first();
+
+                            $isAutoCheckout = $parent && (
+                                $parent->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN'
+                                || (
+                                    $parent->check_out_at
+                                    && \Carbon\Carbon::parse($parent->check_out_at)->format('H:i:s') === '17:00:00'
+                                    && !$parent->catatan_admin
+                                    && !$parent->foto_pulang
+                                    && !$parent->lokasi_pulang
+                                )
+                            );
+
+                            if (
+                                !$parent
+                                || ($parent->check_out_at && !$isAutoCheckout)
+                                || !$absensi->check_out_at
+                            ) {
+                                return false;
+                            }
+
+                            $checkIn = \Carbon\Carbon::parse($parent->check_in_at);
+                            $checkOut = \Carbon\Carbon::parse($absensi->check_out_at);
+                            if ($checkOut->lte($checkIn)) {
+                                return false;
+                            }
+
+                            $salaryData = Absensi::calculateSalary(
+                                (int) ($parent->late_minutes ?? 0),
+                                $parent->status,
+                                null,
+                                Absensi::isWeekend($checkIn),
+                                $checkIn,
+                                $checkOut,
+                                $parent->user->kategori_absensi
+                            );
+
+                            $parentUpdate = [
+                                'check_out_at' => $checkOut,
+                                'is_kurang_8_jam' => $checkIn->diffInMinutes($checkOut) < 540,
+                                'base_salary' => $salaryData['base_salary'],
+                                'late_penalty' => $salaryData['late_penalty'],
+                                'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+                                'final_salary' => $salaryData['final_salary'] + (float) ($parent->overtime_pay ?? 0),
+                            ];
+                            if ($parent->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN') {
+                                $parent->catatan_admin = null;
+                            }
+                            $parent->fill($parentUpdate);
+                            $parent->save();
+
+                            $absensi->update([
+                                'status_approval' => 'approved',
+                                'approved_at' => now(),
+                                'workflow_status' => $workflowStatus,
+                                'rejected_by' => null,
+                                'rejected_at' => null,
+                            ]);
+
+                            Notification::create([
+                                'user_id' => $absensi->user_id,
+                                'title' => 'Pengajuan Lupa Absen Pulang Disetujui',
+                                'message' => 'Jam pulang untuk ' . $checkIn->isoFormat('DD MMM YYYY') . ' telah disetujui.',
+                                'type' => 'koreksi_lupa_pulang_approved',
+                                'target_page' => '/absensi_detail',
+                                'target_id' => $absensi->id,
+                            ]);
+
+                            \App\Models\ActivityLog::log(
+                                'Approve Koreksi Lupa Absen Pulang',
+                                "Pengajuan ID: {$absensi->id} dari {$absensi->user->name}",
+                                'Persetujuan final; jam pulang absensi diperbarui.'
+                            );
+
+                            return true;
+                        });
+
+                        if (!$updated) {
+                            return back()->with('error', 'Absensi tidak dapat diperbarui. Mungkin sudah memiliki jam pulang atau data pengajuan tidak valid.');
+                        }
+
+                        return back()->with('success', 'Koreksi jam pulang disetujui dan absensi diperbarui.');
+                    }
 
                     // 🆕 INTEGRASI KOREKSI ABSENSI
                     if ($absensi->tipe === 'koreksi lupa absen') {
