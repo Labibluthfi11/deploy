@@ -201,7 +201,7 @@
                             </div>
                         </div>
                         @if (auth()->user()->isAnyAdmin())
-                            <button type="button" onclick="openLeaveBalanceModal()"
+                            <button type="button" id="openLeaveBalanceModalButton"
                                 class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:w-auto">
                                 <i class="fas fa-sliders-h"></i>
                                 <span>Atur Saldo Cuti</span>
@@ -234,7 +234,7 @@
                                     {{ $user->name }} · Saldo saat ini {{ $user->sisa_cuti ?? 0 }} hari
                                 </p>
                             </div>
-                            <button type="button" onclick="closeLeaveBalanceModal()" aria-label="Tutup"
+                            <button type="button" data-close-leave-balance-modal aria-label="Tutup"
                                 class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200">
                                 <i class="fas fa-times"></i>
                             </button>
@@ -276,7 +276,7 @@
                             </div>
 
                             <div class="flex justify-end gap-3 pt-2">
-                                <button type="button" onclick="closeLeaveBalanceModal()"
+                                <button type="button" data-close-leave-balance-modal
                                     class="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
                                     Batal
                                 </button>
@@ -986,6 +986,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const leaveBalanceModal = document.getElementById('leaveBalanceModal');
     if (leaveBalanceModal) {
+        const openLeaveBalanceButton = document.getElementById('openLeaveBalanceModalButton');
+        if (openLeaveBalanceButton) {
+            openLeaveBalanceButton.addEventListener('click', openLeaveBalanceModal);
+        }
+
+        leaveBalanceModal.querySelectorAll('[data-close-leave-balance-modal]').forEach(function(button) {
+            button.addEventListener('click', closeLeaveBalanceModal);
+        });
+
         @if ($errors->has('operation') || $errors->has('days') || $errors->has('reason'))
             openLeaveBalanceModal();
         @endif
