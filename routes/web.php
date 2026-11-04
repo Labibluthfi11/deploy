@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AbsensiAdminController;
 use App\Http\Controllers\Admin\ApprovalController;
+use App\Http\Controllers\Admin\LeaveBalanceController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -105,6 +106,11 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
 
     Route::get('/absensi/koreksi', [AbsensiAdminController::class, 'showManualEntryPage'])
         ->name('admin.absensi.koreksi');
+
+    Route::get('/cuti/{user}', [LeaveBalanceController::class, 'edit'])
+        ->name('admin.cuti.edit');
+    Route::patch('/cuti/{user}', [LeaveBalanceController::class, 'update'])
+        ->name('admin.cuti.update');
 });
 
 require __DIR__ . '/auth.php';

@@ -52,6 +52,9 @@ Schedule::call(function () {
     }
 })->dailyAt('23:59');
 
+// Potong cuti karyawan organik tanpa absensi atau pengajuan izin/sakit setelah hari kerja berakhir.
+Schedule::command('attendance:deduct-absence-leave')->dailyAt('00:10')->withoutOverlapping();
+
 // JADWAL BACKUP OTOMATIS (Setiap Hari Jam 12 Malam)
 Schedule::command('backup:run')->dailyAt('00:00');
 // Bersihkan backup lama (Setiap Jam 1 Pagi)
