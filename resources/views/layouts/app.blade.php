@@ -58,14 +58,6 @@
         <!-- Navigation Menu (Super Rapat, Tanpa Scroll) -->
         <div class="flex-1 w-full">
             <nav class="px-3 py-3 space-y-0.5">
-            <!-- Dashboard -->
-            <a href="{{ route('dashboard') }}"
-               class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all
-               {{ request()->routeIs('dashboard') ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                <i class="fas fa-home text-base w-5"></i>
-                <span>Dashboard</span>
-            </a>
-
             <!-- ABSENSI SECTION -->
             <div class="pt-2 space-y-0.5">
                 <div class="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -73,25 +65,11 @@
                     <span>Absensi</span>
                 </div>
 
-                <a href="{{ route('admin.absensi.index') }}"
+                <a href="{{ route('dashboard') }}"
                    class="flex items-center gap-3 px-3 py-1.5 ml-3 text-sm font-medium rounded-md transition-all
-                   {{ request()->routeIs('admin.absensi.index') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-circle text-[8px] w-4"></i>
-                    <span>Semua</span>
-                </a>
-
-                <a href="{{ route('admin.absensi.organik') }}"
-                   class="flex items-center gap-3 px-3 py-1.5 ml-3 text-sm font-medium rounded-md transition-all
-                   {{ request()->routeIs('admin.absensi.organik') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-circle text-[8px] w-4"></i>
-                    <span>Organik</span>
-                </a>
-
-                <a href="{{ route('admin.absensi.freelance') }}"
-                   class="flex items-center gap-3 px-3 py-1.5 ml-3 text-sm font-medium rounded-md transition-all
-                   {{ request()->routeIs('admin.absensi.freelance') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-circle text-[8px] w-4"></i>
-                    <span>Freelance</span>
+                   {{ request()->routeIs('dashboard', 'admin.absensi.index', 'admin.absensi.organik', 'admin.absensi.freelance') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-home text-base w-4"></i>
+                    <span>Dashboard</span>
                 </a>
 
                 <a href="{{ route('admin.absensi.koreksi') }}"
