@@ -92,18 +92,6 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
     Route::post('/absensi/{absensi}/adjustment', [AbsensiAdminController::class, 'updateAdjustment'])
         ->name('admin.absensi.update-adjustment');
         
-    Route::post('/absensi/manual-entry', [AbsensiAdminController::class, 'storeManual'])
-        ->name('admin.absensi.store-manual');
-
-    Route::post('/absensi/manual-izin-sakit', [AbsensiAdminController::class, 'storeIzinSakitManual'])
-        ->name('admin.absensi.store-izin-sakit-manual');
-
-    Route::post('/absensi/manual-overtime', [AbsensiAdminController::class, 'storeLemburManual'])
-        ->name('admin.absensi.store-lembur-manual');
-
-    Route::get('/absensi/koreksi', [AbsensiAdminController::class, 'showManualEntryPage'])
-        ->name('admin.absensi.koreksi');
-
     Route::patch('/cuti/{user}', [LeaveBalanceController::class, 'update'])
         ->name('admin.cuti.update');
 });
