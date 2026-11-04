@@ -19,6 +19,6 @@ Siap dipakai buat production, scalable, dan gampang diintegrasi.
 
 Scheduler memeriksa hari kerja sebelumnya setiap pukul 00:10. Satu hari cuti dipotong untuk karyawan aktif berstatus organik yang tidak memiliki data hadir atau pengajuan izin/sakit yang masih pending atau sudah disetujui. Akun dengan sisa cuti nol tidak akan memiliki saldo negatif; tanggal tetap dicatat agar proses tidak menghitungnya berulang.
 
-Admin juga dapat menambah atau mengurangi saldo cuti karyawan organik dari aksi Kelola Cuti di rekap absensi. Penyesuaian memerlukan alasan, tidak mengubah total cuti yang sudah diambil, dan dicatat di activity log.
+Admin juga dapat menambah atau mengurangi saldo cuti karyawan organik dari card Sisa Cuti di halaman detail absensi karyawan. Penyesuaian memerlukan alasan, tidak mengubah total cuti yang sudah diambil, dan dicatat di activity log.
 
 Setelah deploy, jalankan migrasi database dan pastikan Laravel Scheduler berjalan setiap menit di server (`php artisan schedule:run`). Hari Sabtu, Minggu, dan tanggal libur yang tercatat tidak dipotong.

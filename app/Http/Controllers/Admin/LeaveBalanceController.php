@@ -9,18 +9,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class LeaveBalanceController extends Controller
 {
-    public function edit(User $user): View
-    {
-        $this->ensureCanManageBalance();
-        $this->ensureOrganicEmployee($user);
-
-        return view('admin.cuti.edit', compact('user'));
-    }
-
     public function update(Request $request, User $user): RedirectResponse
     {
         $this->ensureCanManageBalance();
@@ -65,7 +56,7 @@ class LeaveBalanceController extends Controller
         });
 
         return redirect()
-            ->route('admin.cuti.edit', $user)
+            ->route('admin.absensi.user', $user)
             ->with('success', 'Saldo cuti berhasil diperbarui.');
     }
 

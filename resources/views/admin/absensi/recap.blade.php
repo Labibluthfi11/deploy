@@ -222,12 +222,6 @@
                                             <a href="{{ route('admin.absensi.user', $data['user']->id) }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                                                 <i class="fas fa-eye mr-1"></i>
                                             </a>
-                                            @if (auth()->user()->isAnyAdmin())
-                                                <a href="{{ route('admin.cuti.edit', $data['user']->id) }}" title="Kelola saldo cuti"
-                                                    class="ml-2 inline-flex items-center text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 font-medium">
-                                                    <i class="fas fa-calendar-plus"></i>
-                                                </a>
-                                            @endif
                                         </td>
                                     </tr>
                                 @empty

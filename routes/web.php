@@ -107,8 +107,6 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
     Route::get('/absensi/koreksi', [AbsensiAdminController::class, 'showManualEntryPage'])
         ->name('admin.absensi.koreksi');
 
-    Route::get('/cuti/{user}', [LeaveBalanceController::class, 'edit'])
-        ->name('admin.cuti.edit');
     Route::patch('/cuti/{user}', [LeaveBalanceController::class, 'update'])
         ->name('admin.cuti.update');
 });

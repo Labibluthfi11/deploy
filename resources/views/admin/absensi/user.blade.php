@@ -123,7 +123,7 @@
             </div>
 
             {{-- Summary --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 {{ $user->employment_type === 'organik' ? 'lg:grid-cols-6' : 'lg:grid-cols-5' }} gap-5 fade-in">
                 {{-- Total Hadir --}}
                 <div class="stat-card premium-card p-6 rounded-2xl">
                     <div class="flex justify-between">
@@ -184,7 +184,110 @@
                         </div>
                     </div>
                 </div>
+                @if ($user->employment_type === 'organik')
+                    <div class="stat-card premium-card p-6 rounded-2xl border-teal-200 dark:border-teal-800">
+                        <div class="flex h-full flex-col justify-between gap-4">
+                            <div class="flex justify-between gap-3">
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-400 text-xs uppercase font-semibold mb-2">Sisa Cuti</p>
+                                    <p class="text-teal-700 dark:text-teal-300 text-3xl font-bold">
+                                        {{ $user->sisa_cuti ?? 0 }} <span class="text-base font-semibold">hari</span>
+                                    </p>
+                                </div>
+                                <div class="stat-icon w-12 h-12 shrink-0 bg-teal-100 dark:bg-teal-900/30 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-calendar-check text-xl text-teal-600 dark:text-teal-400"></i>
+                                </div>
+                            </div>
+                            @if (auth()->user()->isAnyAdmin())
+                                <button type="button" onclick="openLeaveBalanceModal()"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Tambah/Kurangi Cuti</span>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                @endif
             </div>
+
+            @if ($user->employment_type === 'organik' && auth()->user()->isAnyAdmin())
+                @if (session('success'))
+                    <div role="status" class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200">
+                        Periksa kembali input penyesuaian cuti.
+                    </div>
+                @endif
+
+                <div id="leaveBalanceModal" class="fixed inset-0 z-[60] hidden items-center justify-center overflow-y-auto bg-gray-950/60 p-4"
+                    role="dialog" aria-modal="true" aria-labelledby="leaveBalanceModalTitle">
+                    <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800">
+                        <div class="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="leaveBalanceModalTitle" class="text-xl font-bold text-gray-900 dark:text-white">Penyesuaian Saldo Cuti</h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    {{ $user->name }} · Saldo saat ini {{ $user->sisa_cuti ?? 0 }} hari
+                                </p>
+                            </div>
+                            <button type="button" onclick="closeLeaveBalanceModal()" aria-label="Tutup"
+                                class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.cuti.update', $user) }}" class="space-y-4">
+                            @csrf
+                            @method('PATCH')
+
+                            <div>
+                                <label for="leaveOperation" class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">Aksi</label>
+                                <select id="leaveOperation" name="operation" required
+                                    class="w-full rounded-lg border-gray-300 bg-white text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    <option value="add" {{ old('operation') === 'add' ? 'selected' : '' }}>Tambah cuti</option>
+                                    <option value="subtract" {{ old('operation') === 'subtract' ? 'selected' : '' }}>Kurangi cuti</option>
+                                </select>
+                                @error('operation')
+                                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="leaveDays" class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">Jumlah hari</label>
+                                <input id="leaveDays" name="days" type="number" min="1" max="365" step="1" required
+                                    value="{{ old('days') }}"
+                                    class="w-full rounded-lg border-gray-300 bg-white text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                @error('days')
+                                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="leaveReason" class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">Alasan</label>
+                                <textarea id="leaveReason" name="reason" rows="3" maxlength="500" required
+                                    class="w-full rounded-lg border-gray-300 bg-white text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{{ old('reason') }}</textarea>
+                                @error('reason')
+                                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="flex justify-end gap-3 pt-2">
+                                <button type="button" onclick="closeLeaveBalanceModal()"
+                                    class="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                                    Batal
+                                </button>
+                                <button type="submit"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+                                    <i class="fas fa-save"></i> Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
 
             <!-- 🆕 KOTAK BARU: RINGKASAN GAJI (SESUAI REQUEST LO) -->
             @if($user->employment_type !== 'organik')
@@ -860,8 +963,36 @@ function closeModal() {
     }
 }
 
+function openLeaveBalanceModal() {
+    const modal = document.getElementById('leaveBalanceModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.getElementById('leaveOperation')?.focus();
+    }
+}
+
+function closeLeaveBalanceModal() {
+    const modal = document.getElementById('leaveBalanceModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     toggleFilterInputs();
+
+    const leaveBalanceModal = document.getElementById('leaveBalanceModal');
+    if (leaveBalanceModal) {
+        @if ($errors->has('operation') || $errors->has('days') || $errors->has('reason'))
+            openLeaveBalanceModal();
+        @endif
+
+        leaveBalanceModal.addEventListener('click', function(event) {
+            if (event.target === this) closeLeaveBalanceModal();
+        });
+    }
 
     const filterType = document.getElementById('filter_type');
     if (filterType) {
