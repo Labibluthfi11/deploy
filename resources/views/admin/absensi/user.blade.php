@@ -123,7 +123,7 @@
             </div>
 
             {{-- Summary --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 {{ $user->employment_type === 'organik' ? 'lg:grid-cols-6' : 'lg:grid-cols-5' }} gap-5 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 fade-in">
                 {{-- Total Hadir --}}
                 <div class="stat-card premium-card p-6 rounded-2xl">
                     <div class="flex justify-between">
@@ -184,31 +184,32 @@
                         </div>
                     </div>
                 </div>
-                @if ($user->employment_type === 'organik')
-                    <div class="stat-card premium-card p-6 rounded-2xl border-teal-200 dark:border-teal-800">
-                        <div class="flex h-full flex-col justify-between gap-4">
-                            <div class="flex justify-between gap-3">
-                                <div>
-                                    <p class="text-gray-600 dark:text-gray-400 text-xs uppercase font-semibold mb-2">Sisa Cuti</p>
-                                    <p class="text-teal-700 dark:text-teal-300 text-3xl font-bold">
-                                        {{ $user->sisa_cuti ?? 0 }} <span class="text-base font-semibold">hari</span>
-                                    </p>
-                                </div>
-                                <div class="stat-icon w-12 h-12 shrink-0 bg-teal-100 dark:bg-teal-900/30 rounded-xl flex items-center justify-center">
-                                    <i class="fas fa-calendar-check text-xl text-teal-600 dark:text-teal-400"></i>
-                                </div>
-                            </div>
-                            @if (auth()->user()->isAnyAdmin())
-                                <button type="button" onclick="openLeaveBalanceModal()"
-                                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
-                                    <i class="fas fa-sliders-h"></i>
-                                    <span>Tambah/Kurangi Cuti</span>
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                @endif
             </div>
+
+            @if ($user->employment_type === 'organik')
+                <section class="premium-card overflow-hidden rounded-2xl border-teal-200 dark:border-teal-800 fade-in">
+                    <div class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                                <i class="fas fa-calendar-check text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-600 dark:text-gray-400">Saldo Cuti Tahunan</p>
+                                <p class="mt-1 text-2xl font-bold leading-tight text-gray-900 dark:text-white">
+                                    {{ $user->sisa_cuti ?? 0 }} <span class="text-base font-semibold text-gray-500 dark:text-gray-400">hari tersisa</span>
+                                </p>
+                            </div>
+                        </div>
+                        @if (auth()->user()->isAnyAdmin())
+                            <button type="button" onclick="openLeaveBalanceModal()"
+                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:w-auto">
+                                <i class="fas fa-sliders-h"></i>
+                                <span>Atur Saldo Cuti</span>
+                            </button>
+                        @endif
+                    </div>
+                </section>
+            @endif
 
             @if ($user->employment_type === 'organik' && auth()->user()->isAnyAdmin())
                 @if (session('success'))
