@@ -107,16 +107,6 @@ function createAttendanceWithoutCheckout(User $user, Carbon $checkIn): Absensi
     ]);
 }
 
-function forgottenCheckoutPayload(Absensi $attendance): array
-{
-    return [
-        'absensi_id' => $attendance->id,
-        'jam_pulang' => '17:00',
-        'keterangan' => 'Lupa melakukan absen pulang.',
-        'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
-    ];
-}
-
 function retroactiveAttendancePayload(string $type): array
 {
     return [
@@ -128,49 +118,6 @@ function retroactiveAttendancePayload(string $type): array
         'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
     ];
 }
-
-it('creates a pending checkout correction without changing the attendance', function () {
-    $user = User::factory()->create([
-        'work_location' => 'office',
-        'employment_type' => 'organik',
-    ]);
-    Sanctum::actingAs($user);
-    $attendance = createAttendanceWithoutCheckout(
-        $user,
-        Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta')
-    );
-
-    $response = $this->postJson('/api/v1/absensi/pengajuan-lupa-pulang', forgottenCheckoutPayload($attendance));
-
-    $response->assertCreated()
-        ->assertJsonPath('success', true)
-        ->assertJsonPath('data.tipe', 'koreksi lupa absen pulang')
-        ->assertJsonPath('data.status_approval', 'pending');
-
-    $correctionId = $response->json('data.id');
-    $this->assertDatabaseHas('absensis', [
-        'id' => $correctionId,
-        'parent_id' => $attendance->id,
-        'submission_type' => 'koreksi_lupa_pulang',
-        'status_approval' => 'pending',
-    ]);
-    $this->assertDatabaseHas('absensis', [
-        'id' => $attendance->id,
-        'check_out_at' => null,
-    ]);
-    $this->assertDatabaseHas('notifications', [
-        'user_id' => $user->id,
-        'target_id' => $correctionId,
-        'type' => 'koreksi_lupa_pulang_submitted',
-    ]);
-
-    $this->assertCount(1, Storage::disk('public')->allFiles('bukti_koreksi_pulang'));
-
-    $this->getJson('/api/v1/absensi/me')
-        ->assertOk()
-        ->assertJsonPath('data.0.can_request_checkout_correction', false)
-        ->assertJsonPath('data.0.koreksi_lupa_pulang.status_approval', 'pending');
-});
 
 it('creates a pending missed check-in and checkout request with one photo proof', function () {
     $user = User::factory()->create(['work_location' => 'office']);
@@ -286,64 +233,11 @@ it('creates a pending retrospective leave request for an organic employee', func
     $this->assertCount(1, Storage::disk('public')->allFiles('bukti_sakit_izin'));
 });
 
-it('rejects attendance older than 30 days', function () {
-    $user = User::factory()->create();
-    Sanctum::actingAs($user);
-    $attendance = createAttendanceWithoutCheckout(
-        $user,
-        Carbon::parse('2026-10-04 08:00:00', 'Asia/Jakarta')
-    );
+it('does not expose the removed forgotten-checkout request endpoint', function () {
+    Sanctum::actingAs(User::factory()->create());
 
-    $this->postJson('/api/v1/absensi/pengajuan-lupa-pulang', forgottenCheckoutPayload($attendance))
-        ->assertUnprocessable()
-        ->assertJsonPath('success', false);
-
-    $this->assertDatabaseCount('absensis', 1);
-});
-
-it('allows the previous automatic 17:00 checkout placeholder', function () {
-    $user = User::factory()->create();
-    Sanctum::actingAs($user);
-    $attendance = createAttendanceWithoutCheckout(
-        $user,
-        Carbon::parse('2026-11-03 08:00:00', 'Asia/Jakarta')
-    );
-    $attendance->update([
-        'check_out_at' => Carbon::parse('2026-11-03 17:00:00', 'Asia/Jakarta'),
-    ]);
-
-    $this->postJson('/api/v1/absensi/pengajuan-lupa-pulang', forgottenCheckoutPayload($attendance))
-        ->assertCreated()
-        ->assertJsonPath('success', true);
-
-    $this->assertDatabaseHas('absensis', [
-        'id' => $attendance->id,
-        'check_out_at' => '2026-11-03 17:00:00',
-    ]);
-});
-
-it('prevents duplicate active checkout corrections', function () {
-    $user = User::factory()->create();
-    Sanctum::actingAs($user);
-    $attendance = createAttendanceWithoutCheckout(
-        $user,
-        Carbon::parse('2026-11-03 08:00:00', 'Asia/Jakarta')
-    );
-    Absensi::create([
-        'user_id' => $user->id,
-        'parent_id' => $attendance->id,
-        'status' => 'hadir',
-        'tipe' => 'koreksi lupa absen pulang',
-        'status_approval' => 'pending',
-        'check_in_at' => $attendance->check_in_at,
-        'check_out_at' => Carbon::parse('2026-11-03 17:00:00', 'Asia/Jakarta'),
-    ]);
-
-    $this->postJson('/api/v1/absensi/pengajuan-lupa-pulang', forgottenCheckoutPayload($attendance))
-        ->assertStatus(409)
-        ->assertJsonPath('success', false);
-
-    $this->assertDatabaseCount('absensis', 2);
+    $this->postJson('/api/v1/absensi/pengajuan-lupa-pulang')
+        ->assertNotFound();
 });
 
 it('calculates an organic attendance salary without using an instance context', function () {
