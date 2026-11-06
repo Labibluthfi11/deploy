@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Exceptions\FaceDetectionUnavailableException;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Absensi;
@@ -16,7 +15,6 @@ use App\Models\Notification;
 use Illuminate\Support\Facades\Validator;
 use App\Models\ActivityLog;
 use App\Http\Resources\AbsensiResource;
-use App\Services\FaceDetector;
 
 
 class AbsensiController extends Controller
@@ -108,12 +106,6 @@ class AbsensiController extends Controller
             'status' => 'required|in:hadir,sakit,izin',
             'is_mocked' => 'nullable|boolean',
         ]);
-
-        if ($request->status === 'hadir' && !app(FaceDetector::class)->containsFace($request->file('foto'))) {
-            throw ValidationException::withMessages([
-                'foto' => 'Foto absensi harus menampilkan wajah. Silakan ambil ulang foto dengan wajah terlihat jelas.',
-            ]);
-        }
 
         $user = Auth::user();
 
@@ -280,11 +272,6 @@ class AbsensiController extends Controller
 
     } catch (ValidationException $e) {
         return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
-    } catch (FaceDetectionUnavailableException $e) {
-        return response()->json([
-            'message' => 'Pemeriksaan wajah sedang tidak tersedia. Silakan coba kembali beberapa saat lagi.',
-        ], 503);
-    } catch (\Exception $e) {
         return response()->json(['message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')], 500);
     }
 }
@@ -584,12 +571,6 @@ class AbsensiController extends Controller
                 }
             }
 
-            if (!app(FaceDetector::class)->containsFace($request->file('foto'))) {
-                throw ValidationException::withMessages([
-                    'foto' => 'Foto absensi harus menampilkan wajah. Silakan ambil ulang foto dengan wajah terlihat jelas.',
-                ]);
-            }
-
             $fotoPath = $request->file('foto')->store('absensi_foto', 'public');
             $fotoPath2 = $request->hasFile('foto_2') ? $request->file('foto_2')->store('absensi_foto', 'public') : null;
             $fotoPath3 = $request->hasFile('foto_3') ? $request->file('foto_3')->store('absensi_foto', 'public') : null;
@@ -662,10 +643,6 @@ class AbsensiController extends Controller
 
         } catch (ValidationException $e) {
             return response()->json(['message' => 'Validation error', 'errors' => $e->errors()], 422);
-        } catch (FaceDetectionUnavailableException $e) {
-            return response()->json([
-                'message' => 'Pemeriksaan wajah sedang tidak tersedia. Silakan coba kembali beberapa saat lagi.',
-            ], 503);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')], 500);
         }
