@@ -3,13 +3,14 @@
 use App\Models\Absensi;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
-uses(Tests\TestCase::class);
+uses(TestCase::class);
 
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-11-04 15:00:00', 'Asia/Jakarta'));
@@ -30,6 +31,8 @@ beforeEach(function () {
         $table->string('role')->default('user');
         $table->string('work_location')->nullable();
         $table->string('employment_type')->nullable();
+        $table->unsignedInteger('sisa_cuti')->default(0);
+        $table->unsignedInteger('total_cuti_diambil')->default(0);
         $table->timestamps();
     });
 
@@ -45,6 +48,11 @@ beforeEach(function () {
         $table->json('workflow_status')->nullable();
         $table->timestamp('check_in_at')->nullable();
         $table->timestamp('check_out_at')->nullable();
+        $table->date('end_date')->nullable();
+        $table->unsignedInteger('total_days')->nullable();
+        $table->unsignedInteger('hari_potong_cuti')->default(0);
+        $table->unsignedInteger('hari_unpaid')->default(0);
+        $table->string('jam_pulang_rencana')->nullable();
         $table->string('file_bukti')->nullable();
         $table->text('keterangan_izin_sakit')->nullable();
         $table->text('catatan_admin')->nullable();
@@ -109,6 +117,18 @@ function forgottenCheckoutPayload(Absensi $attendance): array
     ];
 }
 
+function retroactiveAttendancePayload(string $type): array
+{
+    return [
+        'jenis_pengajuan' => $type,
+        'tanggal' => '2026-11-03',
+        'jam_masuk' => $type === 'lupa_keduanya' ? '08:15' : null,
+        'jam_pulang' => $type === 'lupa_keduanya' ? '17:00' : null,
+        'keterangan' => 'Lupa melakukan absensi pada hari kerja.',
+        'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
+    ];
+}
+
 it('creates a pending checkout correction without changing the attendance', function () {
     $user = User::factory()->create([
         'work_location' => 'office',
@@ -150,6 +170,120 @@ it('creates a pending checkout correction without changing the attendance', func
         ->assertOk()
         ->assertJsonPath('data.0.can_request_checkout_correction', false)
         ->assertJsonPath('data.0.koreksi_lupa_pulang.status_approval', 'pending');
+});
+
+it('creates a pending missed check-in and checkout request with one photo proof', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', retroactiveAttendancePayload('lupa_keduanya'))
+        ->assertCreated()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.tipe', 'koreksi lupa absen')
+        ->assertJsonPath('data.submission_type', 'koreksi_lupa_keduanya')
+        ->assertJsonPath('data.status_approval', 'pending');
+
+    $this->assertDatabaseHas('absensis', [
+        'user_id' => $user->id,
+        'submission_type' => 'koreksi_lupa_keduanya',
+        'status_approval' => 'pending',
+        'check_in_at' => '2026-11-03 08:15:00',
+        'check_out_at' => '2026-11-03 17:00:00',
+    ]);
+    $this->assertCount(1, Storage::disk('public')->allFiles('bukti_koreksi_absensi'));
+});
+
+it('requires a photo proof and only allows requests within the last 30 days', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    $payload = retroactiveAttendancePayload('lupa_keduanya');
+    unset($payload['file_bukti']);
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['file_bukti']);
+
+    $payload = retroactiveAttendancePayload('lupa_keduanya');
+    $payload['tanggal'] = '2026-10-04';
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['tanggal']);
+
+    $this->assertDatabaseCount('absensis', 0);
+});
+
+it('does not accept forgotten entry or checkout-only types on the new endpoint', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    foreach (['lupa_masuk', 'lupa_pulang'] as $type) {
+        $this->postJson('/api/v1/absensi/pengajuan-lampau', retroactiveAttendancePayload($type))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['jenis_pengajuan']);
+    }
+
+    $this->assertDatabaseCount('absensis', 0);
+});
+
+it('rejects a missed-both request when attendance already exists for that date', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', retroactiveAttendancePayload('lupa_keduanya'))
+        ->assertStatus(409)
+        ->assertJsonPath('success', false);
+
+    $this->assertDatabaseCount('absensis', 1);
+});
+
+it('creates a pending retrospective sick leave request with one photo proof', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+
+    $payload = retroactiveAttendancePayload('sakit');
+    $payload['keterangan'] = 'Sakit dan tidak dapat masuk kerja.';
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', $payload)
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'sakit')
+        ->assertJsonPath('data.tipe', 'sakit')
+        ->assertJsonPath('data.status_approval', 'pending');
+
+    $this->assertDatabaseHas('absensis', [
+        'user_id' => $user->id,
+        'status' => 'sakit',
+        'status_approval' => 'pending',
+        'check_in_at' => '2026-11-03 00:00:00',
+    ]);
+    $this->assertCount(1, Storage::disk('public')->allFiles('bukti_sakit_izin'));
+});
+
+it('creates a pending retrospective leave request for an organic employee', function () {
+    $user = User::factory()->create([
+        'work_location' => 'office',
+        'employment_type' => 'organik',
+        'sisa_cuti' => 10,
+    ]);
+    Sanctum::actingAs($user);
+
+    $payload = retroactiveAttendancePayload('izin');
+    $payload['jenis_izin'] = 'cuti_tahunan';
+    $payload['keterangan'] = 'Mengajukan cuti tahunan untuk hari tersebut.';
+    $this->postJson('/api/v1/absensi/pengajuan-lampau', $payload)
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'izin')
+        ->assertJsonPath('data.submission_type', 'cuti_tahunan')
+        ->assertJsonPath('data.status_approval', 'pending');
+
+    $this->assertDatabaseHas('absensis', [
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'submission_type' => 'cuti_tahunan',
+        'status_approval' => 'pending',
+        'check_in_at' => '2026-11-03 00:00:00',
+        'hari_potong_cuti' => 1,
+    ]);
+    $this->assertCount(1, Storage::disk('public')->allFiles('bukti_sakit_izin'));
 });
 
 it('rejects attendance older than 30 days', function () {

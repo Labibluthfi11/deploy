@@ -648,6 +648,170 @@ class AbsensiController extends Controller
         }
     }
 
+public function pengajuanLampau(Request $request)
+{
+    $today = Carbon::today('Asia/Jakarta');
+    $minimumDate = $today->copy()->subDays(30)->toDateString();
+    $user = Auth::user();
+
+    $validated = $request->validate([
+        'jenis_pengajuan' => 'required|in:lupa_keduanya,izin,sakit',
+        'tanggal' => ['required', 'date_format:Y-m-d', 'before:today', 'after_or_equal:' . $minimumDate],
+        'jam_masuk' => 'required_if:jenis_pengajuan,lupa_keduanya|nullable|date_format:H:i',
+        'jam_pulang' => 'required_if:jenis_pengajuan,lupa_keduanya|nullable|date_format:H:i',
+        'jenis_izin' => 'nullable|in:cuti_tahunan,cuti_melahirkan,cuti_keguguran,cuti_haji,cuti_umroh,cuti_menikah,cuti_khitanan,cuti_baptis,cuti_meninggal,change_off,unpaid_leave',
+        'keterangan' => 'required|string|min:5|max:500',
+        'file_bukti' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+    ]);
+
+    if (in_array($validated['jenis_pengajuan'], ['izin', 'sakit'], true)) {
+        if (
+            $validated['jenis_pengajuan'] === 'izin'
+            && $user->employment_type === 'organik'
+            && empty($validated['jenis_izin'])
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih jenis cuti untuk pengajuan izin karyawan organik.',
+                'errors' => ['jenis_izin' => ['Jenis cuti wajib dipilih.']],
+            ], 422);
+        }
+
+        $request->merge([
+            'status' => $validated['jenis_pengajuan'],
+            'start_date' => $validated['tanggal'],
+            'end_date' => $validated['tanggal'],
+            'catatan_admin' => $validated['jenis_izin'] ?? null,
+            'keterangan_izin_sakit' => $validated['keterangan'],
+        ]);
+
+        return $this->handlePengajuanIzinSakit(
+            $request,
+            $validated['jenis_pengajuan'],
+            true
+        );
+    }
+
+    $evidencePath = null;
+    try {
+        $workflowEmployment = strtolower($user->work_location ?? 'office');
+        $workflow = $this->workflowTemplates[$workflowEmployment]
+            ?? $this->workflowTemplates['office'];
+        $dateStart = Carbon::parse($validated['tanggal'], 'Asia/Jakarta')->startOfDay();
+        $dateEnd = $dateStart->copy()->endOfDay();
+
+        $submission = DB::transaction(function () use (
+            $request,
+            $validated,
+            $user,
+            $workflow,
+            $dateStart,
+            $dateEnd,
+            &$evidencePath
+        ) {
+            DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
+
+            $attendance = Absensi::query()
+                ->where('user_id', $user->id)
+                ->whereNull('parent_id')
+                ->whereBetween('check_in_at', [$dateStart, $dateEnd])
+                ->lockForUpdate()
+                ->first();
+
+            if ($attendance) {
+                abort(409, 'Data absensi pada tanggal tersebut sudah ada. Pengajuan lupa masuk dan pulang hanya bisa dibuat jika belum ada absensi.');
+            }
+
+            $checkIn = Carbon::createFromFormat(
+                'Y-m-d H:i',
+                $validated['tanggal'] . ' ' . $validated['jam_masuk'],
+                'Asia/Jakarta'
+            );
+            $checkOut = Carbon::createFromFormat(
+                'Y-m-d H:i',
+                $validated['tanggal'] . ' ' . $validated['jam_pulang'],
+                'Asia/Jakarta'
+            );
+
+            if ($checkIn->gt(now('Asia/Jakarta'))) {
+                abort(422, 'Jam masuk tidak boleh melewati waktu sekarang.');
+            }
+            if ($checkOut->lte($checkIn) || $checkOut->gt(now('Asia/Jakarta'))) {
+                abort(422, 'Jam pulang harus setelah jam masuk dan tidak boleh melewati waktu sekarang.');
+            }
+
+            $evidencePath = $request->file('file_bukti')->store('bukti_koreksi_absensi', 'public');
+            $submission = Absensi::create([
+                'user_id' => $user->id,
+                'status' => 'hadir',
+                'tipe' => 'koreksi lupa absen',
+                'submission_type' => 'koreksi_lupa_keduanya',
+                'status_approval' => 'pending',
+                'check_in_at' => $checkIn,
+                'check_out_at' => $checkOut,
+                'file_bukti' => $evidencePath,
+                'keterangan_izin_sakit' => $validated['keterangan'],
+                'workflow_status' => $workflow,
+                'current_approval_level' => 1,
+                'base_salary' => 0,
+                'late_penalty' => 0,
+                'final_salary' => 0,
+            ]);
+
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => 'Pengajuan Absensi Tanggal Lampau',
+                'message' => 'Pengajuan absensi untuk ' . $dateStart->isoFormat('DD MMM YYYY') . ' berhasil dikirim dan menunggu persetujuan.',
+                'type' => 'koreksi_lupa_absen_submitted',
+                'target_page' => '/absensi_detail',
+                'target_id' => $submission->id,
+            ]);
+
+            return $submission;
+        });
+
+        $submission->load('user');
+        $submission->file_bukti_url = Storage::url($submission->file_bukti);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan berhasil dikirim dan menunggu persetujuan.',
+            'data' => $submission,
+        ], 201);
+    } catch (ValidationException $e) {
+        if ($evidencePath) {
+            Storage::disk('public')->delete($evidencePath);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Validasi gagal.',
+            'errors' => $e->errors(),
+        ], 422);
+    } catch (\Throwable $e) {
+        if ($evidencePath) {
+            Storage::disk('public')->delete($evidencePath);
+        }
+
+        if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        Log::error('Gagal mengirim pengajuan absensi tanggal lampau.', [
+            'user_id' => $user->id,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan saat mengirim pengajuan.',
+        ], 500);
+    }
+}
+
 public function meAbsensi(Request $request)
 {
     try {
@@ -812,16 +976,27 @@ public function meAbsensi(Request $request)
     }
 
     
-    private function handlePengajuanIzinSakit(Request $request, string $defaultStatus)
+    private function handlePengajuanIzinSakit(
+        Request $request,
+        string $defaultStatus,
+        bool $allowPast = false
+    )
     {
         DB::beginTransaction();
         try {
+            $startDateRule = $allowPast
+                ? 'required|date|before:today|after_or_equal:' . Carbon::today('Asia/Jakarta')->subDays(30)->toDateString()
+                : 'nullable|date|after_or_equal:today';
+            $endDateRule = $allowPast
+                ? 'required|date|before:today|after_or_equal:start_date'
+                : 'nullable|date|after_or_equal:start_date';
+
             $request->validate([
                 'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
                 'keterangan_izin_sakit' => 'required|string|max:500',
                 'status' => 'nullable|in:sakit,izin',
-                'start_date' => 'nullable|date|after_or_equal:today',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
+                'start_date' => $startDateRule,
+                'end_date' => $endDateRule,
                 'catatan_admin' => 'nullable|string|max:255',
                 'jam_pulang_rencana' => 'nullable|date_format:H:i',
             ]);
@@ -833,16 +1008,20 @@ public function meAbsensi(Request $request)
 
             
             if ($status !== 'lembur' && $submissionType !== 'izin_pulang_cepat') {
-                $today = \Carbon\Carbon::today();
+                $absenceDate = $allowPast
+                    ? Carbon::parse($request->start_date, 'Asia/Jakarta')->toDateString()
+                    : Carbon::today('Asia/Jakarta')->toDateString();
                 $hasCheckInToday = Absensi::where('user_id', $user->id)
-                    ->whereDate('check_in_at', $today)
+                    ->whereDate('check_in_at', $absenceDate)
                     ->where('status', 'hadir')
                     ->exists();
 
                 if ($hasCheckInToday) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Anda tidak bisa mengajukan izin atau cuti karena Anda sudah melakukan absen masuk hari ini.'
+                        'message' => $allowPast
+                            ? 'Anda tidak bisa mengajukan izin atau sakit karena sudah ada absensi hadir pada tanggal tersebut.'
+                            : 'Anda tidak bisa mengajukan izin atau cuti karena Anda sudah melakukan absen masuk hari ini.'
                     ], 422);
                 }
             }

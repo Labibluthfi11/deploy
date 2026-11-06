@@ -261,6 +261,11 @@ class ApprovalController extends Controller
     // ✅ CEK APAKAH INI IZIN/SAKIT (GAK ADA GAJI)
     $isLeaveType = in_array(strtolower($absensi->status ?? ''), ['izin', 'sakit']) ||
                    in_array(strtolower($absensi->tipe ?? ''), ['izin', 'sakit']);
+    $isForgottenAttendanceCorrection = in_array($absensi->tipe, [
+        'koreksi lupa absen pulang',
+        'koreksi lupa absen',
+    ], true);
+    $isNewForgottenAttendance = $absensi->tipe === 'koreksi lupa absen';
 
     Log::info('🔍 [REJECT] Processing rejection', [
         'id' => $absensi->id,
@@ -270,13 +275,12 @@ class ApprovalController extends Controller
     ]);
 
     // ✅ HITUNG GAJI BERDASARKAN TIPE
-    if ($isLeaveType) {
-        // IZIN/SAKIT → Gak ada gaji
+    if ($isLeaveType || $isNewForgottenAttendance) {
         $finalSalary = 0;
         $baseSalary = 0;
         $latePenalty = 0;
 
-        Log::info('💰 [REJECT] Leave type - No salary');
+        Log::info('💰 [REJECT] Leave/correction type - No salary');
 
     } else {
         // HADIR/LEMBUR → Ada gaji pokok, tapi lembur gak masuk
@@ -372,17 +376,26 @@ class ApprovalController extends Controller
     }
 
     // ✅ NOTIFIKASI
-    $isForgottenCheckout = $absensi->tipe === 'koreksi lupa absen pulang';
+    $forgottenTitle = match ($absensi->tipe) {
+        'koreksi lupa absen pulang' => 'Pengajuan Lupa Absen Pulang',
+        default => $absensi->submission_type === 'koreksi_lupa_keduanya'
+            ? 'Pengajuan Lupa Absen Masuk dan Pulang'
+            : 'Pengajuan Lupa Absen Masuk',
+    };
     Notification::create([
         'user_id' => $absensi->user_id,
-        'title' => $isForgottenCheckout
-            ? 'Pengajuan Lupa Absen Pulang Ditolak'
+        'title' => $isForgottenAttendanceCorrection
+            ? $forgottenTitle . ' Ditolak'
             : "Pengajuan " . ucfirst($submissionType) . " Ditolak ❌",
-        'message' => $isForgottenCheckout
+        'message' => $absensi->tipe === 'koreksi lupa absen pulang'
             ? "Pengajuan jam pulang kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin
-            : "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin,
-        'type' => $isForgottenCheckout ? 'koreksi_lupa_pulang_rejected' : "{$submissionType}_rejected",
-        'target_page' => $isForgottenCheckout ? '/absensi_detail' : $targetPage,
+            : ($isForgottenAttendanceCorrection
+                ? "Pengajuan koreksi absen kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin
+                : "Pengajuan kamu ditolak oleh $currentApprover. Alasan: " . $request->catatan_admin),
+        'type' => $absensi->tipe === 'koreksi lupa absen pulang'
+            ? 'koreksi_lupa_pulang_rejected'
+            : ($isForgottenAttendanceCorrection ? 'koreksi_lupa_absen_rejected' : "{$submissionType}_rejected"),
+        'target_page' => $isForgottenAttendanceCorrection ? '/absensi_detail' : $targetPage,
         'target_id' => $absensi->id,
     ]);
 
@@ -491,6 +504,9 @@ class ApprovalController extends Controller
                     // 🆕 INTEGRASI KOREKSI ABSENSI
                     if ($absensi->tipe === 'koreksi lupa absen') {
                         DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
+                            $forgottenTitle = $absensi->submission_type === 'koreksi_lupa_keduanya'
+                                ? 'Pengajuan Lupa Absen Masuk dan Pulang'
+                                : 'Pengajuan Lupa Absen Masuk';
                             $updateData = [
                                 'status' => 'hadir',
                                 'tipe' => 'normal',
@@ -522,9 +538,9 @@ class ApprovalController extends Controller
 
                             Notification::create([
                                 'user_id' => $absensi->user_id,
-                                'title' => "Pengajuan Koreksi Disetujui ✅",
+                                'title' => $forgottenTitle . " Disetujui ✅",
                                 'message' => "Pengajuan koreksi absen kamu telah disetujui oleh $currentApprover.",
-                                'type' => "koreksi_approved",
+                                'type' => 'koreksi_lupa_absen_approved',
                                 'target_page' => '/absensi',
                                 'target_id' => $absensi->id,
                             ]);
@@ -1034,7 +1050,56 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
             $isLeaveType = in_array(strtolower($absensi->status ?? ''), ['izin', 'sakit']) ||
                            in_array(strtolower($absensi->tipe ?? ''), ['izin', 'sakit']);
 
-            if ($isLeaveType) {
+            if ($absensi->tipe === 'koreksi lupa absen') {
+                DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover) {
+                    $forgottenTitle = $absensi->submission_type === 'koreksi_lupa_keduanya'
+                        ? 'Pengajuan Lupa Absen Masuk dan Pulang'
+                        : 'Pengajuan Lupa Absen Masuk';
+                    $updateData = [
+                        'status' => 'hadir',
+                        'tipe' => 'normal',
+                        'status_approval' => 'approved',
+                        'approved_at' => now(),
+                        'workflow_status' => $workflowStatus,
+                        'rejected_by' => null,
+                        'rejected_at' => null,
+                    ];
+
+                    if ($absensi->user->employment_type === 'organik') {
+                        $updateData['base_salary'] = 0;
+                        $updateData['final_salary'] = 0;
+                    } else {
+                        $salaryData = Absensi::calculateSalary(
+                            0,
+                            'hadir',
+                            'normal',
+                            Absensi::isWeekend($absensi->check_in_at),
+                            $absensi->check_in_at,
+                            $absensi->check_out_at,
+                            $absensi->user->employment_type
+                        );
+                        $updateData['base_salary'] = $salaryData['base_salary'];
+                        $updateData['final_salary'] = $salaryData['final_salary'];
+                    }
+
+                    $absensi->update($updateData);
+
+                    Notification::create([
+                        'user_id' => $absensi->user_id,
+                        'title' => $forgottenTitle . ' Disetujui ✅',
+                        'message' => "Pengajuan koreksi absen kamu telah disetujui oleh $currentApprover.",
+                        'type' => 'koreksi_lupa_absen_approved',
+                        'target_page' => '/absensi',
+                        'target_id' => $absensi->id,
+                    ]);
+
+                    \App\Models\ActivityLog::log(
+                        'Approve Koreksi Final (Bulk)',
+                        "Koreksi ID: {$absensi->id} dari {$absensi->user->name}",
+                        "Persetujuan final oleh: {$currentApprover}"
+                    );
+                });
+            } elseif ($isLeaveType) {
                 DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover, $submissionType, $targetPage) {
                     // Cek jika izin pulang cepat
                     $updateData = [

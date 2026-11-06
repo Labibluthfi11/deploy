@@ -2,7 +2,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Persetujuan Absensi</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Review pengajuan absensi, lembur, izin, sakit, dan koreksi jam pulang karyawan.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Review pengajuan absensi, lembur, izin, sakit, dan koreksi absensi karyawan.</p>
     </div>
 </div>
 
@@ -13,6 +13,9 @@
             $user = $submission->user ?? null;
             $isOvertime = ($submission->tipe === 'lembur');
             $isForgottenCheckout = ($submission->tipe === 'koreksi lupa absen pulang');
+            $isForgottenEntry = ($submission->tipe === 'koreksi lupa absen');
+            $isForgottenBoth = ($submission->submission_type === 'koreksi_lupa_keduanya');
+            $isForgottenAttendance = $isForgottenCheckout || $isForgottenEntry;
             $status = $submission->status_approval ?? 'pending';
 
             // Durasi lembur
@@ -50,10 +53,15 @@
                 'sakit' => 'border-l-rose-500',
                 'telat' => 'border-l-orange-500',
                 'koreksi lupa absen pulang' => 'border-l-violet-500',
+                'koreksi lupa absen' => 'border-l-violet-500',
                 'default' => 'border-l-gray-300 dark:border-l-gray-600',
             ];
             $borderClass = $typeBorder[$submission->tipe] ?? $typeBorder['default'];
-            $typeLabel = $isForgottenCheckout ? 'Koreksi Lupa Absen Pulang' : $submission->tipe;
+            $typeLabel = $isForgottenCheckout
+                ? 'Koreksi Lupa Absen Pulang'
+                : ($isForgottenEntry
+                    ? ($isForgottenBoth ? 'Koreksi Lupa Absen Masuk & Pulang' : 'Koreksi Lupa Absen Masuk')
+                    : $submission->tipe);
 
             $initial = $user->name ? strtoupper(substr($user->name, 0, 2)) : '??';
         @endphp
@@ -98,6 +106,21 @@
                                 {{ $submission->check_out_at ? \Carbon\Carbon::parse($submission->check_out_at)->format('H:i') : '-' }}
                             </span>
                         </div>
+                    @elseif($isForgottenEntry)
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 dark:text-gray-500 font-medium">Jam Masuk Diajukan</span>
+                            <span class="text-gray-700 dark:text-gray-200 font-semibold">
+                                {{ $submission->check_in_at ? \Carbon\Carbon::parse($submission->check_in_at)->format('H:i') : '-' }}
+                            </span>
+                        </div>
+                        @if($isForgottenBoth)
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400 dark:text-gray-500 font-medium">Jam Pulang Diajukan</span>
+                                <span class="text-gray-700 dark:text-gray-200 font-semibold">
+                                    {{ $submission->check_out_at ? \Carbon\Carbon::parse($submission->check_out_at)->format('H:i') : '-' }}
+                                </span>
+                            </div>
+                        @endif
                     @endif
 
                     @if($isOvertime)
@@ -135,7 +158,7 @@
                 <div class="mb-4">
                     <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Bukti Lampiran</p>
                     <div class="flex flex-wrap gap-2">
-                        @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat' || $isForgottenCheckout)
+                        @if ($submission->tipe === 'sakit' || $submission->tipe === 'izin' || $submission->tipe === 'telat' || $isForgottenAttendance)
                             @if ($submission->file_bukti)
                                 <a href="{{ asset('storage/' . $submission->file_bukti) }}" target="_blank" class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900/50 transition-colors">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
