@@ -349,6 +349,8 @@ class AbsensiController extends Controller
                         ], 400);
                     }
                 }
+
+
                 
             }
 
@@ -742,6 +744,162 @@ public function meAbsensi(Request $request)
     }
 }
 
+        public function missingCheckouts()
+        {
+            $today = Carbon::today('Asia/Jakarta');
+
+            $absensis = Absensi::query()
+                ->where('user_id', Auth::id())
+                ->whereNull('parent_id')
+                ->where('status', 'hadir')
+                ->whereNull('check_out_at')
+                ->whereBetween('check_in_at', [$today->copy()->subDays(30)->startOfDay(), $today->copy()->subDay()->endOfDay()])
+                ->where(function ($query) {
+                    $query->where(function ($regular) {
+                        $regular->whereNull('submission_type')
+                            ->where('status_approval', 'approved');
+                    })->orWhere(function ($correction) {
+                        $correction->whereIn('submission_type', ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'])
+                            ->whereIn('status_approval', ['pending', 'rejected']);
+                    });
+                })
+                ->orderByDesc('check_in_at')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $absensis,
+            ]);
+        }
+
+        public function submitCheckoutCorrection(Request $request, $id)
+        {
+            $validated = $request->validate([
+                'jenis_koreksi' => 'required|in:lupa_absen_pulang,pulang_lebih_awal',
+                'jam_pulang' => 'required|date_format:H:i',
+                'keterangan' => 'required|string|min:5|max:500',
+                'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            ]);
+
+            $absensi = Absensi::query()
+                ->where('user_id', Auth::id())
+                ->whereNull('parent_id')
+                ->find($id);
+
+            if (!$absensi) {
+                return response()->json(['success' => false, 'message' => 'Data absensi tidak ditemukan.'], 404);
+            }
+
+            if ($absensi->status !== 'hadir' || $absensi->check_out_at) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Koreksi hanya dapat diajukan untuk absensi hadir yang belum memiliki jam pulang.',
+                ], 409);
+            }
+
+            $today = Carbon::today('Asia/Jakarta');
+            $checkIn = Carbon::parse($absensi->check_in_at, 'Asia/Jakarta');
+            if ($checkIn->gte($today)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Koreksi jam pulang hanya dapat diajukan untuk tanggal sebelumnya.',
+                ], 422);
+            }
+
+            $proposedCheckout = Carbon::createFromFormat(
+                'Y-m-d H:i',
+                $checkIn->toDateString() . ' ' . $validated['jam_pulang'],
+                'Asia/Jakarta'
+            );
+            if ($proposedCheckout->lte($checkIn) || $proposedCheckout->gt(now('Asia/Jakarta'))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Jam pulang harus setelah jam masuk dan tidak boleh melewati waktu sekarang.',
+                ], 422);
+            }
+
+            $isExistingCheckoutCorrection = in_array(
+                $absensi->submission_type,
+                ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'],
+                true
+            );
+            if ($absensi->status_approval === 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan koreksi jam pulang masih menunggu persetujuan.',
+                ], 409);
+            }
+            if ($absensi->status_approval !== 'approved'
+                && !($isExistingCheckoutCorrection && $absensi->status_approval === 'rejected')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Status absensi ini tidak dapat diajukan untuk koreksi jam pulang.',
+                ], 409);
+            }
+
+            $user = Auth::user();
+            $employment = strtolower($user->work_location ?? 'office');
+            $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['office'];
+            $startLevel = $isExistingCheckoutCorrection
+                ? $this->determineCheckoutCorrectionLevel($absensi->rejected_by, $employment)
+                : 1;
+            if ($startLevel > 1) {
+                $workflow = $this->resetWorkflowFromLevel($workflow, $startLevel, $employment);
+            }
+
+            $filePath = $absensi->file_bukti;
+            if ($request->hasFile('file_bukti')) {
+                $filePath = $request->file('file_bukti')->store('bukti_koreksi_absensi', 'public');
+            }
+
+            $correctionType = $validated['jenis_koreksi'] === 'pulang_lebih_awal'
+                ? 'koreksi_pulang_cepat'
+                : 'koreksi_lupa_pulang';
+
+            DB::transaction(function () use ($absensi, $validated, $workflow, $startLevel, $filePath, $correctionType, $user) {
+                $absensi->forceFill([
+                    'tipe' => 'koreksi lupa pulang',
+                    'submission_type' => $correctionType,
+                    'jam_pulang_rencana' => $validated['jam_pulang'],
+                    'keterangan_izin_sakit' => $validated['keterangan'],
+                    'file_bukti' => $filePath,
+                    'status_approval' => 'pending',
+                    'workflow_status' => $workflow,
+                    'current_approval_level' => $startLevel,
+                    'approved_at' => null,
+                    'rejected_by' => null,
+                    'rejected_at' => null,
+                    'catatan_admin' => null,
+                    'base_salary' => 0,
+                    'late_penalty' => 0,
+                    'final_salary' => 0,
+                    'overtime_minutes' => 0,
+                    'overtime_pay' => 0,
+                ])->save();
+
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => 'Koreksi Jam Pulang Diajukan',
+                    'message' => 'Koreksi jam pulang untuk ' . Carbon::parse($absensi->check_in_at)->isoFormat('DD MMM YYYY') . ' menunggu persetujuan.',
+                    'type' => $correctionType . '_submitted',
+                    'target_page' => '/absensi_detail',
+                    'target_id' => $absensi->id,
+                ]);
+
+                ActivityLog::log(
+                    'Submit Koreksi Jam Pulang',
+                    "Absensi ID: {$absensi->id}",
+                    "Jenis: {$correctionType}; jam pulang: {$validated['jam_pulang']}"
+                );
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Koreksi jam pulang berhasil diajukan dan menunggu persetujuan.',
+                'data' => $absensi->fresh(),
+            ], 201);
+        }
+
     public function absenSakit(Request $request)
     {
         return $this->handlePengajuanIzinSakit($request, 'sakit');
@@ -758,7 +916,8 @@ public function meAbsensi(Request $request)
             $validCutiTypes = [
                 'cuti_tahunan', 'cuti_melahirkan', 'cuti_keguguran',
                 'cuti_haji', 'cuti_umroh', 'cuti_menikah', 'cuti_khitanan',
-                'cuti_baptis', 'cuti_meninggal', 'change_off', 'unpaid_leave'
+                'cuti_baptis', 'cuti_meninggal', 'change_off', 'unpaid_leave',
+                'izin_pulang_cepat',
             ];
             if (!$submissionType || !in_array($submissionType, $validCutiTypes)) {
                 return response()->json([
@@ -794,7 +953,7 @@ public function meAbsensi(Request $request)
                 'start_date' => $startDateRule,
                 'end_date' => $endDateRule,
                 'catatan_admin' => 'nullable|string|max:255',
-                'jam_pulang_rencana' => 'nullable|date_format:H:i',
+                'jam_pulang_rencana' => 'required_if:catatan_admin,izin_pulang_cepat|nullable|date_format:H:i',
             ]);
 
             $user = Auth::user();
@@ -902,16 +1061,19 @@ public function meAbsensi(Request $request)
             }
 
             
-            $existingAbsensi = Absensi::where('user_id', $user->id)
-                ->where(function($query) use ($startDate, $endDate) {
-                    $query->whereBetween('check_in_at', [$startDate, $endDate])
-                          ->orWhereBetween('end_date', [$startDate, $endDate])
-                          ->orWhere(function($q) use ($startDate, $endDate) {
-                              $q->where('check_in_at', '<=', $startDate)->where('end_date', '>=', $endDate);
-                          });
-                })
-                ->whereIn('status_approval', ['pending', 'approved', 'rejected'])
-                ->first();
+            $existingAbsensi = null;
+            if ($submissionType !== 'izin_pulang_cepat') {
+                $existingAbsensi = Absensi::where('user_id', $user->id)
+                    ->where(function($query) use ($startDate, $endDate) {
+                        $query->whereBetween('check_in_at', [$startDate, $endDate])
+                              ->orWhereBetween('end_date', [$startDate, $endDate])
+                              ->orWhere(function($q) use ($startDate, $endDate) {
+                                  $q->where('check_in_at', '<=', $startDate)->where('end_date', '>=', $endDate);
+                              });
+                    })
+                    ->whereIn('status_approval', ['pending', 'approved', 'rejected'])
+                    ->first();
+            }
 
             if ($existingAbsensi) {
                 DB::rollBack();
@@ -936,6 +1098,29 @@ public function meAbsensi(Request $request)
                 ->whereDate('check_in_at', $startDate)
                 ->first();
 
+            if ($submissionType === 'izin_pulang_cepat') {
+                if (!$existingTodayAbsensi || $existingTodayAbsensi->status !== 'hadir') {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Pengajuan setengah hari hanya dapat dibuat setelah Anda absen masuk.',
+                    ], 422);
+                }
+
+                if ($existingTodayAbsensi->submission_type === 'izin_pulang_cepat') {
+                    DB::rollBack();
+                    $isRejected = $existingTodayAbsensi->status_approval === 'rejected';
+                    return response()->json([
+                        'success' => false,
+                        'message' => $isRejected
+                            ? 'Pengajuan setengah hari ditolak. Gunakan Ajukan Ulang untuk memperbaikinya.'
+                            : 'Pengajuan setengah hari untuk tanggal ini sudah pernah dibuat.',
+                        'rejected_id' => $isRejected ? $existingTodayAbsensi->id : null,
+                        'action' => $isRejected ? 'use_resubmit' : null,
+                    ], 409);
+                }
+            }
+
             if ($existingTodayAbsensi && $submissionType === 'izin_pulang_cepat') {
                 $parentAbsensi = $existingTodayAbsensi;
                 $parentAbsensi->update([
@@ -949,6 +1134,10 @@ public function meAbsensi(Request $request)
                     'jam_pulang_rencana' => $jamPulangRencana,
                     'workflow_status' => $workflow,
                     'current_approval_level' => 1,
+                    'approved_at' => null,
+                    'base_salary' => 0,
+                    'late_penalty' => 0,
+                    'final_salary' => 0,
                 ]);
             } else {
                 $parentAbsensi = Absensi::create([
@@ -1378,6 +1567,10 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
             }
 
+            if ($absensi->submission_type === 'izin_pulang_cepat') {
+                return $this->handleResubmitIzinPulangCepat($request, $absensi);
+            }
+
             $type = strtolower($absensi->tipe ?? $absensi->status ?? 'absensi');
             if (in_array($type, ['sakit', 'izin'])) {
                 return $this->handleResubmitIzinSakit($request, $id, $type);
@@ -1408,6 +1601,99 @@ public function meAbsensi(Request $request)
         }
 
         return response()->json(['success' => false, 'message' => 'Data tidak ditemukan atau tipe tidak didukung.'], 404);
+    }
+
+    private function handleResubmitIzinPulangCepat(Request $request, Absensi $absensi)
+    {
+        $validated = $request->validate([
+            'jam_pulang_rencana' => 'required|date_format:H:i',
+            'keterangan_izin_sakit' => 'required|string|min:5|max:500',
+            'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+        ]);
+
+        if (!in_array($absensi->status_approval, ['rejected', 'ditolak'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya pengajuan setengah hari yang ditolak yang bisa diajukan ulang.',
+            ], 409);
+        }
+
+        $checkIn = Carbon::parse($absensi->check_in_at, 'Asia/Jakarta');
+        $plannedCheckout = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $checkIn->toDateString() . ' ' . $validated['jam_pulang_rencana'],
+            'Asia/Jakarta'
+        );
+        if ($plannedCheckout->lte($checkIn)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jam pulang rencana harus setelah jam masuk.',
+            ], 422);
+        }
+
+        $user = Auth::user();
+        $employment = strtolower($user->work_location ?? 'office');
+        $startLevel = $this->determineCheckoutCorrectionLevel($absensi->rejected_by, $employment);
+        $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['office'];
+        $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
+
+        $filePath = $absensi->file_bukti;
+        if ($request->hasFile('file_bukti')) {
+            $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+        }
+
+        $absensi->forceFill([
+            'jam_pulang_rencana' => $validated['jam_pulang_rencana'],
+            'keterangan_izin_sakit' => $validated['keterangan_izin_sakit'],
+            'file_bukti' => $filePath,
+            'status_approval' => 'pending',
+            'workflow_status' => $workflow,
+            'current_approval_level' => $startLevel,
+            'approved_at' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'catatan_admin' => null,
+            'base_salary' => 0,
+            'late_penalty' => 0,
+            'final_salary' => 0,
+        ])->save();
+
+        Notification::create([
+            'user_id' => $absensi->user_id,
+            'title' => 'Pengajuan Setengah Hari Diajukan Ulang',
+            'message' => 'Jam pulang dan keterangan pengajuan telah diperbarui dan menunggu persetujuan.',
+            'type' => 'izin_pulang_cepat_resubmitted',
+            'target_page' => '/izin_detail',
+            'target_id' => $absensi->id,
+        ]);
+        ActivityLog::log(
+            'Resubmit Izin Setengah Hari',
+            "Absensi ID: {$absensi->id}",
+            "Jam pulang diperbarui menjadi {$validated['jam_pulang_rencana']}"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan setengah hari berhasil diperbarui dan diajukan ulang.',
+            'data' => $absensi->fresh(),
+        ]);
+    }
+
+    private function determineCheckoutCorrectionLevel(?string $rejectedBy, string $employment): int
+    {
+        $approver = strtolower(str_replace([' ', '_', '-'], '', $rejectedBy ?? ''));
+        if (strtolower($employment) === 'produksi') {
+            if (str_contains($approver, 'hrga') || str_contains($approver, 'nadya')) {
+                return 3;
+            }
+            if (str_contains($approver, 'manager') || str_contains($approver, 'nu')) {
+                return 2;
+            }
+
+            return 1;
+        }
+
+        return str_contains($approver, 'hrga') || str_contains($approver, 'nadya') ? 2 : 1;
     }
 
     

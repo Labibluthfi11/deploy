@@ -176,8 +176,8 @@ class Absensi extends Model
                 $workedMinutes = 0; // Set ke 0 agar gaji tidak terhitung otomatis
             }
         } else {
-            // Kalo belum checkout, assume 8 jam kerja penuh
-            $workedMinutes = 480; // 8 jam
+            // Attendance without a checkout must not be paid as a full shift before verification.
+            $workedMinutes = 0;
         }
 
         // 🆕 PRORATA GAJI BERDASARKAN JAM KERJA

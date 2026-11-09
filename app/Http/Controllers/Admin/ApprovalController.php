@@ -240,6 +240,9 @@ class ApprovalController extends Controller
         }
 
         $submissionType = $absensi->tipe ?? 'absensi';
+        $isCheckoutCorrection = $absensi->tipe === 'koreksi lupa pulang'
+            && in_array($absensi->submission_type, ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'], true);
+        $isHalfDayRequest = $absensi->submission_type === 'izin_pulang_cepat';
         $targetPageMap = [
             'lembur'  => '/lembur_detail',
             'sakit'   => '/sakit_detail',
@@ -272,7 +275,11 @@ class ApprovalController extends Controller
     ]);
 
     // ✅ HITUNG GAJI BERDASARKAN TIPE
-    if ($isLeaveType || $isNewForgottenAttendance) {
+    if ($isCheckoutCorrection) {
+        $finalSalary = 0;
+        $baseSalary = 0;
+        $latePenalty = 0;
+    } elseif ($isLeaveType || $isNewForgottenAttendance) {
         $finalSalary = 0;
         $baseSalary = 0;
         $latePenalty = 0;
@@ -319,7 +326,7 @@ class ApprovalController extends Controller
     }
 
     // ✅ UPDATE DATABASE
-    $absensi->update([
+    $rejectionData = [
         'status_approval' => 'rejected',
         'catatan_admin' => $request->catatan_admin,
         'rejected_by' => $rejectedBy,
@@ -338,7 +345,12 @@ class ApprovalController extends Controller
         'base_salary'   => $baseSalary,
         'late_penalty'  => $latePenalty,
         'final_salary'  => $finalSalary, // ✅ Gaji pokok - potongan (tanpa lembur)
-    ]);
+    ];
+    if ($isCheckoutCorrection || $isHalfDayRequest) {
+        $absensi->forceFill($rejectionData)->save();
+    } else {
+        $absensi->update($rejectionData);
+    }
 
     \App\Models\ActivityLog::log('Reject Pengajuan', "Pengajuan ID: {$absensi->id} dari {$absensi->user->name}", "Alasan: {$request->catatan_admin}");
 
@@ -384,7 +396,14 @@ class ApprovalController extends Controller
         'target_id' => $absensi->id,
     ]);
 
-    return back()->with('success', 'Pengajuan ditolak. Gaji pokok tetap dihitung.');
+    return back()->with(
+        'success',
+        $isCheckoutCorrection
+            ? 'Koreksi jam pulang ditolak. Gaji belum dihitung sampai pengajuan diperbaiki dan disetujui.'
+            : ($isHalfDayRequest
+                ? 'Pengajuan setengah hari ditolak. Silakan ajukan ulang setelah memperbaiki datanya.'
+                : 'Pengajuan ditolak. Gaji pokok tetap dihitung.')
+    );
 }
 
         // =====================================================
@@ -396,6 +415,58 @@ class ApprovalController extends Controller
 
             if ($currentLevel >= $maxLevel) {
                 // FINAL APPROVAL (HRGA)
+
+                    if ($isCheckoutCorrection) {
+                        if (!$absensi->jam_pulang_rencana) {
+                            return back()->with('error', 'Jam pulang yang diajukan tidak tersedia.');
+                        }
+
+                        DB::transaction(function () use ($absensi, $workflowStatus, $currentApprover) {
+                            $checkIn = \Carbon\Carbon::parse($absensi->check_in_at);
+                            $checkOut = $checkIn->copy()->setTimeFromTimeString($absensi->jam_pulang_rencana);
+                            $salaryData = Absensi::calculateSalary(
+                                $absensi->late_minutes ?? 0,
+                                'hadir',
+                                null,
+                                Absensi::isWeekend($checkIn),
+                                $checkIn,
+                                $checkOut,
+                                $absensi->user->kategori_absensi
+                            );
+
+                            $absensi->update([
+                                'status' => 'hadir',
+                                'tipe' => null,
+                                'check_out_at' => $checkOut,
+                                'status_approval' => 'approved',
+                                'approved_at' => now(),
+                                'workflow_status' => $workflowStatus,
+                                'rejected_by' => null,
+                                'rejected_at' => null,
+                                'base_salary' => $salaryData['base_salary'],
+                                'late_penalty' => $salaryData['late_penalty'],
+                                'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+                                'final_salary' => $salaryData['final_salary'],
+                            ]);
+
+                            Notification::create([
+                                'user_id' => $absensi->user_id,
+                                'title' => 'Koreksi Jam Pulang Disetujui',
+                                'message' => "Koreksi jam pulang kamu telah disetujui oleh $currentApprover.",
+                                'type' => $absensi->submission_type . '_approved',
+                                'target_page' => '/absensi',
+                                'target_id' => $absensi->id,
+                            ]);
+
+                            \App\Models\ActivityLog::log(
+                                'Approve Koreksi Jam Pulang',
+                                "Koreksi ID: {$absensi->id} dari {$absensi->user->name}",
+                                "Disetujui oleh: {$currentApprover}; jam pulang: {$checkOut->format('H:i')}"
+                            );
+                        });
+
+                        return back()->with('success', 'Koreksi jam pulang berhasil disetujui.');
+                    }
 
                     // 🆕 INTEGRASI KOREKSI ABSENSI
                     if ($absensi->tipe === 'koreksi lupa absen') {

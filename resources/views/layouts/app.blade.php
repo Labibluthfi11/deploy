@@ -72,6 +72,17 @@
                     <span>Dashboard</span>
                 </a>
 
+                @auth
+                @if (Auth::user()->isAnyAdmin())
+                <a href="{{ route('admin.absensi.missing-checkouts') }}"
+                   class="flex items-center gap-3 px-3 py-1.5 ml-3 text-sm font-medium rounded-md transition-all
+                   {{ request()->routeIs('admin.absensi.missing-checkouts') ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-l-4 border-amber-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-clock text-base w-4"></i>
+                    <span>Belum Absen Pulang</span>
+                </a>
+                @endif
+                @endauth
+
             </div>
 
             <!-- APPROVAL SECTION -->

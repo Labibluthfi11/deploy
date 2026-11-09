@@ -28,6 +28,7 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         // ✅ Dashboard & List
         Route::get('/', [AbsensiAdminController::class, 'index'])->name('admin.absensi.index');
         Route::get('/freelance', [AbsensiAdminController::class, 'indexFreelance'])->name('admin.absensi.freelance');
+        Route::get('/missing-checkouts', [AbsensiAdminController::class, 'missingCheckouts'])->name('admin.absensi.missing-checkouts');
         
         // 🛠️ EDIT JAM MASUK (Tadi salah nama jadi edit-checkin)
         Route::post('/{id}/update-checkin', [AbsensiAdminController::class, 'updateCheckIn'])

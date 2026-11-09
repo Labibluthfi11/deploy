@@ -13,8 +13,10 @@
             $user = $submission->user ?? null;
             $isOvertime = ($submission->tipe === 'lembur');
             $isForgottenEntry = ($submission->tipe === 'koreksi lupa absen');
+            $isForgottenCheckout = ($submission->tipe === 'koreksi lupa pulang')
+                && in_array($submission->submission_type, ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'], true);
             $isForgottenBoth = ($submission->submission_type === 'koreksi_lupa_keduanya');
-            $isForgottenAttendance = $isForgottenEntry;
+            $isForgottenAttendance = $isForgottenEntry || $isForgottenCheckout;
             $status = $submission->status_approval ?? 'pending';
 
             // Durasi lembur
@@ -52,12 +54,15 @@
                 'sakit' => 'border-l-rose-500',
                 'telat' => 'border-l-orange-500',
                 'koreksi lupa absen' => 'border-l-violet-500',
+                'koreksi lupa pulang' => 'border-l-amber-500',
                 'default' => 'border-l-gray-300 dark:border-l-gray-600',
             ];
             $borderClass = $typeBorder[$submission->tipe] ?? $typeBorder['default'];
-            $typeLabel = $isForgottenEntry
-                ? ($isForgottenBoth ? 'Koreksi Lupa Absen Masuk & Pulang' : 'Koreksi Lupa Absen Masuk')
-                : $submission->tipe;
+            $typeLabel = $isForgottenCheckout
+                ? ($submission->submission_type === 'koreksi_pulang_cepat' ? 'Koreksi Pulang Lebih Awal' : 'Koreksi Lupa Absen Pulang')
+                : ($isForgottenEntry
+                    ? ($isForgottenBoth ? 'Koreksi Lupa Absen Masuk & Pulang' : 'Koreksi Lupa Absen Masuk')
+                    : $submission->tipe);
 
             $initial = $user->name ? strtoupper(substr($user->name, 0, 2)) : '??';
         @endphp
@@ -104,6 +109,15 @@
                                 </span>
                             </div>
                         @endif
+                    @endif
+
+                    @if($isForgottenCheckout)
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 dark:text-gray-500 font-medium">Jam Pulang Diajukan</span>
+                            <span class="text-gray-700 dark:text-gray-200 font-semibold">
+                                {{ $submission->jam_pulang_rencana ? \Carbon\Carbon::parse($submission->jam_pulang_rencana)->format('H:i') : '-' }}
+                            </span>
+                        </div>
                     @endif
 
                     @if($isOvertime)

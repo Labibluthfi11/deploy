@@ -37,6 +37,21 @@ class AbsensiAdminController extends Controller
         return $this->indexByEmploymentType($request, 'freelance');
     }
 
+    public function missingCheckouts()
+    {
+        $today = Carbon::today('Asia/Jakarta');
+        $absensis = Absensi::with('user')
+            ->whereNull('parent_id')
+            ->where('status', 'hadir')
+            ->whereNull('check_out_at')
+            ->whereIn('status_approval', ['approved', 'pending', 'rejected'])
+            ->whereDate('check_in_at', '<', $today)
+            ->orderByDesc('check_in_at')
+            ->paginate(50);
+
+        return view('admin.absensi.missing-checkouts', compact('absensis'));
+    }
+
     /**
      * 🔥 V5: Helper Dashboard dengan 4 KATEGORI 🔥
      */

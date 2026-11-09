@@ -91,6 +91,9 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
         Route::get('/absensi/scheduled-lembur', [ScheduledLemburController::class, 'index']);
         Route::put('/absensi/scheduled-lembur/{id}/status', [ScheduledLemburController::class, 'updateStatus'])
             ->middleware('throttle:10,1');
+        Route::get('/absensi/missing-checkouts', [AbsensiController::class, 'missingCheckouts']);
+        Route::post('/absensi/{id}/checkout-correction', [AbsensiController::class, 'submitCheckoutCorrection'])
+            ->middleware('throttle:5,1');
         
         // ========== ABSENSI - RESUBMIT ENDPOINTS (rate limit lebih ketat) ==========
         Route::middleware('throttle:5,1')->group(function () {

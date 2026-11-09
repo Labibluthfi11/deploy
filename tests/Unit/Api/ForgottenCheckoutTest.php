@@ -17,6 +17,7 @@ beforeEach(function () {
     Storage::fake('public');
 
     Schema::dropIfExists('notifications');
+    Schema::dropIfExists('activity_logs');
     Schema::dropIfExists('holidays');
     Schema::dropIfExists('absensis');
     Schema::dropIfExists('users');
@@ -46,8 +47,12 @@ beforeEach(function () {
         $table->string('status_approval')->default('pending');
         $table->integer('current_approval_level')->default(1);
         $table->json('workflow_status')->nullable();
+        $table->string('rejected_by')->nullable();
         $table->timestamp('check_in_at')->nullable();
         $table->timestamp('check_out_at')->nullable();
+        $table->timestamp('approved_at')->nullable();
+        $table->timestamp('rejected_at')->nullable();
+        $table->string('foto_masuk')->nullable();
         $table->date('end_date')->nullable();
         $table->unsignedInteger('total_days')->nullable();
         $table->unsignedInteger('hari_potong_cuti')->default(0);
@@ -64,7 +69,11 @@ beforeEach(function () {
         $table->decimal('late_penalty', 10, 2)->nullable();
         $table->decimal('final_salary', 10, 2)->nullable();
         $table->decimal('overtime_pay', 10, 2)->nullable();
+        $table->integer('overtime_minutes')->nullable();
         $table->boolean('is_kurang_8_jam')->nullable();
+        $table->boolean('is_weekend_overtime')->nullable();
+        $table->boolean('is_mocked')->nullable();
+        $table->string('lokasi_masuk')->nullable();
         $table->timestamps();
     });
 
@@ -86,11 +95,22 @@ beforeEach(function () {
         $table->string('name')->nullable();
         $table->timestamps();
     });
+
+    Schema::create('activity_logs', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('user_id')->nullable();
+        $table->string('action');
+        $table->string('subject')->nullable();
+        $table->text('details')->nullable();
+        $table->string('ip_address')->nullable();
+        $table->timestamps();
+    });
 });
 
 afterEach(function () {
     Carbon::setTestNow();
     Schema::dropIfExists('notifications');
+    Schema::dropIfExists('activity_logs');
     Schema::dropIfExists('holidays');
     Schema::dropIfExists('absensis');
     Schema::dropIfExists('users');
@@ -240,16 +260,175 @@ it('does not expose the removed forgotten-checkout request endpoint', function (
         ->assertNotFound();
 });
 
-it('calculates an organic attendance salary without using an instance context', function () {
+it('lists prior missing checkouts without blocking the next day check-in', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+
+    $this->getJson('/api/v1/absensi/missing-checkouts')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.status_approval', 'approved');
+
+    $this->postJson('/api/v1/absensi/masuk', [
+        'foto' => UploadedFile::fake()->image('masuk.jpg'),
+        'lat' => -6.2,
+        'lng' => 106.8,
+        'status' => 'hadir',
+    ])->assertCreated();
+});
+
+it('submits a missed checkout for approval and holds salary until review', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+
+    $this->postJson("/api/v1/absensi/{$attendance->id}/checkout-correction", [
+        'jenis_koreksi' => 'lupa_absen_pulang',
+        'jam_pulang' => '17:00',
+        'keterangan' => 'Lupa melakukan absen pulang kemarin.',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status_approval', 'pending')
+        ->assertJsonPath('data.submission_type', 'koreksi_lupa_pulang')
+        ->assertJsonPath('data.jam_pulang_rencana', '17:00');
+
+    $this->assertDatabaseHas('absensis', [
+        'id' => $attendance->id,
+        'status_approval' => 'pending',
+        'base_salary' => 0,
+        'final_salary' => 0,
+    ]);
+});
+
+it('applies the verified checkout time and prorated salary on final approval', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+    $employee = User::factory()->create([
+        'work_location' => 'office',
+        'employment_type' => 'freelance',
+    ]);
+    $approver = User::factory()->create([
+        'role' => 'hrga',
+        'work_location' => 'office',
+    ]);
+    $attendance = Absensi::create([
+        'user_id' => $employee->id,
+        'status' => 'hadir',
+        'tipe' => 'koreksi lupa pulang',
+        'submission_type' => 'koreksi_lupa_pulang',
+        'status_approval' => 'pending',
+        'current_approval_level' => 2,
+        'workflow_status' => ['manager' => 'approved', 'hrga' => 'pending'],
+        'check_in_at' => Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'),
+        'jam_pulang_rencana' => '17:00',
+        'base_salary' => 0,
+        'final_salary' => 0,
+    ]);
+
+    $this->actingAs($approver)
+        ->from('/admin/approval/hrga')
+        ->post("/admin/approval/{$attendance->id}/approve")
+        ->assertRedirect('/admin/approval/hrga');
+
+    $attendance->refresh();
+    expect($attendance->status_approval)->toBe('approved')
+        ->and($attendance->check_out_at->format('Y-m-d H:i'))->toBe('2026-11-03 17:00')
+        ->and((float) $attendance->final_salary)->toBeGreaterThan(0);
+});
+
+it('shows missing checkouts in the web admin review list', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+    $employee = User::factory()->create(['name' => 'Checkout Review Employee']);
+    $admin = User::factory()->create(['role' => 'admin']);
+    createAttendanceWithoutCheckout($employee, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+
+    $this->actingAs($admin)
+        ->get('/admin/absensi/missing-checkouts')
+        ->assertOk()
+        ->assertSee('Absensi Belum Absen Pulang')
+        ->assertSee('Checkout Review Employee');
+});
+
+it('rejects a checkout correction with a time before check-in', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+
+    $this->postJson("/api/v1/absensi/{$attendance->id}/checkout-correction", [
+        'jenis_koreksi' => 'pulang_lebih_awal',
+        'jam_pulang' => '08:00',
+        'keterangan' => 'Saya pulang lebih awal pada hari tersebut.',
+    ])->assertUnprocessable();
+});
+
+it('resubmits a rejected half-day leave with corrected time and explanation', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin_pulang_cepat',
+        'status_approval' => 'rejected',
+        'rejected_by' => 'manager',
+        'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
+        'jam_pulang_rencana' => '12:00',
+        'keterangan_izin_sakit' => 'Jam pulang sebelumnya salah.',
+    ]);
+
+    $this->postJson("/api/v1/absensi/izin/{$attendance->id}/resubmit", [
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Jam pulang yang benar adalah pukul satu siang.',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.status_approval', 'pending')
+        ->assertJsonPath('data.jam_pulang_rencana', '13:00');
+
+    $this->assertDatabaseHas('absensis', [
+        'id' => $attendance->id,
+        'status_approval' => 'pending',
+        'jam_pulang_rencana' => '13:00',
+    ]);
+});
+
+it('allows an organic employee to submit a half-day request after checking in', function () {
+    $user = User::factory()->create([
+        'work_location' => 'office',
+        'employment_type' => 'organik',
+    ]);
+    Sanctum::actingAs($user);
+    $attendance = createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'));
+
+    $this->postJson('/api/v1/absensi/izin', [
+        'status' => 'izin',
+        'catatan_admin' => 'izin_pulang_cepat',
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Ada keperluan keluarga setelah jam makan siang.',
+        'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status_approval', 'pending')
+        ->assertJsonPath('data.submission_type', 'izin_pulang_cepat')
+        ->assertJsonPath('data.jam_pulang_rencana', '13:00');
+
+    $this->assertDatabaseHas('absensis', [
+        'id' => $attendance->id,
+        'status_approval' => 'pending',
+        'base_salary' => 0,
+    ]);
+});
+
+it('does not assign a full-shift salary when checkout is missing', function () {
     $salary = Absensi::calculateSalary(
         0,
         'hadir',
         null,
         false,
         Carbon::parse('2026-11-03 08:00:00', 'Asia/Jakarta'),
-        Carbon::parse('2026-11-03 17:00:00', 'Asia/Jakarta'),
+        null,
         'organik'
     );
 
-    expect($salary['base_salary'])->toBe(150000.0);
+    expect($salary['base_salary'])->toBe(0.0)
+        ->and($salary['final_salary'])->toBe(0.0);
 });
