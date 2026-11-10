@@ -301,6 +301,42 @@ it('submits a missed checkout for approval and holds salary until review', funct
     ]);
 });
 
+it('allows a previously auto-filled checkout to be corrected and holds its salary', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'hadir',
+        'status_approval' => 'approved',
+        'check_in_at' => Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'),
+        'check_out_at' => Carbon::parse('2026-11-03 17:00:00', 'Asia/Jakarta'),
+        'base_salary' => 150000,
+        'final_salary' => 150000,
+    ]);
+    $attendance->forceFill(['catatan_admin' => 'AUTO_CHECKOUT_LUPA_ABSEN'])->save();
+
+    $this->getJson('/api/v1/absensi/missing-checkouts')
+        ->assertOk()
+        ->assertJsonCount(1, 'data');
+
+    $this->postJson("/api/v1/absensi/{$attendance->id}/checkout-correction", [
+        'jenis_koreksi' => 'pulang_lebih_awal',
+        'jam_pulang' => '13:00',
+        'keterangan' => 'Jam pulang otomatis bukan jam pulang sebenarnya.',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status_approval', 'pending')
+        ->assertJsonPath('data.check_out_at', null);
+
+    $this->assertDatabaseHas('absensis', [
+        'id' => $attendance->id,
+        'status_approval' => 'pending',
+        'check_out_at' => null,
+        'base_salary' => 0,
+        'final_salary' => 0,
+    ]);
+});
+
 it('applies the verified checkout time and prorated salary on final approval', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
     $employee = User::factory()->create([
@@ -347,6 +383,26 @@ it('shows missing checkouts in the web admin review list', function () {
         ->assertOk()
         ->assertSee('Absensi Belum Absen Pulang')
         ->assertSee('Checkout Review Employee');
+});
+
+it('shows legacy auto-filled checkouts in the web admin review list', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+    $employee = User::factory()->create(['name' => 'Legacy Auto Checkout Employee']);
+    $admin = User::factory()->create(['role' => 'admin']);
+    $attendance = Absensi::create([
+        'user_id' => $employee->id,
+        'status' => 'hadir',
+        'status_approval' => 'approved',
+        'check_in_at' => Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'),
+        'check_out_at' => Carbon::parse('2026-11-03 17:00:00', 'Asia/Jakarta'),
+    ]);
+    $attendance->forceFill(['catatan_admin' => 'AUTO_CHECKOUT_LUPA_ABSEN'])->save();
+
+    $this->actingAs($admin)
+        ->get('/admin/absensi/missing-checkouts')
+        ->assertOk()
+        ->assertSee('Legacy Auto Checkout Employee')
+        ->assertSee('Jam pulang otomatis — perlu verifikasi');
 });
 
 it('rejects a checkout correction with a time before check-in', function () {

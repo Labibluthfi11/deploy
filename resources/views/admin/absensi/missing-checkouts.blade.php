@@ -27,9 +27,12 @@
                             @forelse ($absensis as $absensi)
                                 @php
                                     $hasCorrection = in_array($absensi->submission_type, ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'], true);
-                                    $statusLabel = $absensi->status_approval === 'pending'
-                                        ? 'Menunggu approval'
-                                        : ($absensi->status_approval === 'rejected' ? 'Ditolak' : 'Belum diajukan');
+                                    $isLegacyAutoCheckout = $absensi->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN';
+                                    $statusLabel = $isLegacyAutoCheckout
+                                        ? 'Jam pulang otomatis — perlu verifikasi'
+                                        : ($absensi->status_approval === 'pending'
+                                            ? 'Menunggu approval'
+                                            : ($absensi->status_approval === 'rejected' ? 'Ditolak' : 'Belum diajukan'));
                                     $approvalRoute = 'admin.absensi.approval.manager';
                                     if (strtolower($absensi->user->work_location ?? '') === 'produksi') {
                                         $approvalRoute = match ($absensi->current_approval_level) {
@@ -53,7 +56,7 @@
                                         {{ $absensi->check_in_at?->format('H:i') ?? '-' }}
                                     </td>
                                     <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                        {{ $absensi->jam_pulang_rencana ? \Carbon\Carbon::parse($absensi->jam_pulang_rencana)->format('H:i') : '-' }}
+                                        {{ $absensi->jam_pulang_rencana ? \Carbon\Carbon::parse($absensi->jam_pulang_rencana)->format('H:i') : ($isLegacyAutoCheckout && $absensi->check_out_at ? $absensi->check_out_at->format('H:i') . ' (otomatis)' : '-') }}
                                     </td>
                                     <td class="whitespace-nowrap px-6 py-4">
                                         <span class="rounded-full px-2.5 py-1 text-xs font-semibold

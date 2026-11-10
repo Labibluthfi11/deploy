@@ -752,15 +752,20 @@ public function meAbsensi(Request $request)
                 ->where('user_id', Auth::id())
                 ->whereNull('parent_id')
                 ->where('status', 'hadir')
-                ->whereNull('check_out_at')
                 ->whereBetween('check_in_at', [$today->copy()->subDays(30)->startOfDay(), $today->copy()->subDay()->endOfDay()])
                 ->where(function ($query) {
-                    $query->where(function ($regular) {
-                        $regular->whereNull('submission_type')
-                            ->where('status_approval', 'approved');
-                    })->orWhere(function ($correction) {
-                        $correction->whereIn('submission_type', ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'])
-                            ->whereIn('status_approval', ['pending', 'rejected']);
+                    $query->where(function ($unreported) {
+                        $unreported->whereNull('check_out_at')
+                            ->where(function ($regular) {
+                                $regular->whereNull('submission_type')
+                                    ->where('status_approval', 'approved');
+                            })->orWhere(function ($correction) {
+                                $correction->whereIn('submission_type', ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'])
+                                    ->whereIn('status_approval', ['pending', 'rejected']);
+                            });
+                    })->orWhere(function ($legacyAutoCheckout) {
+                        $legacyAutoCheckout->where('catatan_admin', 'AUTO_CHECKOUT_LUPA_ABSEN')
+                            ->whereIn('status_approval', ['approved', 'pending', 'rejected']);
                     });
                 })
                 ->orderByDesc('check_in_at')
@@ -790,7 +795,8 @@ public function meAbsensi(Request $request)
                 return response()->json(['success' => false, 'message' => 'Data absensi tidak ditemukan.'], 404);
             }
 
-            if ($absensi->status !== 'hadir' || $absensi->check_out_at) {
+            $isLegacyAutoCheckout = $absensi->catatan_admin === 'AUTO_CHECKOUT_LUPA_ABSEN';
+            if ($absensi->status !== 'hadir' || ($absensi->check_out_at && !$isLegacyAutoCheckout)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Koreksi hanya dapat diajukan untuk absensi hadir yang belum memiliki jam pulang.',
@@ -822,7 +828,7 @@ public function meAbsensi(Request $request)
                 $absensi->submission_type,
                 ['koreksi_lupa_pulang', 'koreksi_pulang_cepat'],
                 true
-            );
+            ) || $isLegacyAutoCheckout;
             if ($absensi->status_approval === 'pending') {
                 return response()->json([
                     'success' => false,
@@ -861,6 +867,7 @@ public function meAbsensi(Request $request)
                     'tipe' => 'koreksi lupa pulang',
                     'submission_type' => $correctionType,
                     'jam_pulang_rencana' => $validated['jam_pulang'],
+                    'check_out_at' => null,
                     'keterangan_izin_sakit' => $validated['keterangan'],
                     'file_bukti' => $filePath,
                     'status_approval' => 'pending',

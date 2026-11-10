@@ -43,8 +43,11 @@ class AbsensiAdminController extends Controller
         $absensis = Absensi::with('user')
             ->whereNull('parent_id')
             ->where('status', 'hadir')
-            ->whereNull('check_out_at')
             ->whereIn('status_approval', ['approved', 'pending', 'rejected'])
+            ->where(function ($query) {
+                $query->whereNull('check_out_at')
+                    ->orWhere('catatan_admin', 'AUTO_CHECKOUT_LUPA_ABSEN');
+            })
             ->whereDate('check_in_at', '<', $today)
             ->orderByDesc('check_in_at')
             ->paginate(50);

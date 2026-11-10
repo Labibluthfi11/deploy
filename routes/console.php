@@ -30,23 +30,6 @@ Schedule::call(function () {
     }
 })->dailyAt('07:00');
 
-// JADWAL AUTO CHECKOUT LUPA ABSEN (Setiap Hari Jam 23:59)
-Schedule::call(function () {
-    $today = \Carbon\Carbon::today();
-    $forgottenAbsences = \App\Models\Absensi::where('status', 'hadir')
-        ->whereNull('check_out_at')
-        ->whereDate('check_in_at', $today)
-        ->get();
-
-    foreach ($forgottenAbsences as $absensi) {
-        $absensi->check_out_at = $today->copy()->setTime(17, 0, 0);
-        if (!$absensi->catatan_admin) {
-            $absensi->catatan_admin = 'AUTO_CHECKOUT_LUPA_ABSEN';
-        }
-        $absensi->save();
-    }
-})->dailyAt('23:59');
-
 // Potong cuti karyawan organik tanpa absensi atau pengajuan izin/sakit setelah hari kerja berakhir.
 Schedule::command('attendance:deduct-absence-leave')->dailyAt('00:10')->withoutOverlapping();
 
