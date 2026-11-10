@@ -10,6 +10,29 @@ class Absensi extends Model
 {
     use HasFactory;
 
+    private const LEAVE_SUBMISSION_TYPES = [
+        'izin',
+        'sakit',
+        'cuti_tahunan',
+        'cuti_melahirkan',
+        'cuti_keguguran',
+        'cuti_haji',
+        'cuti_umroh',
+        'cuti_menikah',
+        'cuti_khitanan',
+        'cuti_baptis',
+        'cuti_meninggal',
+        'change_off',
+        'unpaid_leave',
+        'izin_pulang_cepat',
+    ];
+
+    private const ATTENDANCE_CORRECTION_TYPES = [
+        'koreksi_lupa_keduanya',
+        'koreksi_lupa_pulang',
+        'koreksi_pulang_cepat',
+    ];
+
     // Konstanta Gaji
     const DAILY_SALARY = 150000;           // Gaji normal
     const WEEKEND_DAILY_SALARY = 300000;   // 🆕 Gaji weekend (2x lipat)
@@ -328,6 +351,55 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
 public function children()
 {
     return $this->hasMany(Absensi::class, 'parent_id');
+}
+
+public function isApprovalRequest(): bool
+{
+    $type = strtolower(trim((string) $this->tipe));
+    $status = strtolower(trim((string) $this->status));
+    $submissionType = strtolower(trim((string) $this->submission_type));
+
+    if (in_array($submissionType, self::ATTENDANCE_CORRECTION_TYPES, true)) {
+        return true;
+    }
+
+    if ($submissionType === 'izin_pulang_cepat') {
+        return in_array($type, ['izin', 'sakit'], true);
+    }
+
+    if (in_array($type, ['lembur', 'telat', 'koreksi lupa absen', 'koreksi lupa pulang'], true)) {
+        return true;
+    }
+
+    return in_array($status, ['izin', 'sakit'], true);
+}
+
+public function approvalSummary(): array
+{
+    $workflow = $this->workflow_status;
+    if (!is_array($workflow)) {
+        $workflow = null;
+    }
+
+    $submissionType = trim((string) $this->submission_type);
+    $requestType = $submissionType !== ''
+        ? $submissionType
+        : (trim((string) $this->tipe) !== '' ? $this->tipe : $this->status);
+
+    $adminNote = in_array($this->status_approval, ['rejected', 'ditolak'], true)
+        ? trim((string) $this->catatan_admin)
+        : '';
+    if ($adminNote === $submissionType || in_array($adminNote, self::LEAVE_SUBMISSION_TYPES, true)) {
+        $adminNote = '';
+    }
+
+    return [
+        'request_type' => $requestType,
+        'status' => $this->status_approval === 'ditolak' ? 'rejected' : $this->status_approval,
+        'workflow' => $workflow,
+        'reason' => $this->keterangan_izin_sakit ?: $this->lembur_keterangan ?: $this->keterangan_goals,
+        'admin_note' => $adminNote !== '' ? $adminNote : null,
+    ];
 }
 
 }

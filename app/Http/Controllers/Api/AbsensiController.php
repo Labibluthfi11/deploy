@@ -666,7 +666,10 @@ public function meAbsensi(Request $request)
         \Log::info("📡 [ME ABSENSI] All Inputs:", $request->all());
 
         
-        $query = Absensi::with(['user', 'children'])->where('user_id', $userId)->whereNull('parent_id');
+        $query = Absensi::with([
+            'user',
+            'children' => fn ($children) => $children->orderBy('id'),
+        ])->where('user_id', $userId)->whereNull('parent_id');
 
         
         if ($request->filled('search_date')) {
@@ -700,32 +703,9 @@ public function meAbsensi(Request $request)
             $item->foto_pulang_6_url = $item->foto_pulang_6 ? Storage::url($item->foto_pulang_6) : null;
             $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
 
-            if ($item->children && $item->children->isNotEmpty()) {
-                $pendingChild = $item->children->where('status_approval', 'pending')->first();
-                if ($pendingChild) {
-                    $item->tipe = $pendingChild->tipe;
-                    $item->status_approval = 'pending';
-
-                    
-                    if ($pendingChild->tipe === 'lembur') {
-                        $item->lembur_start = $pendingChild->lembur_start;
-                        $item->lembur_end = $pendingChild->lembur_end;
-                        $item->overtime_minutes = $pendingChild->overtime_minutes;
-                    }
-                    if ($pendingChild->tipe === 'telat') {
-                        $item->file_bukti_url = $pendingChild->file_bukti ? Storage::url($pendingChild->file_bukti) : null;
-                        $item->keterangan_izin_sakit = $pendingChild->keterangan_izin_sakit;
-                    }
-                } else {
-                    
-                    $approvedChild = $item->children->where('status_approval', 'approved')->first();
-                    if ($approvedChild) {
-                        $item->tipe = $approvedChild->tipe;
-                        $item->status_approval = 'approved';
-                        
-                        $item->workflow_status = $approvedChild->workflow_status;
-                    }
-                }
+            $this->attachHistoryApproval($item);
+            foreach ($item->children as $child) {
+                $this->attachHistoryApproval($child);
             }
 
             return $item;
@@ -741,6 +721,17 @@ public function meAbsensi(Request $request)
             'success' => false,
             'message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')
         ], 500);
+    }
+}
+
+private function attachHistoryApproval(Absensi $record): void
+{
+    $hasApprovalRequest = $record->isApprovalRequest();
+    $record->setAttribute('has_approval_request', $hasApprovalRequest);
+    $record->setAttribute('approval', $hasApprovalRequest ? $record->approvalSummary() : null);
+
+    if (!$hasApprovalRequest) {
+        $record->setAttribute('workflow_status', null);
     }
 }
 
@@ -965,7 +956,7 @@ public function meAbsensi(Request $request)
 
             $user = Auth::user();
             $status = $request->status ?? $defaultStatus;
-            $submissionType = $request->catatan_admin ?? null; 
+            $submissionType = $request->catatan_admin ?? $status;
             $jamPulangRencana = $request->jam_pulang_rencana;
 
             
@@ -1372,6 +1363,7 @@ public function meAbsensi(Request $request)
                 'foto_pulang_6'         => $fotoPath6,
                 'lokasi_pulang'         => $lokasiPulang,
                 'tipe'                  => 'lembur',
+                'submission_type'       => 'lembur',
                 'status_approval'       => 'pending',
                 'workflow_status'       => $workflow,
                 'current_approval_level' => 1,
@@ -1529,6 +1521,7 @@ public function meAbsensi(Request $request)
                 'foto_pulang_4'         => $fotoPath4,
                 'foto_pulang_5'         => $fotoPath5,
                 'tipe'                  => 'lembur',
+                'submission_type'       => 'lembur',
                 'status_approval'       => 'pending',
                 'workflow_status'       => $workflow,
                 'current_approval_level' => 1,
@@ -1849,6 +1842,7 @@ public function meAbsensi(Request $request)
                 'check_in_at' => $startDate,
                 'end_date' => $endDate,
                 'total_days' => $totalDays,
+                'submission_type' => $absensi->submission_type ?: ($type === 'telat' ? 'telat' : ($absensi->tipe ?: $type)),
                 'file_bukti' => $filePath,
                 'keterangan_izin_sakit' => $request->keterangan_izin_sakit ?? $request->catatan ?? $absensi->keterangan_izin_sakit,
                 'status_approval' => 'pending',
@@ -2017,6 +2011,7 @@ public function meAbsensi(Request $request)
             'lembur_keterangan'     => $request->keterangan,
             'keterangan_goals'      => $request->keterangan_goals ?? $absensi->keterangan_goals,
             'tipe'                  => 'lembur',
+            'submission_type'       => 'lembur',
             'status_approval'       => 'pending',
             'workflow_status'       => $workflow,
             'current_approval_level'=> $startLevel,
@@ -2206,6 +2201,7 @@ public function pengajuanTelat(Request $request)
             'check_in_at'           => $absensi->check_in_at,
             'status'                => 'hadir', 
             'tipe'                  => 'telat', 
+            'submission_type'       => 'telat',
             'status_approval'       => 'pending',
             'file_bukti'            => $fileBuktiPath,
             'keterangan_izin_sakit' => $request->keterangan,

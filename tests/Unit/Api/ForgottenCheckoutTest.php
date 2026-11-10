@@ -214,6 +214,7 @@ it('creates a pending retrospective sick leave request with one photo proof', fu
         ->assertCreated()
         ->assertJsonPath('data.status', 'sakit')
         ->assertJsonPath('data.tipe', 'sakit')
+        ->assertJsonPath('data.submission_type', 'sakit')
         ->assertJsonPath('data.status_approval', 'pending');
 
     $this->assertDatabaseHas('absensis', [
