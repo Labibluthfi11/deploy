@@ -205,6 +205,79 @@ class WorkRuleAdminController extends Controller
         return $this->redirectWithSuccess('Penetapan shift dan skema upah berhasil disimpan.');
     }
 
+    public function updateAssignmentSchedule(Request $request, EmployeeWorkAssignment $assignment)
+    {
+        $data = $request->validate([
+            'effective_from' => ['required', 'date'],
+            'schedule_mode' => ['required', 'in:fixed,rolling'],
+            'rotation_group' => ['nullable', 'required_if:schedule_mode,rolling', 'in:A,B'],
+        ]);
+
+        $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
+        $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
+        if ($effectiveFrom->dayOfWeekIso !== Carbon::MONDAY || $effectiveFrom->lt($nextWeekStart)) {
+            throw ValidationException::withMessages([
+                'effective_from' => 'Perubahan pola harus mulai hari Senin minggu depan atau setelahnya.',
+            ]);
+        }
+
+        if ($data['schedule_mode'] === 'rolling') {
+            $hasRotationSetting = WorkShiftRotationSetting::query()
+                ->whereDate('anchor_week_start', '<=', $effectiveFrom)
+                ->exists();
+            if (!$hasRotationSetting) {
+                throw ValidationException::withMessages([
+                    'schedule_mode' => 'Atur pola rotasi mingguan terlebih dahulu sebelum memasukkan karyawan ke grup.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($assignment, $data, $effectiveFrom) {
+            $currentAssignment = EmployeeWorkAssignment::query()
+                ->lockForUpdate()
+                ->findOrFail($assignment->id);
+
+            if (
+                $effectiveFrom->lt($currentAssignment->effective_from->copy()->startOfDay())
+                || (
+                    $currentAssignment->effective_until
+                    && $effectiveFrom->gt($currentAssignment->effective_until->copy()->startOfDay())
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'effective_from' => 'Tanggal mulai berada di luar masa berlaku penetapan ini. Pilih penetapan yang berlaku pada tanggal tersebut.',
+                ]);
+            }
+
+            $schedule = [
+                'schedule_mode' => $data['schedule_mode'],
+                'rotation_group' => $data['schedule_mode'] === 'rolling' ? $data['rotation_group'] : null,
+            ];
+
+            if ($effectiveFrom->equalTo($currentAssignment->effective_from->copy()->startOfDay())) {
+                $currentAssignment->update($schedule);
+                return;
+            }
+
+            $assignmentEnd = $currentAssignment->effective_until?->toDateString();
+            $previousEnd = $effectiveFrom->copy()->subDay()->toDateString();
+            $currentAssignment->update(['effective_until' => $previousEnd]);
+
+            EmployeeWorkAssignment::create([
+                'user_id' => $currentAssignment->user_id,
+                'work_shift_id' => $currentAssignment->work_shift_id,
+                'pay_scheme_id' => $currentAssignment->pay_scheme_id,
+                'effective_from' => $effectiveFrom->toDateString(),
+                'effective_until' => $assignmentEnd,
+                ...$schedule,
+            ]);
+        });
+
+        return redirect()
+            ->route('admin.work-rules.index', ['week' => $effectiveFrom->toDateString()])
+            ->with('success', 'Pola shift karyawan berhasil diperbarui tanpa mengubah skema upah.');
+    }
+
     public function storeRotationSetting(Request $request)
     {
         $data = $request->validate([
