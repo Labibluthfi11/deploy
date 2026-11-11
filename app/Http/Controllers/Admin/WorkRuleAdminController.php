@@ -59,6 +59,31 @@ class WorkRuleAdminController extends Controller
             ->groupBy('user_id')
             ->map(fn ($employeeAssignments) => $employeeAssignments->first())
             ->values();
+        $employeeScheduleGroups = [
+            [
+                'key' => 'A',
+                'title' => 'Grup A',
+                'assignments' => $weekAssignments
+                    ->where('schedule_mode', 'rolling')
+                    ->where('rotation_group', 'A')
+                    ->values(),
+            ],
+            [
+                'key' => 'B',
+                'title' => 'Grup B',
+                'assignments' => $weekAssignments
+                    ->where('schedule_mode', 'rolling')
+                    ->where('rotation_group', 'B')
+                    ->values(),
+            ],
+            [
+                'key' => 'fixed',
+                'title' => 'Jadwal Tetap',
+                'assignments' => $weekAssignments
+                    ->where('schedule_mode', 'fixed')
+                    ->values(),
+            ],
+        ];
         $rotationShifts = [];
         if ($rotationSetting) {
             $weekOffset = intdiv((int) $rotationSetting->anchor_week_start->diffInDays($weekStart), 7);
@@ -80,6 +105,7 @@ class WorkRuleAdminController extends Controller
             'weekEnd',
             'rotationSetting',
             'weekAssignments',
+            'employeeScheduleGroups',
             'scheduleEffectiveFrom',
             'rotationShifts'
         ));
