@@ -34,9 +34,6 @@ class WorkRuleAdminController extends Controller
             ->whereNotIn('role', ['supervisor', 'manager', 'hrga', 'admin', 'super_admin', 'pkl'])
             ->orderBy('name')
             ->get(['id', 'name', 'id_karyawan']);
-        $assignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift', 'payScheme'])
-            ->orderByDesc('effective_from')
-            ->paginate(25, ['*'], 'assignments_page');
         $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
         $scheduleEffectiveFrom = $weekStart->greaterThan($nextWeekStart)
             ? $weekStart->copy()
@@ -78,7 +75,6 @@ class WorkRuleAdminController extends Controller
             'shifts',
             'paySchemes',
             'employees',
-            'assignments',
             'overrides',
             'weekStart',
             'weekEnd',

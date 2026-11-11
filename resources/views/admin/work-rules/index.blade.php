@@ -417,41 +417,6 @@
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Riwayat Penetapan (arsip)</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Bagian ini hanya catatan lama, bukan daftar untuk mengatur karyawan.</p>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-gray-900">
-                            <tr>
-                                <th class="px-5 py-3">Karyawan</th>
-                                <th class="px-5 py-3">Shift</th>
-                                <th class="px-5 py-3">Skema</th>
-                                <th class="px-5 py-3">Pola</th>
-                                <th class="px-5 py-3">Masa berlaku</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            @forelse($assignments as $assignment)
-                                <tr>
-                                    <td class="px-5 py-3 font-medium">{{ $assignment->user->name }}{{ $assignment->user->id_karyawan ? ' · ' . $assignment->user->id_karyawan : '' }}</td>
-                                    <td class="px-5 py-3">{{ $assignment->workShift->name }}</td>
-                                    <td class="px-5 py-3">{{ $assignment->payScheme->name }} · Rp{{ number_format((float) $assignment->payScheme->daily_salary, 0, ',', '.') }}</td>
-                                    <td class="px-5 py-3">{{ $assignment->schedule_mode === 'rolling' ? 'Rolling · Grup ' . $assignment->rotation_group : 'Tetap' }}</td>
-                                    <td class="px-5 py-3">{{ $assignment->effective_from->format('d M Y') }} – {{ $assignment->effective_until ? $assignment->effective_until->format('d M Y') : 'seterusnya' }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="px-5 py-8 text-center text-gray-500">Belum ada riwayat penetapan shift dan skema upah.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                @if($assignments->hasPages())
-                    <div class="border-t border-gray-200 px-5 py-4 dark:border-gray-700">{{ $assignments->links() }}</div>
-                @endif
-            </section>
         </div>
     </div>
 </x-app-layout>
