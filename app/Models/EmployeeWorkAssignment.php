@@ -13,6 +13,8 @@ class EmployeeWorkAssignment extends Model
         'pay_scheme_id',
         'effective_from',
         'effective_until',
+        'schedule_mode',
+        'rotation_group',
     ];
 
     protected $casts = [

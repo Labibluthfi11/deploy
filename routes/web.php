@@ -65,6 +65,7 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         Route::put('/pay-schemes/{payScheme}', [WorkRuleAdminController::class, 'updatePayScheme'])->name('pay-schemes.update');
         Route::post('/assignments', [WorkRuleAdminController::class, 'storeAssignment'])->name('assignments.store');
         Route::post('/shift-overrides', [WorkRuleAdminController::class, 'storeOverride'])->name('shift-overrides.store');
+        Route::post('/rotation-settings', [WorkRuleAdminController::class, 'storeRotationSetting'])->name('rotation-settings.store');
     });
 
     // HARI LIBUR

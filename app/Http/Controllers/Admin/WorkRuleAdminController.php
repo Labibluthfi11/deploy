@@ -8,6 +8,7 @@ use App\Models\EmployeeWorkAssignment;
 use App\Models\PayScheme;
 use App\Models\User;
 use App\Models\WorkShift;
+use App\Models\WorkShiftRotationSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,8 +16,14 @@ use Illuminate\Validation\ValidationException;
 
 class WorkRuleAdminController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $filters = $request->validate([
+            'week' => ['nullable', 'date'],
+        ]);
+        $weekStart = Carbon::parse($filters['week'] ?? Carbon::today()->addWeek()->startOfWeek(Carbon::MONDAY))
+            ->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
         $shifts = WorkShift::withCount(['employeeAssignments', 'employeeOverrides'])
             ->orderBy('name')
             ->get();
@@ -35,13 +42,53 @@ class WorkRuleAdminController extends Controller
             ->orderBy('work_date')
             ->limit(50)
             ->get();
+        $rotationSetting = WorkShiftRotationSetting::with(['groupAShift', 'groupBShift'])
+            ->whereDate('anchor_week_start', '<=', $weekStart)
+            ->orderByDesc('anchor_week_start')
+            ->first();
+        $rotationAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift'])
+            ->where('schedule_mode', 'rolling')
+            ->whereDate('effective_from', '<=', $weekEnd)
+            ->where(function ($query) use ($weekStart) {
+                $query->whereNull('effective_until')
+                    ->orWhereDate('effective_until', '>=', $weekStart);
+            })
+            ->orderBy('rotation_group')
+            ->orderBy('user_id')
+            ->get();
+        $fixedAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift'])
+            ->where('schedule_mode', 'fixed')
+            ->whereDate('effective_from', '<=', $weekEnd)
+            ->where(function ($query) use ($weekStart) {
+                $query->whereNull('effective_until')
+                    ->orWhereDate('effective_until', '>=', $weekStart);
+            })
+            ->orderBy('user_id')
+            ->get();
+        $rotationShifts = [];
+        if ($rotationSetting) {
+            $weekOffset = intdiv((int) $rotationSetting->anchor_week_start->diffInDays($weekStart), 7);
+            $groupAShift = $weekOffset % 2 === 0
+                ? $rotationSetting->groupAShift
+                : $rotationSetting->groupBShift;
+            $groupBShift = $weekOffset % 2 === 0
+                ? $rotationSetting->groupBShift
+                : $rotationSetting->groupAShift;
+            $rotationShifts = ['A' => $groupAShift, 'B' => $groupBShift];
+        }
 
         return view('admin.work-rules.index', compact(
             'shifts',
             'paySchemes',
             'employees',
             'assignments',
-            'overrides'
+            'overrides',
+            'weekStart',
+            'weekEnd',
+            'rotationSetting',
+            'rotationAssignments',
+            'fixedAssignments',
+            'rotationShifts'
         ));
     }
 
@@ -86,6 +133,8 @@ class WorkRuleAdminController extends Controller
             'work_shift_id' => ['required', 'integer', 'exists:work_shifts,id'],
             'pay_scheme_id' => ['required', 'integer', 'exists:pay_schemes,id'],
             'effective_from' => ['required', 'date'],
+            'schedule_mode' => ['required', 'in:fixed,rolling'],
+            'rotation_group' => ['nullable', 'required_if:schedule_mode,rolling', 'in:A,B'],
         ]);
 
         $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
@@ -143,6 +192,8 @@ class WorkRuleAdminController extends Controller
                 'effective_until' => $next
                     ? Carbon::parse($next->effective_from)->subDay()->toDateString()
                     : null,
+                'schedule_mode' => $data['schedule_mode'],
+                'rotation_group' => $data['schedule_mode'] === 'rolling' ? $data['rotation_group'] : null,
             ]);
 
             EmployeeShiftOverride::query()
@@ -152,6 +203,46 @@ class WorkRuleAdminController extends Controller
         });
 
         return $this->redirectWithSuccess('Penetapan shift dan skema upah berhasil disimpan.');
+    }
+
+    public function storeRotationSetting(Request $request)
+    {
+        $data = $request->validate([
+            'anchor_week_start' => ['required', 'date'],
+            'group_a_shift_id' => ['required', 'integer', 'different:group_b_shift_id', 'exists:work_shifts,id'],
+            'group_b_shift_id' => ['required', 'integer', 'exists:work_shifts,id'],
+        ]);
+
+        $anchorWeekStart = Carbon::parse($data['anchor_week_start'])->startOfDay();
+        $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
+        if (!$anchorWeekStart->isMonday() || $anchorWeekStart->lt($nextWeekStart)) {
+            throw ValidationException::withMessages([
+                'anchor_week_start' => 'Tanggal mulai rotasi harus hari Senin minggu depan atau setelahnya.',
+            ]);
+        }
+
+        $shifts = WorkShift::query()
+            ->whereIn('id', [$data['group_a_shift_id'], $data['group_b_shift_id']])
+            ->where('is_active', true)
+            ->count();
+        if ($shifts !== 2) {
+            throw ValidationException::withMessages([
+                'group_a_shift_id' => 'Pilih dua template shift yang aktif dan berbeda.',
+            ]);
+        }
+
+        WorkShiftRotationSetting::updateOrCreate(
+            ['anchor_week_start' => $anchorWeekStart->toDateString()],
+            [
+                'group_a_shift_id' => $data['group_a_shift_id'],
+                'group_b_shift_id' => $data['group_b_shift_id'],
+                'created_by' => $request->user()->id,
+            ]
+        );
+
+        return redirect()
+            ->route('admin.work-rules.index', ['week' => $anchorWeekStart->toDateString()])
+            ->with('success', 'Pola rolling mingguan berhasil disimpan.');
     }
 
     public function storeOverride(Request $request)

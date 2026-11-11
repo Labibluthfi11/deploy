@@ -252,6 +252,21 @@
                             <label class="mb-1 block text-sm font-medium">Berlaku mulai tanggal</label>
                             <input type="date" name="effective_from" value="{{ old('effective_from', today()->toDateString()) }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Pola jadwal</label>
+                            <select name="schedule_mode" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="fixed" @selected(old('schedule_mode', 'fixed') === 'fixed')>Tetap sesuai shift default</option>
+                                <option value="rolling" @selected(old('schedule_mode') === 'rolling')>Rolling mingguan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Grup rolling</label>
+                            <select name="rotation_group" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Tidak ikut rolling</option>
+                                <option value="A" @selected(old('rotation_group') === 'A')>Grup A</option>
+                                <option value="B" @selected(old('rotation_group') === 'B')>Grup B</option>
+                            </select>
+                        </div>
                         <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Penetapan</button>
                     </form>
                 </div>
@@ -302,6 +317,92 @@
                 </div>
             </section>
 
+            <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Rotasi Shift Mingguan</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Grup A dan B otomatis bertukar setiap Senin. Karyawan berpola tetap tidak ikut rolling.
+                            Jadwal khusus per tanggal tetap menjadi pengecualian.
+                        </p>
+                    </div>
+                    <form method="GET" action="{{ route('admin.work-rules.index') }}" class="flex items-end gap-2">
+                        <div>
+                            <label for="week" class="mb-1 block text-sm font-medium">Lihat minggu (pilih tanggal)</label>
+                            <input id="week" type="date" name="week" value="{{ $weekStart->toDateString() }}" class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <button class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold dark:border-gray-600">Lihat</button>
+                    </form>
+                </div>
+
+                <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                    <form action="{{ route('admin.work-rules.rotation-settings.store') }}" method="POST" class="grid gap-4 rounded-xl bg-gray-50 p-4 dark:bg-gray-900 sm:grid-cols-2">
+                        @csrf
+                        <div class="sm:col-span-2">
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-100">Atur pola rotasi</h4>
+                            <p class="text-xs text-gray-500">Tanggal mulai harus hari Senin minggu depan atau setelahnya. Shift grup bertukar otomatis setiap minggu.</p>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Mulai rotasi (Senin)</label>
+                            <input type="date" name="anchor_week_start" value="{{ old('anchor_week_start', today()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->toDateString()) }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Shift pertama Grup A</label>
+                            <select name="group_a_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih shift</option>
+                                @foreach($shifts->where('is_active', true) as $shift)
+                                    <option value="{{ $shift->id }}" @selected(old('group_a_shift_id') == $shift->id)>{{ $shift->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Shift pertama Grup B</label>
+                            <select name="group_b_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih shift</option>
+                                @foreach($shifts->where('is_active', true) as $shift)
+                                    <option value="{{ $shift->id }}" @selected(old('group_b_shift_id') == $shift->id)>{{ $shift->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 sm:col-span-2">Simpan Pola Rolling</button>
+                    </form>
+
+                    <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <h4 class="font-semibold text-gray-800 dark:text-gray-100">
+                            Jadwal {{ $weekStart->format('d M') }} – {{ $weekEnd->format('d M Y') }}
+                        </h4>
+                        @if($rotationSetting)
+                            <p class="mt-1 text-sm text-gray-500">
+                                @if($weekStart->lt($rotationSetting->anchor_week_start))
+                                    Rotasi belum dimulai untuk minggu ini.
+                                @else
+                                    Grup A: {{ $rotationShifts['A']->name }} · Grup B: {{ $rotationShifts['B']->name }}
+                                @endif
+                            </p>
+                        @else
+                            <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">Pola rolling belum diatur; karyawan memakai shift default.</p>
+                        @endif
+                        <div class="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm">
+                            @foreach($rotationAssignments as $assignment)
+                                <div class="flex justify-between gap-3">
+                                    <span>{{ $assignment->user->name }} · Grup {{ $assignment->rotation_group }}</span>
+                                    <span class="text-gray-500">{{ $rotationShifts[$assignment->rotation_group]->name ?? $assignment->workShift->name }}</span>
+                                </div>
+                            @endforeach
+                            @foreach($fixedAssignments as $assignment)
+                                <div class="flex justify-between gap-3">
+                                    <span>{{ $assignment->user->name }} · Tetap</span>
+                                    <span class="text-gray-500">{{ $assignment->workShift->name }}</span>
+                                </div>
+                            @endforeach
+                            @if($rotationAssignments->isEmpty() && $fixedAssignments->isEmpty())
+                                <p class="text-gray-500">Belum ada penetapan karyawan yang berlaku di minggu ini.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Riwayat Penetapan Karyawan</h3>
@@ -313,6 +414,7 @@
                                 <th class="px-5 py-3">Karyawan</th>
                                 <th class="px-5 py-3">Shift</th>
                                 <th class="px-5 py-3">Skema</th>
+                                <th class="px-5 py-3">Pola</th>
                                 <th class="px-5 py-3">Masa berlaku</th>
                             </tr>
                         </thead>
@@ -322,10 +424,11 @@
                                     <td class="px-5 py-3 font-medium">{{ $assignment->user->name }}{{ $assignment->user->id_karyawan ? ' · ' . $assignment->user->id_karyawan : '' }}</td>
                                     <td class="px-5 py-3">{{ $assignment->workShift->name }}</td>
                                     <td class="px-5 py-3">{{ $assignment->payScheme->name }} · Rp{{ number_format((float) $assignment->payScheme->daily_salary, 0, ',', '.') }}</td>
+                                    <td class="px-5 py-3">{{ $assignment->schedule_mode === 'rolling' ? 'Rolling · Grup ' . $assignment->rotation_group : 'Tetap' }}</td>
                                     <td class="px-5 py-3">{{ $assignment->effective_from->format('d M Y') }} – {{ $assignment->effective_until ? $assignment->effective_until->format('d M Y') : 'seterusnya' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="px-5 py-8 text-center text-gray-500">Belum ada penetapan shift dan skema upah.</td></tr>
+                                <tr><td colspan="5" class="px-5 py-8 text-center text-gray-500">Belum ada penetapan shift dan skema upah.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
