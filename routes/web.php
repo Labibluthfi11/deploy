@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AbsensiAdminController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Admin\LeaveBalanceController;
+use App\Http\Controllers\Admin\WorkRuleAdminController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +54,17 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
             Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])->name('admin.absensi.bulk-export-pdf')->middleware('block.pkl');
             Route::get('/activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
         });
+
+    });
+
+    Route::prefix('work-rules')->name('admin.work-rules.')->group(function () {
+        Route::get('/', [WorkRuleAdminController::class, 'index'])->name('index');
+        Route::post('/shifts', [WorkRuleAdminController::class, 'storeShift'])->name('shifts.store');
+        Route::put('/shifts/{shift}', [WorkRuleAdminController::class, 'updateShift'])->name('shifts.update');
+        Route::post('/pay-schemes', [WorkRuleAdminController::class, 'storePayScheme'])->name('pay-schemes.store');
+        Route::put('/pay-schemes/{payScheme}', [WorkRuleAdminController::class, 'updatePayScheme'])->name('pay-schemes.update');
+        Route::post('/assignments', [WorkRuleAdminController::class, 'storeAssignment'])->name('assignments.store');
+        Route::post('/shift-overrides', [WorkRuleAdminController::class, 'storeOverride'])->name('shift-overrides.store');
     });
 
     // HARI LIBUR

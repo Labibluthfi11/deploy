@@ -1,0 +1,339 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Shift & Skema Upah</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Atur jam kerja, aturan upah, dan penetapannya ke karyawan.
+            </p>
+        </div>
+    </x-slot>
+
+    <div class="space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl space-y-6">
+            @if(session('success'))
+                <div class="rounded-lg border-l-4 border-emerald-500 bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="rounded-lg border-l-4 border-red-500 bg-red-50 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-200">
+                    <p class="font-semibold">Periksa kembali data yang dimasukkan:</p>
+                    <ul class="mt-2 list-inside list-disc text-sm">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <section class="grid gap-6 xl:grid-cols-2">
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Template Shift</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Jam selesai sebelum atau sama dengan jam mulai dianggap melewati tengah malam.</p>
+
+                    <form action="{{ route('admin.work-rules.shifts.store') }}" method="POST" class="mt-5 grid gap-4 sm:grid-cols-2">
+                        @csrf
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-medium">Nama shift</label>
+                            <input name="name" value="{{ old('name') }}" required maxlength="100" placeholder="Contoh: Pagi"
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Mulai</label>
+                            <input type="time" name="starts_at" value="{{ old('starts_at', '08:00') }}" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Selesai</label>
+                            <input type="time" name="ends_at" value="{{ old('ends_at', '17:00') }}" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Mulai istirahat</label>
+                            <input type="time" name="break_starts_at" value="{{ old('break_starts_at', '12:00') }}"
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Selesai istirahat</label>
+                            <input type="time" name="break_ends_at" value="{{ old('break_ends_at', '13:00') }}"
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button class="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Tambah Shift</button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 space-y-4">
+                        @forelse($shifts as $shift)
+                            <form action="{{ route('admin.work-rules.shifts.update', $shift) }}" method="POST" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+                                @method('PUT')
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div class="sm:col-span-2">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Nama</label>
+                                        <input name="name" value="{{ $shift->name }}" required maxlength="100"
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Mulai</label>
+                                        <input type="time" name="starts_at" value="{{ substr($shift->starts_at, 0, 5) }}" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Selesai</label>
+                                        <input type="time" name="ends_at" value="{{ substr($shift->ends_at, 0, 5) }}" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Mulai istirahat</label>
+                                        <input type="time" name="break_starts_at" value="{{ $shift->break_starts_at ? substr($shift->break_starts_at, 0, 5) : '' }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Selesai istirahat</label>
+                                        <input type="time" name="break_ends_at" value="{{ $shift->break_ends_at ? substr($shift->break_ends_at, 0, 5) : '' }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm sm:col-span-2">
+                                        <input type="checkbox" name="is_active" value="1" @checked($shift->is_active) class="rounded border-gray-300 text-indigo-600">
+                                        Aktif
+                                        <span class="ml-auto text-xs text-gray-500">{{ $shift->employee_assignments_count }} penetapan · {{ $shift->employee_overrides_count }} jadwal khusus</span>
+                                    </label>
+                                    <div class="sm:col-span-2">
+                                        <button class="rounded-lg border border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/30">Simpan Shift</button>
+                                    </div>
+                                </div>
+                            </form>
+                        @empty
+                            <p class="rounded-lg bg-gray-50 p-4 text-sm text-gray-500 dark:bg-gray-900">Belum ada template shift.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Skema Upah</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Tarif lembur memakai upah harian ÷ jam kerja standar × pengali lembur.</p>
+
+                    <form action="{{ route('admin.work-rules.pay-schemes.store') }}" method="POST" class="mt-5 grid gap-4 sm:grid-cols-2">
+                        @csrf
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-medium">Nama skema</label>
+                            <input name="name" value="{{ old('name') }}" required maxlength="100" placeholder="Contoh: Harian 150"
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Upah harian (Rp)</label>
+                            <input type="number" name="daily_salary" value="{{ old('daily_salary') }}" min="0" step="0.01" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Jam kerja standar (menit)</label>
+                            <input type="number" name="standard_work_minutes" value="{{ old('standard_work_minutes', 480) }}" min="1" max="1440" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Pembulatan telat (menit)</label>
+                            <input type="number" name="late_rounding_minutes" value="{{ old('late_rounding_minutes', 15) }}" min="1" max="1440" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Pembulatan lembur (menit)</label>
+                            <input type="number" name="overtime_rounding_minutes" value="{{ old('overtime_rounding_minutes', 30) }}" min="1" max="1440" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Pengali upah Sabtu/Minggu</label>
+                            <input type="number" name="weekend_daily_multiplier" value="{{ old('weekend_daily_multiplier', 2) }}" min="0" max="100" step="0.01" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Pengali lembur</label>
+                            <input type="number" name="overtime_multiplier" value="{{ old('overtime_multiplier', 1) }}" min="0" max="100" step="0.01" required
+                                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button class="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Tambah Skema</button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 space-y-4">
+                        @forelse($paySchemes as $scheme)
+                            <form action="{{ route('admin.work-rules.pay-schemes.update', $scheme) }}" method="POST" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+                                @method('PUT')
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div class="sm:col-span-2">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Nama skema</label>
+                                        <input name="name" value="{{ $scheme->name }}" required maxlength="100"
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Upah harian (Rp)</label>
+                                        <input type="number" name="daily_salary" value="{{ $scheme->daily_salary }}" min="0" step="0.01" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Jam kerja standar (menit)</label>
+                                        <input type="number" name="standard_work_minutes" value="{{ $scheme->standard_work_minutes }}" min="1" max="1440" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Pembulatan telat (menit)</label>
+                                        <input type="number" name="late_rounding_minutes" value="{{ $scheme->late_rounding_minutes }}" min="1" max="1440" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Pembulatan lembur (menit)</label>
+                                        <input type="number" name="overtime_rounding_minutes" value="{{ $scheme->overtime_rounding_minutes }}" min="1" max="1440" required
+                                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Pengali upah weekend</label>
+                                        <input type="number" name="weekend_daily_multiplier" value="{{ $scheme->weekend_daily_multiplier }}" min="0" max="100" step="0.01" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-medium text-gray-500">Pengali lembur</label>
+                                        <input type="number" name="overtime_multiplier" value="{{ $scheme->overtime_multiplier }}" min="0" max="100" step="0.01" required
+                                               class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm sm:col-span-2">
+                                        <input type="checkbox" name="is_active" value="1" @checked($scheme->is_active) class="rounded border-gray-300 text-indigo-600">
+                                        Aktif
+                                        <span class="ml-auto text-xs text-gray-500">{{ $scheme->employee_assignments_count }} penetapan</span>
+                                    </label>
+                                    <div class="sm:col-span-2">
+                                        <button class="rounded-lg border border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/30">Simpan Skema</button>
+                                    </div>
+                                </div>
+                            </form>
+                        @empty
+                            <p class="rounded-lg bg-gray-50 p-4 text-sm text-gray-500 dark:bg-gray-900">Belum ada skema upah.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid gap-6 xl:grid-cols-2">
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Tetapkan Shift & Skema ke Karyawan</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Penetapan baru mengakhiri penetapan sebelumnya sehari sebelum tanggal mulai. Riwayat tidak dihapus.</p>
+                    <form action="{{ route('admin.work-rules.assignments.store') }}" method="POST" class="mt-5 grid gap-4">
+                        @csrf
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Karyawan</label>
+                            <select name="user_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih karyawan</option>
+                                @foreach($employees as $employee)
+                                    <option value="{{ $employee->id }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Shift default</label>
+                            <select name="work_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih shift</option>
+                                @foreach($shifts->where('is_active', true) as $shift)
+                                    <option value="{{ $shift->id }}" @selected(old('work_shift_id') == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Skema upah</label>
+                            <select name="pay_scheme_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih skema</option>
+                                @foreach($paySchemes->where('is_active', true) as $scheme)
+                                    <option value="{{ $scheme->id }}" @selected(old('pay_scheme_id') == $scheme->id)>{{ $scheme->name }} · Rp{{ number_format((float) $scheme->daily_salary, 0, ',', '.') }}/hari</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Berlaku mulai tanggal</label>
+                            <input type="date" name="effective_from" value="{{ old('effective_from', today()->toDateString()) }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Penetapan</button>
+                    </form>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Jadwal Shift Khusus</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Gunakan untuk tukar atau perubahan shift pada satu tanggal. Skema upah tetap mengikuti penetapan karyawan.</p>
+                    <form action="{{ route('admin.work-rules.shift-overrides.store') }}" method="POST" class="mt-5 grid gap-4">
+                        @csrf
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Karyawan</label>
+                            <select name="user_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih karyawan</option>
+                                @foreach($employees as $employee)
+                                    <option value="{{ $employee->id }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Shift pada tanggal tersebut</label>
+                            <select name="work_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Pilih shift</option>
+                                @foreach($shifts->where('is_active', true) as $shift)
+                                    <option value="{{ $shift->id }}" @selected(old('work_shift_id') == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Tanggal shift dimulai</label>
+                            <input type="date" name="work_date" value="{{ old('work_date') }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Jadwal Khusus</button>
+                    </form>
+
+                    <div class="mt-6">
+                        <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Jadwal khusus mendatang</h4>
+                        <div class="space-y-2">
+                            @forelse($overrides as $override)
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-900">
+                                    <span class="font-medium">{{ $override->user->name }}</span>
+                                    <span class="text-gray-500 dark:text-gray-400">{{ $override->work_date->format('d M Y') }} · {{ $override->workShift->name }}</span>
+                                </div>
+                            @empty
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada jadwal khusus mendatang.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Riwayat Penetapan Karyawan</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-gray-900">
+                            <tr>
+                                <th class="px-5 py-3">Karyawan</th>
+                                <th class="px-5 py-3">Shift</th>
+                                <th class="px-5 py-3">Skema</th>
+                                <th class="px-5 py-3">Masa berlaku</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            @forelse($assignments as $assignment)
+                                <tr>
+                                    <td class="px-5 py-3 font-medium">{{ $assignment->user->name }}{{ $assignment->user->id_karyawan ? ' · ' . $assignment->user->id_karyawan : '' }}</td>
+                                    <td class="px-5 py-3">{{ $assignment->workShift->name }}</td>
+                                    <td class="px-5 py-3">{{ $assignment->payScheme->name }} · Rp{{ number_format((float) $assignment->payScheme->daily_salary, 0, ',', '.') }}</td>
+                                    <td class="px-5 py-3">{{ $assignment->effective_from->format('d M Y') }} – {{ $assignment->effective_until ? $assignment->effective_until->format('d M Y') : 'seterusnya' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="px-5 py-8 text-center text-gray-500">Belum ada penetapan shift dan skema upah.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @if($assignments->hasPages())
+                    <div class="border-t border-gray-200 px-5 py-4 dark:border-gray-700">{{ $assignments->links() }}</div>
+                @endif
+            </section>
+        </div>
+    </div>
+</x-app-layout>

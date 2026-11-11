@@ -27,7 +27,19 @@ class AbsensiResource extends JsonResource
             // Status & Indikator
             'status' => $this->status,
             'is_late' => (bool) ($this->late_minutes > 0),
+            'late_minutes' => $this->late_minutes,
+            'rounded_late_minutes' => $this->rounded_late_minutes,
             'keterangan_telat' => $this->keterangan_izin_sakit ?? '-', // Map to correct field
+
+            // Payroll and shift configuration
+            'work_shift_id' => $this->work_shift_id,
+            'pay_scheme_id' => $this->pay_scheme_id,
+            'payroll_snapshot' => $this->payroll_snapshot,
+            'base_salary' => $this->base_salary,
+            'late_penalty' => $this->late_penalty,
+            'overtime_minutes' => $this->overtime_minutes,
+            'overtime_pay' => $this->overtime_pay,
+            'final_salary' => $this->final_salary,
 
             // Data Lembur
             'lembur_start' => $this->lembur_start

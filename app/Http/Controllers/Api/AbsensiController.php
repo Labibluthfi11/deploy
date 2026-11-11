@@ -14,7 +14,9 @@ use Illuminate\Validation\ValidationException;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Validator;
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Http\Resources\AbsensiResource;
+use App\Services\AttendanceWorkRules;
 
 
 class AbsensiController extends Controller
@@ -84,16 +86,37 @@ class AbsensiController extends Controller
         return $resetWorkflow;
     }
 
-    private function calculateLateMinutes($checkInTime, bool $isWeekend = false): int
+    private function calculateLateMinutes($checkInTime, ?array $snapshot = null): int
     {
-        $checkIn = Carbon::parse($checkInTime);
-        $standardTime = $checkIn->copy()->setTime(8, 0, 0);
+        return app(AttendanceWorkRules::class)->lateMinutes(Carbon::parse($checkInTime), $snapshot);
+    }
 
-        if ($checkIn->greaterThan($standardTime)) {
-            return (int) abs($checkIn->diffInMinutes($standardTime));
+    private function findAttendanceForWorkDate(User $user, Carbon $workDate, bool $mustBeOpen = false): ?Absensi
+    {
+        $workRules = app(AttendanceWorkRules::class);
+        $query = Absensi::where('user_id', $user->id)
+            ->whereBetween('check_in_at', [
+                $workDate->copy()->subDay()->startOfDay(),
+                $workDate->copy()->endOfDay(),
+            ])
+            ->whereIn('status_approval', ['pending', 'approved']);
+
+        if ($mustBeOpen) {
+            $query->whereNull('check_out_at');
         }
 
-        return 0;
+        return $query->orderByDesc('check_in_at')
+            ->get()
+            ->first(function (Absensi $candidate) use ($workDate, $user, $workRules) {
+                $checkInDate = Carbon::parse($candidate->check_in_at)->startOfDay();
+                if ($checkInDate->equalTo($workDate)) {
+                    return true;
+                }
+
+                $configuration = $workRules->forEmployee($user, $checkInDate, $candidate);
+                return ($configuration['snapshot']['shift']['crosses_midnight'] ?? false)
+                    && $checkInDate->copy()->addDay()->equalTo($workDate);
+            });
     }
 
     public function absenMasuk(Request $request)
@@ -110,8 +133,14 @@ class AbsensiController extends Controller
         $user = Auth::user();
 
         $today = Carbon::today();
+        $workRules = app(AttendanceWorkRules::class);
+        $configuration = $workRules->forEmployee($user, $today);
 
-        if ($request->status === 'hadir' && \App\Models\Holiday::isHoliday($today)) {
+        $isConfiguredWeekendShift = $configuration['snapshot']
+            && Absensi::isWeekend($today);
+        if ($request->status === 'hadir'
+            && \App\Models\Holiday::isHoliday($today)
+            && !$isConfiguredWeekendShift) {
             $holiday = \App\Models\Holiday::where('holiday_date', $today->toDateString())->first();
             return response()->json([
                 'message' => "Hari ini adalah hari libur ({$holiday->name}). Anda tidak dapat melakukan absen reguler. Silakan gunakan menu Absen Lembur jika Anda ditugaskan masuk."
@@ -145,14 +174,16 @@ class AbsensiController extends Controller
                 $lokasiMasuk = $request->lat . ',' . $request->lng;
                 $checkInTime = now();
                 $isWeekend = Absensi::isWeekend($checkInTime);
+                $kategori = $user->kategori_absensi;
+                $configuration = $workRules->forEmployee($user, $checkInTime->copy()->startOfDay());
+                $attendanceAttributes = $workRules->attendanceAttributes($configuration);
                 $lateMinutes = 0;
 
                 if ($request->status === 'hadir') {
-                    $kategori = $user->kategori_absensi;
-
-
-                    if ($kategori !== 'organik' && $kategori !== 'magang') {
-                        $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
+                    if ($configuration['snapshot']) {
+                        $lateMinutes = $this->calculateLateMinutes($checkInTime, $configuration['snapshot']);
+                    } elseif ($kategori !== 'organik' && $kategori !== 'magang') {
+                        $lateMinutes = $this->calculateLateMinutes($checkInTime);
                     }
                 }
 
@@ -163,7 +194,9 @@ class AbsensiController extends Controller
                     $isWeekend,
                     $checkInTime,
                     null,
-                    $kategori
+                    $kategori,
+                    null,
+                    $configuration['snapshot']
                 );
 
 
@@ -185,7 +218,7 @@ class AbsensiController extends Controller
                     'final_salary' => $salaryData['final_salary'],
                     'is_weekend_overtime' => false,
                     'is_mocked' => $request->boolean('is_mocked'),
-                ]);
+                ] + $attendanceAttributes);
 
 
                 $existingAbsensi->load('user');
@@ -197,7 +230,7 @@ class AbsensiController extends Controller
                 return response()->json([
 
                     'message' => 'Absensi berhasil! Izin yang ditolak otomatis diubah jadi hadir.'
-                                . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
+                                . ($isWeekend ? ' (Tarif akhir pekan berlaku)' : ''),
                     'data' => $existingAbsensi
                 ], 200);
             }
@@ -218,14 +251,16 @@ class AbsensiController extends Controller
         $employment = strtolower($user->work_location ?? 'office');
         $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
         $isWeekend = Absensi::isWeekend($checkInTime);
+        $kategori = $user->kategori_absensi;
+        $configuration = $workRules->forEmployee($user, $checkInTime->copy()->startOfDay());
+        $attendanceAttributes = $workRules->attendanceAttributes($configuration);
         $lateMinutes = 0;
 
         if ($request->status === 'hadir') {
-            $kategori = $user->kategori_absensi;
-
-            
-            if ($kategori !== 'organik' && $kategori !== 'magang') {
-                $lateMinutes = $this->calculateLateMinutes($checkInTime, $isWeekend);
+            if ($configuration['snapshot']) {
+                $lateMinutes = $this->calculateLateMinutes($checkInTime, $configuration['snapshot']);
+            } elseif ($kategori !== 'organik' && $kategori !== 'magang') {
+                $lateMinutes = $this->calculateLateMinutes($checkInTime);
             }
         }
 
@@ -236,7 +271,9 @@ class AbsensiController extends Controller
     $isWeekend,
     $checkInTime,
     null,
-    $kategori
+    $kategori,
+    null,
+    $configuration['snapshot']
 );
 
         $absensi = Absensi::create([
@@ -255,7 +292,7 @@ class AbsensiController extends Controller
             'late_penalty' => $salaryData['late_penalty'],
             'final_salary' => $salaryData['final_salary'],
             'is_weekend_overtime' => false,
-        ]);
+        ] + $attendanceAttributes);
 
 
         $absensi->load('user');
@@ -266,7 +303,7 @@ class AbsensiController extends Controller
 
         return response()->json([
 
-            'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Weekend - Gaji 2x Lipat)' : ''),
+            'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Tarif akhir pekan berlaku)' : ''),
             'data' => $absensi
         ], 201);
 
@@ -298,10 +335,8 @@ class AbsensiController extends Controller
             $user = Auth::user();
             $today = Carbon::today();
 
-            $absensi = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
-                ->whereIn('status_approval', ['pending', 'approved'])
-                ->first();
+            $workRules = app(AttendanceWorkRules::class);
+            $absensi = $this->findAttendanceForWorkDate($user, $today, true);
 
             if (!$absensi) {
                 return response()->json(['message' => 'Anda belum absen masuk hari ini.'], 400);
@@ -429,6 +464,8 @@ class AbsensiController extends Controller
 
             $kategori = $user->kategori_absensi;
 
+            $configuration = $workRules->forEmployee($user, Carbon::parse($absensi->check_in_at)->startOfDay(), $absensi);
+            $attendanceAttributes = $workRules->attendanceAttributes($configuration);
             $updatedSalary = Absensi::calculateSalary(
                 $lateMinutes,
                 $absensi->status,
@@ -436,7 +473,9 @@ class AbsensiController extends Controller
                 $isWeekend,
                 $absensi->check_in_at,
                 $checkOutTime,
-                $kategori
+                $kategori,
+                null,
+                $configuration['snapshot']
             );
 
             if ($request->tipe === 'lembur') {
@@ -471,7 +510,7 @@ class AbsensiController extends Controller
                 'late_penalty' => $updatedSalary['late_penalty'],
                 'final_salary' => $updatedSalary['final_salary'],
                 'is_mocked' => $request->boolean('is_mocked'),
-            ]);
+            ] + $attendanceAttributes);
 
             $absensi->load('user');
             $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
@@ -1271,10 +1310,7 @@ private function attachHistoryApproval(Absensi $record): void
             $user = Auth::user();
             $today = Carbon::today();
 
-            $absensi = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
-                ->whereIn('status_approval', ['pending', 'approved'])
-                ->first();
+            $absensi = $this->findAttendanceForWorkDate($user, $today);
 
             if (!$absensi) {
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
@@ -1314,29 +1350,23 @@ private function attachHistoryApproval(Absensi $record): void
             $lemburStart = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_mulai);
             $lemburEnd = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_selesai);
 
-            
-            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+            $configuration = app(AttendanceWorkRules::class)->forEmployee(
+                $user,
+                Carbon::parse($absensi->check_in_at)->startOfDay(),
+                $absensi
+            );
+            $attendanceAttributes = app(AttendanceWorkRules::class)->attendanceAttributes($configuration);
+            $isWeekendOvertime = !$configuration['snapshot']
+                && $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
 
-            
             $overtimeData = Absensi::calculateOvertimeFromInput(
                 $lemburStart,
                 $lemburEnd,
                 $request->istirahat,
-                $isWeekendOvertime 
-            );
-
-
-            $kategori = $user->kategori_absensi;
-            $lateMinutes = $absensi->late_minutes ?? 0; 
-            $salaryData = Absensi::calculateSalary(
-                $lateMinutes,
-                $absensi->status,
-                'lembur',
                 $isWeekendOvertime,
-                $absensi->check_in_at,
-                now(),
-                $kategori
+                $configuration['snapshot']
             );
+
 
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
@@ -1374,16 +1404,19 @@ private function attachHistoryApproval(Absensi $record): void
                 'keterangan_goals'      => $request->keterangan_goals,
                 'overtime_minutes'      => $overtimeData['minutes'],
                 'overtime_pay'          => $overtimeData['pay'],
+                'base_salary'           => 0,
+                'late_penalty'          => 0,
+                'final_salary'          => 0,
                 'is_weekend_overtime'   => $isWeekendOvertime,
                 'is_mocked'             => $request->boolean('is_mocked'),
-            ]);
+            ] + $attendanceAttributes);
 
             $childLembur->load('user');
             $childLembur->foto_pulang_url = Storage::url($childLembur->foto_pulang);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Absensi lembur berhasil diajukan sebagai record baru.' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
+                'message' => 'Absensi lembur berhasil diajukan sebagai record baru.',
                 'data' => $childLembur,
                 'overtime_info' => [
                     'minutes' => $overtimeData['minutes'],
@@ -1435,10 +1468,7 @@ private function attachHistoryApproval(Absensi $record): void
             $today = Carbon::today();
 
             
-            $absensi = Absensi::where('user_id', $user->id)
-                ->whereBetween('check_in_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])
-                ->whereIn('status_approval', ['pending', 'approved'])
-                ->first();
+            $absensi = $this->findAttendanceForWorkDate($user, $today);
 
             if (!$absensi) {
                 return response()->json(['success' => false, 'message' => 'Anda belum absen masuk hari ini.'], 400);
@@ -1477,25 +1507,21 @@ private function attachHistoryApproval(Absensi $record): void
             $lemburStart = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_mulai);
             $lemburEnd = Carbon::parse($today->format('Y-m-d') . ' ' . $request->jam_selesai);
 
-            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+            $configuration = app(AttendanceWorkRules::class)->forEmployee(
+                $user,
+                Carbon::parse($absensi->check_in_at)->startOfDay(),
+                $absensi
+            );
+            $attendanceAttributes = app(AttendanceWorkRules::class)->attendanceAttributes($configuration);
+            $isWeekendOvertime = !$configuration['snapshot']
+                && $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
 
             $overtimeData = Absensi::calculateOvertimeFromInput(
                 $lemburStart,
                 $lemburEnd,
                 $request->istirahat,
-                $isWeekendOvertime
-            );
-
-            $kategori = $user->kategori_absensi;
-            $lateMinutes = $absensi->late_minutes ?? 0; 
-            $salaryData = Absensi::calculateSalary(
-                $lateMinutes,
-                $absensi->status,
-                'lembur',
                 $isWeekendOvertime,
-                $absensi->check_in_at,
-                now(),
-                $kategori
+                $configuration['snapshot']
             );
 
             $employment = strtolower($user->work_location ?? 'office');
@@ -1532,15 +1558,18 @@ private function attachHistoryApproval(Absensi $record): void
                 'keterangan_goals'      => $request->keterangan_goals,
                 'overtime_minutes'      => $overtimeData['minutes'],
                 'overtime_pay'          => $overtimeData['pay'],
+                'base_salary'           => 0,
+                'late_penalty'          => 0,
+                'final_salary'          => 0,
                 'is_weekend_overtime'   => $isWeekendOvertime,
                 'is_mocked'             => $request->boolean('is_mocked'),
-            ]);
+            ] + $attendanceAttributes);
 
             $childLembur->load('user');
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pengajuan lembur berhasil diajukan sebagai record baru.' . ($isWeekendOvertime ? ' (Weekend - Rate 2x)' : ''),
+                'message' => 'Pengajuan lembur berhasil diajukan sebagai record baru.',
                 'data' => $childLembur,
                 'overtime_info' => [
                     'minutes' => $overtimeData['minutes'],
@@ -1983,24 +2012,26 @@ private function attachHistoryApproval(Absensi $record): void
             $baseDate = $absensi->check_in_at ? Carbon::parse($absensi->check_in_at)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
             $lemburStart = Carbon::parse($baseDate . ' ' . $request->jam_mulai);
             $lemburEnd = Carbon::parse($baseDate . ' ' . $request->jam_selesai);
-            $isWeekendOvertime = $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
+            $configuration = app(AttendanceWorkRules::class)->forEmployee(
+                $absensi->user,
+                Carbon::parse($baseDate)->startOfDay(),
+                $absensi
+            );
+            $attendanceAttributes = app(AttendanceWorkRules::class)->attendanceAttributes($configuration);
+            $isWeekendOvertime = !$configuration['snapshot']
+                && $request->boolean('is_weekend', Absensi::isWeekend($lemburStart));
 
             $employment = strtolower($absensi->user->work_location ?? 'office');
             $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
             $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
             $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
 
-            $overtimeData = Absensi::calculateOvertimeFromInput($lemburStart, $lemburEnd, $request->istirahat, $isWeekendOvertime);
-
-            $kategori = $absensi->user->kategori_absensi;
-            $salaryData = Absensi::calculateSalary(
-                $absensi->late_minutes ?? 0,
-                $absensi->status,
-                'lembur',
+            $overtimeData = Absensi::calculateOvertimeFromInput(
+                $lemburStart,
+                $lemburEnd,
+                $request->istirahat,
                 $isWeekendOvertime,
-                $absensi->check_in_at,
-                $absensi->check_out_at ?? now(),
-                $kategori
+                $configuration['snapshot']
             );
 
             $absensi->update(array_merge($newPaths, [
@@ -2023,11 +2054,11 @@ private function attachHistoryApproval(Absensi $record): void
             'updated_at'            => now(),
             'overtime_minutes'      => $overtimeData['minutes'],
             'overtime_pay'          => $overtimeData['pay'],
-            'base_salary'           => $absensi->base_salary ?? $salaryData['base_salary'],
-            'late_penalty'          => $absensi->late_penalty ?? $salaryData['late_penalty'],
-            'final_salary'          => $absensi->final_salary ?? $salaryData['final_salary'],
+            'base_salary'           => 0,
+            'late_penalty'          => 0,
+            'final_salary'          => 0,
             'is_weekend_overtime'   => $isWeekendOvertime,
-        ]));
+        ] + $attendanceAttributes));
 
         $absensi->load('user');
         $absensi->foto_pulang_url = Storage::url($absensi->foto_pulang);
@@ -2157,10 +2188,13 @@ public function pengajuanTelat(Request $request)
 
         
         $checkIn = Carbon::parse($absensi->check_in_at);
-        $standardTime = $checkIn->copy()->setTime(8, 0, 0);
-        $lateMinutes = $checkIn->greaterThan($standardTime)
-            ? (int) abs($checkIn->diffInMinutes($standardTime))
-            : 0;
+        $workRules = app(AttendanceWorkRules::class);
+        $configuration = $workRules->forEmployee($user, $checkIn->copy()->startOfDay(), $absensi);
+        if ($configuration['snapshot'] && !$absensi->payroll_snapshot) {
+            $absensi->fill($workRules->attendanceAttributes($configuration));
+            $absensi->save();
+        }
+        $lateMinutes = $workRules->lateMinutes($checkIn, $configuration['snapshot']);
 
         if ($lateMinutes === 0) {
             DB::rollBack();
@@ -2208,6 +2242,9 @@ public function pengajuanTelat(Request $request)
             'workflow_status'       => $workflow,
             'current_approval_level'=> 1,
             'late_minutes'          => $lateMinutes,
+            'work_shift_id'         => $absensi->work_shift_id,
+            'pay_scheme_id'         => $absensi->pay_scheme_id,
+            'payroll_snapshot'      => $absensi->payroll_snapshot,
         ]);
 
         

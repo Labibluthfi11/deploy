@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use App\Services\AttendanceWorkRules;
 
 class AbsensiAdminController extends Controller
 {
@@ -963,41 +964,38 @@ public function updateCheckIn(Request $request, $id)
     $absensi = Absensi::findOrFail($id);
     $inputTime = $request->input('new_check_in');
     $newCheckIn = Carbon::parse(str_replace('T', ' ', $inputTime));
+    $workRules = app(AttendanceWorkRules::class);
+    $configuration = $workRules->forEmployee(
+        $absensi->user,
+        Carbon::parse($absensi->check_in_at ?? $newCheckIn)->startOfDay(),
+        $absensi
+    );
 
-    $jamMasukShift = Carbon::parse($newCheckIn->format('Y-m-d') . ' 08:00:00');
-
-    // Hitung telat
-    $lateMinutes = 0;
-    if ($newCheckIn->greaterThan($jamMasukShift)) {
-        $lateMinutes = $newCheckIn->diffInMinutes($jamMasukShift);
-    }
-
-    // Bulatkan ke kelipatan 15 menit
-    $roundedLateMinutes = 0;
-    if ($lateMinutes > 0) {
-        $roundedLateMinutes = ceil($lateMinutes / 15) * 15;
-    }
-
-    // Hitung denda
     $user = $absensi->user;
-    $baseSalaryPerDay = $user->base_salary_per_day ?? 0;
-    $tarifDendaTelat = $baseSalaryPerDay > 0 ? $baseSalaryPerDay / 480 : 0;
-    $latePenalty = $roundedLateMinutes * $tarifDendaTelat;
+    $lateMinutes = $workRules->lateMinutes($newCheckIn, $configuration['snapshot']);
+    $salaryData = Absensi::calculateSalary(
+        $lateMinutes,
+        $absensi->status,
+        $absensi->tipe,
+        Absensi::isWeekend($newCheckIn),
+        $newCheckIn,
+        $absensi->check_out_at,
+        $user->kategori_absensi,
+        $absensi->catatan_admin,
+        $configuration['snapshot']
+    );
 
-    // Hitung gaji bersih
-    $finalSalary = $absensi->base_salary - $latePenalty + ($absensi->overtime_pay ?? 0);
-
-    // Update database
     DB::table('absensis')
         ->where('id', $absensi->id)
-        ->update([
+        ->update(array_merge([
             'check_in_at' => $newCheckIn,
             'late_minutes' => $lateMinutes,
-            'rounded_late_minutes' => $roundedLateMinutes,
-            'late_penalty' => $latePenalty,
-            'final_salary' => $finalSalary,
+            'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+            'base_salary' => $salaryData['base_salary'],
+            'late_penalty' => $salaryData['late_penalty'],
+            'final_salary' => max(0, $salaryData['final_salary'] + (float) ($absensi->overtime_pay ?? 0)),
             'updated_at' => now(),
-        ]);
+        ], $workRules->attendanceAttributes($configuration)));
 
     Log::info('✅ Check-in berhasil diubah!', [
         'absensi_id' => $absensi->id,
@@ -1005,7 +1003,7 @@ public function updateCheckIn(Request $request, $id)
         'late_minutes' => $lateMinutes,
     ]);
 
-    return back()->with('success', "✅ Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$roundedLateMinutes} menit), Denda: Rp " . number_format($latePenalty, 0, ',', '.'));
+    return back()->with('success', "✅ Check-in berhasil diubah! Telat: {$lateMinutes} menit (Dibulatkan: {$salaryData['rounded_late_minutes']} menit), Denda: Rp " . number_format($salaryData['late_penalty'], 0, ',', '.'));
     }
 
     public function updateCheckOut(Request $request, $id)
@@ -1022,13 +1020,34 @@ public function updateCheckIn(Request $request, $id)
         $absensi = Absensi::findOrFail($id);
         $inputTime = $request->input('new_check_out');
         $newCheckOut = Carbon::parse(str_replace('T', ' ', $inputTime));
+        $workRules = app(AttendanceWorkRules::class);
+        $configuration = $workRules->forEmployee(
+            $absensi->user,
+            Carbon::parse($absensi->check_in_at)->startOfDay(),
+            $absensi
+        );
+        $salaryData = Absensi::calculateSalary(
+            $absensi->late_minutes ?? 0,
+            $absensi->status,
+            $absensi->tipe,
+            Absensi::isWeekend($absensi->check_in_at),
+            $absensi->check_in_at,
+            $newCheckOut,
+            $absensi->user->kategori_absensi,
+            $absensi->catatan_admin,
+            $configuration['snapshot']
+        );
 
         DB::table('absensis')
             ->where('id', $absensi->id)
-            ->update([
+            ->update(array_merge([
                 'check_out_at' => $newCheckOut,
+                'base_salary' => $salaryData['base_salary'],
+                'late_penalty' => $salaryData['late_penalty'],
+                'rounded_late_minutes' => $salaryData['rounded_late_minutes'],
+                'final_salary' => max(0, $salaryData['final_salary'] + (float) ($absensi->overtime_pay ?? 0)),
                 'updated_at'   => now(),
-            ]);
+            ], $workRules->attendanceAttributes($configuration)));
 
         Log::info('✅ Check-out berhasil diubah!', [
             'absensi_id'    => $absensi->id,

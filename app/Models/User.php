@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -67,6 +68,16 @@ public static function cutiYangMemotong(): array
     public function absensis()
     {
         return $this->hasMany(Absensi::class);
+    }
+
+    public function workAssignments(): HasMany
+    {
+        return $this->hasMany(EmployeeWorkAssignment::class);
+    }
+
+    public function shiftOverrides(): HasMany
+    {
+        return $this->hasMany(EmployeeShiftOverride::class);
     }
 
     public function isSuperAdmin(): bool

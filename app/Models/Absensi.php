@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 
 class Absensi extends Model
@@ -88,6 +89,9 @@ class Absensi extends Model
         'adjustment_salary',
         'is_kurang_8_jam',
         'jam_pulang_rencana',
+        'work_shift_id',
+        'pay_scheme_id',
+        'payroll_snapshot',
     ];
 
     // ✅ FIX SECURITY: Field yang benar-benar sensitif tetap di guarded
@@ -119,6 +123,7 @@ class Absensi extends Model
         'final_salary' => 'decimal:2',
         'overtime_minutes' => 'integer',
         'overtime_pay' => 'decimal:2',
+        'payroll_snapshot' => 'array',
     ];
 
     protected $appends = [
@@ -160,7 +165,8 @@ class Absensi extends Model
     ?\Carbon\Carbon $checkIn = null,
     ?\Carbon\Carbon $checkOut = null,
     string $kategori = 'organik',
-    ?string $adminNote = null
+    ?string $adminNote = null,
+    ?array $payrollSnapshot = null
 ): array
 {
     $baseSalary = 0;
@@ -174,25 +180,46 @@ class Absensi extends Model
     }
 
     if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
-        $isMultiplierDay = $isWeekend || $isHoliday;
-        $dailySalary = $isMultiplierDay ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY;
-        $salaryPerMinute = $isMultiplierDay ? self::WEEKEND_SALARY_PER_MINUTE : self::SALARY_PER_MINUTE;
+        $payScheme = $payrollSnapshot['pay_scheme'] ?? null;
+        $hasConfiguredScheme = is_array($payScheme);
+        $isMultiplierDay = $hasConfiguredScheme
+            ? self::isWeekend($checkIn ?? now())
+            : ($isWeekend || $isHoliday);
+        $dailySalary = $hasConfiguredScheme
+            ? (float) $payScheme['daily_salary']
+            : ($isMultiplierDay ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY);
+        $weekendMultiplier = $hasConfiguredScheme
+            ? (float) ($payScheme['weekend_daily_multiplier'] ?? 2)
+            : 2;
+        $dailySalary *= $isMultiplierDay ? $weekendMultiplier : 1;
+        $salaryPerMinute = $dailySalary / ($hasConfiguredScheme
+            ? max(1, (int) ($payScheme['standard_work_minutes'] ?? 480))
+            : 480);
 
         // 🆕 HITUNG TOTAL JAM KERJA
         $workedMinutes = 0;
         if ($checkIn && $checkOut) {
             $effectiveCheckIn = $checkIn;
+
+            if ($hasConfiguredScheme && !empty($payrollSnapshot['shift']['starts_at'])) {
+                $effectiveCheckIn = $checkIn->copy()
+                    ->setTimeFromTimeString($payrollSnapshot['shift']['starts_at']);
+            }
             
             // 🔥 KHUSUS FREELANCE & BORONGAN:
             // Gunakan jam 08:00 sebagai start rasio gaji pokok agar tidak "Double Potong" dengan late_penalty
-            if (in_array(strtolower($kategori), ['freelance', 'borongan'])) {
+            if (!$hasConfiguredScheme && in_array(strtolower($kategori), ['freelance', 'borongan'])) {
                 $standardStart = $checkIn->copy()->setTime(8, 0, 0);
                 if ($checkIn->greaterThan($standardStart)) {
                     $effectiveCheckIn = $standardStart;
                 }
             }
             
-            $workedMinutes = self::calculateWorkedMinutes($effectiveCheckIn, $checkOut);
+            $workedMinutes = self::calculateWorkedMinutes(
+                $effectiveCheckIn,
+                $checkOut,
+                $payrollSnapshot['shift'] ?? null
+            );
             
             // 🔥 LOGIC AUTO-FLAG PENGINGAT ADMIN UNTUK ORGANIK
             if ($kategori === 'organik' && $adminNote === 'AUTO_CHECKOUT_LUPA_ABSEN') {
@@ -204,12 +231,19 @@ class Absensi extends Model
         }
 
         // 🆕 PRORATA GAJI BERDASARKAN JAM KERJA
-        $expectedMinutes = 480; // 8 jam kerja normal (exclude istirahat)
+        $expectedMinutes = $hasConfiguredScheme
+            ? max(1, (int) ($payScheme['standard_work_minutes'] ?? 480))
+            : 480;
         $workRatio = min(1, $workedMinutes / $expectedMinutes); // Max 1 (100%)
         $baseSalary = $dailySalary * $workRatio;
 
         // Potong penalty telat
-        $roundedLateMinutes = self::roundLateMinutes($actualLateMinutes);
+        $lateInterval = $hasConfiguredScheme
+            ? max(1, (int) ($payScheme['late_rounding_minutes'] ?? 15))
+            : 15;
+        $roundedLateMinutes = $actualLateMinutes > 0
+            ? (int) ceil($actualLateMinutes / $lateInterval) * $lateInterval
+            : 0;
         $latePenalty = $roundedLateMinutes * $salaryPerMinute;
         $finalSalary = max(0, $baseSalary - $latePenalty);
     }
@@ -226,23 +260,32 @@ class Absensi extends Model
 /**
  * Hitung total menit kerja (exclude istirahat 12:00-13:00)
  */
-private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\Carbon $checkOut): int
+private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\Carbon $checkOut, ?array $shift = null): int
 {
-    // Total menit dari check-in sampai check-out
     $totalMinutes = $checkIn->diffInMinutes($checkOut);
 
-    // Define waktu istirahat: 12:00 - 13:00
-    $restStart = $checkIn->copy()->setTime(12, 0, 0);
-    $restEnd = $checkIn->copy()->setTime(13, 0, 0);
+    $breakStartTime = $shift['break_starts_at'] ?? '12:00:00';
+    $breakEndTime = $shift['break_ends_at'] ?? '13:00:00';
+    if (!$breakStartTime || !$breakEndTime) {
+        return max(0, $totalMinutes);
+    }
 
-    // Cek apakah periode kerja overlap dengan jam istirahat
-    if ($checkIn->lessThan($restEnd) && $checkOut->greaterThan($restStart)) {
-        // Hitung overlap duration
-        $overlapStart = $checkIn->greaterThan($restStart) ? $checkIn : $restStart;
-        $overlapEnd = $checkOut->lessThan($restEnd) ? $checkOut : $restEnd;
+    for (
+        $date = $checkIn->copy()->startOfDay();
+        $date->lte($checkOut) && ($shift !== null || $date->equalTo($checkIn->copy()->startOfDay()));
+        $date->addDay()
+    ) {
+        $restStart = $date->copy()->setTimeFromTimeString($breakStartTime);
+        $restEnd = $date->copy()->setTimeFromTimeString($breakEndTime);
+        if ($restEnd->lte($restStart)) {
+            $restEnd->addDay();
+        }
 
-        $restMinutes = $overlapStart->diffInMinutes($overlapEnd);
-        $totalMinutes -= $restMinutes;
+        if ($checkIn->lt($restEnd) && $checkOut->gt($restStart)) {
+            $overlapStart = $checkIn->gt($restStart) ? $checkIn : $restStart;
+            $overlapEnd = $checkOut->lt($restEnd) ? $checkOut : $restEnd;
+            $totalMinutes -= $overlapStart->diffInMinutes($overlapEnd);
+        }
     }
 
     return max(0, $totalMinutes);
@@ -251,7 +294,13 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
     // ===================================================================
     // 🆕 HELPER: Hitung lembur (Support Weekend Multiplier)
     // ===================================================================
-    public static function calculateOvertimeFromInput($startTime, $endTime, bool $hasRest, bool $isWeekend = false): array
+    public static function calculateOvertimeFromInput(
+        $startTime,
+        $endTime,
+        bool $hasRest,
+        bool $isWeekend = false,
+        ?array $payrollSnapshot = null
+    ): array
     {
         try {
             $start = Carbon::parse($startTime);
@@ -265,12 +314,22 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
                 $finalOvertimeMinutes = 0;
             }
 
-            $isHoliday = \App\Models\Holiday::isHoliday($startTime);
-            $isMultiplierDay = $isWeekend || $isHoliday;
-
-            // 🆕 Pake rate sesuai weekend atau bukan
-            $hourlyRate = $isMultiplierDay ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
-            $overtimePay = ($finalOvertimeMinutes / 60) * $hourlyRate;
+            $payScheme = $payrollSnapshot['pay_scheme'] ?? null;
+            if (is_array($payScheme)) {
+                $roundingMinutes = max(1, (int) ($payScheme['overtime_rounding_minutes'] ?? 30));
+                $finalOvertimeMinutes = $finalOvertimeMinutes > 0
+                    ? (int) ceil($finalOvertimeMinutes / $roundingMinutes) * $roundingMinutes
+                    : 0;
+                $standardMinutes = max(1, (int) ($payScheme['standard_work_minutes'] ?? 480));
+                $hourlyRate = ((float) $payScheme['daily_salary'] / $standardMinutes) * 60;
+                $overtimeMultiplier = (float) ($payScheme['overtime_multiplier'] ?? 1);
+            } else {
+                $isHoliday = \App\Models\Holiday::isHoliday($startTime);
+                $isMultiplierDay = $isWeekend || $isHoliday;
+                $hourlyRate = $isMultiplierDay ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
+                $overtimeMultiplier = 1;
+            }
+            $overtimePay = ($finalOvertimeMinutes / 60) * $hourlyRate * $overtimeMultiplier;
 
             return [
                 'minutes' => (int) round($finalOvertimeMinutes),
@@ -337,6 +396,16 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function workShift(): BelongsTo
+    {
+        return $this->belongsTo(WorkShift::class);
+    }
+
+    public function payScheme(): BelongsTo
+    {
+        return $this->belongsTo(PayScheme::class);
     }
 
     public function editor()

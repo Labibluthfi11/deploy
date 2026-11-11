@@ -10,6 +10,8 @@ use App\Models\IzinKeluar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Services\AttendanceWorkRules;
+use Carbon\Carbon;
 
 class ApprovalController extends Controller
 {
@@ -219,6 +221,8 @@ class ApprovalController extends Controller
             return back()->with('error', 'Pengajuan sudah diproses sebelumnya.');
         }
 
+        $this->ensureWorkRuleSnapshot($absensi);
+
         $userTipe = $absensi->user->work_location ?? 'office';
         $currentLevel = $absensi->current_approval_level ?? 1;
         $workflowMap = $this->workflowMap[$userTipe] ?? $this->workflowMap['office'];
@@ -290,12 +294,20 @@ class ApprovalController extends Controller
         // HADIR/LEMBUR → Ada gaji pokok, tapi lembur gak masuk
 
         // Pastikan base_salary udah ada (kalo belum, hitung dulu)
-        if ($absensi->base_salary === null) {
+        if ($absensi->parent_id && strtolower($absensi->tipe ?? '') === 'lembur') {
+            $baseSalary = 0;
+            $latePenalty = 0;
+        } elseif ($absensi->base_salary === null) {
             $salaryData = \App\Models\Absensi::calculateSalary(
                 $absensi->late_minutes ?? 0,
                 $absensi->status,
                 null, // Bukan lembur
-                $absensi->is_weekend_overtime ?? false
+                $absensi->is_weekend_overtime ?? false,
+                $absensi->check_in_at,
+                $absensi->check_out_at,
+                $absensi->user->kategori_absensi,
+                $absensi->catatan_admin,
+                $absensi->payroll_snapshot
             );
 
             $baseSalary = $salaryData['base_salary'];
@@ -431,7 +443,9 @@ class ApprovalController extends Controller
                                 Absensi::isWeekend($checkIn),
                                 $checkIn,
                                 $checkOut,
-                                $absensi->user->kategori_absensi
+                                $absensi->user->kategori_absensi,
+                                null,
+                                $absensi->payroll_snapshot
                             );
 
                             $absensi->update([
@@ -495,7 +509,9 @@ class ApprovalController extends Controller
                                     \App\Models\Absensi::isWeekend($absensi->check_in_at),
                                     $absensi->check_in_at,
                                     $absensi->check_out_at,
-                                    $absensi->user->employment_type
+                                    $absensi->user->employment_type,
+                                    null,
+                                    $absensi->payroll_snapshot
                                 );
                                 $updateData['base_salary'] = $salaryData['base_salary'];
                                 $updateData['final_salary'] = $salaryData['final_salary'];
@@ -563,7 +579,9 @@ class ApprovalController extends Controller
                                 $absensi->is_weekend_overtime ?? false,
                                 $absensi->check_in_at,
                                 $checkOutDateTime,
-                                $absensi->user->kategori_absensi
+                                $absensi->user->kategori_absensi,
+                                null,
+                                $absensi->payroll_snapshot
                             );
                             
                             $updateData['status'] = 'hadir'; // Ubah status jadi hadir tapi durasi kurang
@@ -634,7 +652,12 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                     elseif (strpos($idKaryawan, 'AMB') === 0) $kategori = 'freelance';
 
                     // Pastikan base_salary & late_penalty ada
-                    if ($absensi->base_salary === null) {
+                    if ($absensi->parent_id && strtolower($absensi->tipe ?? '') === 'lembur') {
+                        $absensi->base_salary = 0;
+                        $absensi->late_penalty = 0;
+                        $absensi->save();
+                        $absensi->refresh();
+                    } elseif ($absensi->base_salary === null) {
                         $salaryData = Absensi::calculateSalary(
                             $absensi->late_minutes ?? 0, 
                             $absensi->status, 
@@ -642,7 +665,9 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             false,
                             $absensi->check_in_at,
                             $absensi->check_out_at,
-                            $kategori
+                            $kategori,
+                            null,
+                            $absensi->payroll_snapshot
                         );
                         $absensi->base_salary = $salaryData['base_salary'];
                         $absensi->late_penalty = $salaryData['late_penalty'];
@@ -659,7 +684,9 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             $overtimeData = Absensi::calculateOvertimeFromInput(
                                 $absensi->lembur_start,
                                 $absensi->lembur_end,
-                                (bool) $absensi->lembur_rest
+                                (bool) $absensi->lembur_rest,
+                                false,
+                                $absensi->payroll_snapshot
                             );
 
                             $overtimeMinutes = $overtimeData['minutes'];
@@ -699,11 +726,12 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             if ($absensi->parent_id) {
                                 $parent = \App\Models\Absensi::find($absensi->parent_id);
                                 if ($parent) {
-                                    // Jika anak adalah 'telat', reset parent's late_minutes ke 0 DAN JAM MASUK KE 08:00
+                                    // Jika anak adalah 'telat', reset parent ke jam mulai shift.
                                     if ($absensi->tipe === 'telat') {
                                         $checkInDate = \Carbon\Carbon::parse($parent->check_in_at)->format('Y-m-d');
+                                        $shiftStart = $parent->payroll_snapshot['shift']['starts_at'] ?? '08:00:00';
                                         $parent->update([
-                                            'check_in_at' => $checkInDate . ' 08:00:00', // <--- Pindah ke parent!
+                                            'check_in_at' => $checkInDate . ' ' . $shiftStart,
                                             'late_minutes' => 0,
                                             'late_penalty' => 0,
                                             'final_salary' => $parent->base_salary + ($parent->overtime_pay ?? 0),
@@ -981,6 +1009,8 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
 
     private function approveSingleRecord(Absensi $absensi)
     {
+        $this->ensureWorkRuleSnapshot($absensi);
+
         $userTipe = $absensi->user->work_location ?? 'office';
         $currentLevel = $absensi->current_approval_level ?? 1;
         $workflowMap = $this->workflowMap[$userTipe] ?? $this->workflowMap['office'];
@@ -1043,7 +1073,9 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             Absensi::isWeekend($absensi->check_in_at),
                             $absensi->check_in_at,
                             $absensi->check_out_at,
-                            $absensi->user->employment_type
+                            $absensi->user->employment_type,
+                            null,
+                            $absensi->payroll_snapshot
                         );
                         $updateData['base_salary'] = $salaryData['base_salary'];
                         $updateData['final_salary'] = $salaryData['final_salary'];
@@ -1096,7 +1128,9 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                             $isWeekend,
                             $checkIn,
                             $checkOut,
-                            $kategori
+                            $kategori,
+                            null,
+                            $absensi->payroll_snapshot
                         );
                         
                         $updateData['base_salary'] = $salaryData['base_salary'];
@@ -1157,8 +1191,23 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                 elseif (strpos($idKaryawan, 'MG-AMB') === 0) $kategori = 'magang';
                 elseif (strpos($idKaryawan, 'AMB') === 0) $kategori = 'freelance';
 
-                if ($absensi->base_salary === null) {
-                    $salaryData = Absensi::calculateSalary($absensi->late_minutes ?? 0, $absensi->status, $absensi->tipe, false, $absensi->check_in_at, $absensi->check_out_at, $kategori);
+                if ($absensi->parent_id && strtolower($absensi->tipe ?? '') === 'lembur') {
+                    $absensi->base_salary = 0;
+                    $absensi->late_penalty = 0;
+                    $absensi->save();
+                    $absensi->refresh();
+                } elseif ($absensi->base_salary === null) {
+                    $salaryData = Absensi::calculateSalary(
+                        $absensi->late_minutes ?? 0,
+                        $absensi->status,
+                        $absensi->tipe,
+                        false,
+                        $absensi->check_in_at,
+                        $absensi->check_out_at,
+                        $kategori,
+                        null,
+                        $absensi->payroll_snapshot
+                    );
                     $absensi->base_salary = $salaryData['base_salary'];
                     $absensi->late_penalty = $salaryData['late_penalty'];
                     $absensi->save();
@@ -1168,7 +1217,13 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                 $overtimePay = 0;
                 $overtimeMinutes = 0;
                 if (strtolower($absensi->tipe ?? '') === 'lembur' && $absensi->lembur_start && $absensi->lembur_end) {
-                    $overtimeData = Absensi::calculateOvertimeFromInput($absensi->lembur_start, $absensi->lembur_end, (bool) $absensi->lembur_rest);
+                    $overtimeData = Absensi::calculateOvertimeFromInput(
+                        $absensi->lembur_start,
+                        $absensi->lembur_end,
+                        (bool) $absensi->lembur_rest,
+                        false,
+                        $absensi->payroll_snapshot
+                    );
                     $overtimeMinutes = $overtimeData['minutes'];
                     $overtimePay = $overtimeData['pay'];
                 }
@@ -1191,7 +1246,8 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
 
                     if (strtolower($absensi->tipe ?? '') === 'telat') {
                         $checkInDate = \Carbon\Carbon::parse($absensi->check_in_at)->format('Y-m-d');
-                        $updateData['check_in_at']  = $checkInDate . ' 08:00:00';
+                        $shiftStart = $absensi->payroll_snapshot['shift']['starts_at'] ?? '08:00:00';
+                        $updateData['check_in_at']  = $checkInDate . ' ' . $shiftStart;
                         $updateData['late_minutes'] = 0;
                         $updateData['rounded_late_minutes'] = 0;
                         $updateData['late_penalty'] = 0;
@@ -1228,6 +1284,24 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
             }
 
             \App\Models\ActivityLog::log('Approve Pengajuan (Bulk)', "Pengajuan ID: {$absensi->id}", "Naik level ke: " . ($currentLevel + 1));
+        }
+    }
+
+    private function ensureWorkRuleSnapshot(Absensi $absensi): void
+    {
+        if ($absensi->payroll_snapshot || !$absensi->check_in_at || !$absensi->user) {
+            return;
+        }
+
+        $configuration = app(AttendanceWorkRules::class)->forEmployee(
+            $absensi->user,
+            Carbon::parse($absensi->check_in_at)->startOfDay(),
+            $absensi
+        );
+
+        if ($configuration['snapshot']) {
+            $absensi->fill(app(AttendanceWorkRules::class)->attendanceAttributes($configuration));
+            $absensi->save();
         }
     }
 }
