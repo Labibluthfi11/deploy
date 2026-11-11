@@ -37,6 +37,10 @@ class WorkRuleAdminController extends Controller
         $assignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift', 'payScheme'])
             ->orderByDesc('effective_from')
             ->paginate(25, ['*'], 'assignments_page');
+        $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
+        $scheduleEffectiveFrom = $weekStart->greaterThan($nextWeekStart)
+            ? $weekStart->copy()
+            : $nextWeekStart->copy();
         $overrides = EmployeeShiftOverride::with(['user:id,name,id_karyawan', 'workShift'])
             ->whereDate('work_date', '>=', today())
             ->orderBy('work_date')
@@ -46,25 +50,18 @@ class WorkRuleAdminController extends Controller
             ->whereDate('anchor_week_start', '<=', $weekStart)
             ->orderByDesc('anchor_week_start')
             ->first();
-        $rotationAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift'])
-            ->where('schedule_mode', 'rolling')
-            ->whereDate('effective_from', '<=', $weekEnd)
-            ->where(function ($query) use ($weekStart) {
-                $query->whereNull('effective_until')
-                    ->orWhereDate('effective_until', '>=', $weekStart);
-            })
-            ->orderBy('rotation_group')
-            ->orderBy('user_id')
-            ->get();
-        $fixedAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift'])
-            ->where('schedule_mode', 'fixed')
+        $weekAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift', 'payScheme'])
             ->whereDate('effective_from', '<=', $weekEnd)
             ->where(function ($query) use ($weekStart) {
                 $query->whereNull('effective_until')
                     ->orWhereDate('effective_until', '>=', $weekStart);
             })
             ->orderBy('user_id')
-            ->get();
+            ->orderByDesc('effective_from')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($employeeAssignments) => $employeeAssignments->first())
+            ->values();
         $rotationShifts = [];
         if ($rotationSetting) {
             $weekOffset = intdiv((int) $rotationSetting->anchor_week_start->diffInDays($weekStart), 7);
@@ -86,8 +83,8 @@ class WorkRuleAdminController extends Controller
             'weekStart',
             'weekEnd',
             'rotationSetting',
-            'rotationAssignments',
-            'fixedAssignments',
+            'weekAssignments',
+            'scheduleEffectiveFrom',
             'rotationShifts'
         ));
     }
