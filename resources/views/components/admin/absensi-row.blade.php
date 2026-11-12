@@ -6,6 +6,7 @@
 
     // 🔥 HITUNG TOTAL TELAT + ALPHA BULAN INI (Kecuali Organik jika memang flexible, tapi sesuaikan dengan logic asli per tabel)
     $telatCount = \App\Models\Absensi::where('user_id', $userId)
+        ->whereNull('parent_id')
         ->whereMonth('check_in_at', now()->month)
         ->whereYear('check_in_at', now()->year)
         ->where(function($q) {
