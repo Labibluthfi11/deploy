@@ -38,6 +38,7 @@ class WorkRuleAdminController extends Controller
         $scheduleEffectiveFrom = $weekStart->greaterThan($nextWeekStart)
             ? $weekStart->copy()
             : $nextWeekStart->copy();
+        $scheduleRotationShifts = $this->rotationShiftsForWeek($scheduleEffectiveFrom);
         $overrides = EmployeeShiftOverride::with(['user:id,name,id_karyawan', 'workShift'])
             ->whereDate('work_date', '>=', today())
             ->orderBy('work_date')
@@ -107,6 +108,7 @@ class WorkRuleAdminController extends Controller
             'weekAssignments',
             'employeeScheduleGroups',
             'scheduleEffectiveFrom',
+            'scheduleRotationShifts',
             'rotationShifts'
         ));
     }
@@ -153,14 +155,19 @@ class WorkRuleAdminController extends Controller
             'pay_scheme_id' => ['nullable', 'integer', 'exists:pay_schemes,id'],
             'effective_from' => ['required', 'date'],
             'schedule_mode' => ['required', 'in:fixed,rolling'],
-            'rotation_group' => ['nullable', 'required_if:schedule_mode,rolling', 'in:A,B'],
         ]);
 
         $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
 
-        DB::transaction(function () use ($data, $effectiveFrom, $request) {
+        DB::transaction(function () use ($data, $effectiveFrom) {
             $user = User::query()->lockForUpdate()->findOrFail($data['user_id']);
             $shift = WorkShift::query()->findOrFail($data['work_shift_id']);
+            if (!$shift->is_active) {
+                throw ValidationException::withMessages([
+                    'work_shift_id' => 'Shift yang dipilih harus aktif.',
+                ]);
+            }
+
             $isOrganic = $user->kategori_absensi === 'organik';
             $payScheme = $isOrganic || empty($data['pay_scheme_id'])
                 ? null
@@ -176,11 +183,9 @@ class WorkRuleAdminController extends Controller
                     'pay_scheme_id' => 'Skema upah yang dipilih harus aktif.',
                 ]);
             }
-            if (!$shift->is_active) {
-                throw ValidationException::withMessages([
-                    'work_shift_id' => 'Shift yang dipilih harus aktif.',
-                ]);
-            }
+            $rotationGroup = $data['schedule_mode'] === 'rolling'
+                ? $this->rotationGroupForShift($shift, $effectiveFrom)
+                : null;
 
             $sameStartExists = EmployeeWorkAssignment::query()
                 ->where('user_id', $user->id)
@@ -225,7 +230,7 @@ class WorkRuleAdminController extends Controller
                     ? Carbon::parse($next->effective_from)->subDay()->toDateString()
                     : null,
                 'schedule_mode' => $data['schedule_mode'],
-                'rotation_group' => $data['schedule_mode'] === 'rolling' ? $data['rotation_group'] : null,
+                'rotation_group' => $rotationGroup,
             ]);
 
             EmployeeShiftOverride::query()
@@ -242,7 +247,7 @@ class WorkRuleAdminController extends Controller
         $data = $request->validate([
             'effective_from' => ['required', 'date'],
             'schedule_mode' => ['required', 'in:fixed,rolling'],
-            'rotation_group' => ['nullable', 'required_if:schedule_mode,rolling', 'in:A,B'],
+            'work_shift_id' => ['required', 'integer', 'exists:work_shifts,id'],
         ]);
 
         $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
@@ -253,23 +258,23 @@ class WorkRuleAdminController extends Controller
             ]);
         }
 
-        if ($data['schedule_mode'] === 'rolling') {
-            $hasRotationSetting = WorkShiftRotationSetting::query()
-                ->whereDate('anchor_week_start', '<=', $effectiveFrom)
-                ->exists();
-            if (!$hasRotationSetting) {
-                throw ValidationException::withMessages([
-                    'schedule_mode' => 'Atur pola rotasi mingguan terlebih dahulu sebelum memasukkan karyawan ke grup.',
-                ]);
-            }
-        }
-
         DB::transaction(function () use ($assignment, $data, $effectiveFrom) {
             $currentAssignment = EmployeeWorkAssignment::query()
                 ->lockForUpdate()
                 ->findOrFail($assignment->id);
             $currentAssignment->loadMissing('user');
             $isOrganic = $currentAssignment->user->kategori_absensi === 'organik';
+            $shift = WorkShift::query()->findOrFail($data['work_shift_id']);
+
+            if (!$shift->is_active) {
+                throw ValidationException::withMessages([
+                    'work_shift_id' => 'Shift yang dipilih harus aktif.',
+                ]);
+            }
+
+            $rotationGroup = $data['schedule_mode'] === 'rolling'
+                ? $this->rotationGroupForShift($shift, $effectiveFrom)
+                : null;
 
             if (
                 $effectiveFrom->lt($currentAssignment->effective_from->copy()->startOfDay())
@@ -284,8 +289,9 @@ class WorkRuleAdminController extends Controller
             }
 
             $schedule = [
+                'work_shift_id' => $shift->id,
                 'schedule_mode' => $data['schedule_mode'],
-                'rotation_group' => $data['schedule_mode'] === 'rolling' ? $data['rotation_group'] : null,
+                'rotation_group' => $rotationGroup,
             ];
 
             if ($effectiveFrom->equalTo($currentAssignment->effective_from->copy()->startOfDay())) {
@@ -299,7 +305,7 @@ class WorkRuleAdminController extends Controller
 
             EmployeeWorkAssignment::create([
                 'user_id' => $currentAssignment->user_id,
-                'work_shift_id' => $currentAssignment->work_shift_id,
+                'work_shift_id' => $shift->id,
                 'pay_scheme_id' => $isOrganic ? null : $currentAssignment->pay_scheme_id,
                 'effective_from' => $effectiveFrom->toDateString(),
                 'effective_until' => $assignmentEnd,
@@ -309,7 +315,49 @@ class WorkRuleAdminController extends Controller
 
         return redirect()
             ->route('admin.work-rules.index', ['week' => $effectiveFrom->toDateString()])
-            ->with('success', 'Pola shift karyawan berhasil diperbarui tanpa mengubah skema upah.');
+            ->with('success', 'Shift dan pola karyawan berhasil diperbarui tanpa mengubah skema upah.');
+    }
+
+    private function rotationGroupForShift(WorkShift $shift, Carbon $effectiveFrom): string
+    {
+        $rotationShifts = $this->rotationShiftsForWeek($effectiveFrom);
+        if (!$rotationShifts) {
+            throw ValidationException::withMessages([
+                'work_shift_id' => 'Atur shift rotasi Grup A dan B terlebih dahulu untuk minggu tersebut.',
+            ]);
+        }
+
+        foreach ($rotationShifts as $group => $rotationShift) {
+            if ((int) $rotationShift->id === (int) $shift->id) {
+                return $group;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'work_shift_id' => 'Untuk pola rolling, pilih salah satu shift rotasi yang berlaku pada minggu mulai.',
+        ]);
+    }
+
+    private function rotationShiftsForWeek(Carbon $date): array
+    {
+        $weekStart = $date->copy()->startOfWeek(Carbon::MONDAY);
+        $rotation = WorkShiftRotationSetting::query()
+            ->whereDate('anchor_week_start', '<=', $weekStart)
+            ->orderByDesc('anchor_week_start')
+            ->with(['groupAShift', 'groupBShift'])
+            ->first();
+
+        if (!$rotation) {
+            return [];
+        }
+
+        $weekOffset = intdiv((int) $rotation->anchor_week_start->diffInDays($weekStart), 7);
+        $groupAIsOnFirstShift = $weekOffset % 2 === 0;
+
+        return [
+            'A' => $groupAIsOnFirstShift ? $rotation->groupAShift : $rotation->groupBShift,
+            'B' => $groupAIsOnFirstShift ? $rotation->groupBShift : $rotation->groupAShift,
+        ];
     }
 
     public function storeRotationSetting(Request $request)

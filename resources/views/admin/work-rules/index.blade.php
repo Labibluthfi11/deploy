@@ -231,13 +231,14 @@
                             </select>
                         </div>
                         <div>
-                            <label class="mb-1 block text-sm font-medium">Shift default</label>
+                            <label class="mb-1 block text-sm font-medium">Shift</label>
                             <select name="work_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                 <option value="">Pilih shift</option>
                                 @foreach($shifts->where('is_active', true) as $shift)
                                     <option value="{{ $shift->id }}" @selected(old('work_shift_id') == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
                                 @endforeach
                             </select>
+                            <p class="mt-1 text-xs text-gray-500">Untuk rolling, pilih shift yang berlaku pada minggu mulai; grup A/B ditentukan otomatis.</p>
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Skema upah</label>
@@ -258,14 +259,6 @@
                             <select name="schedule_mode" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                 <option value="fixed" @selected(old('schedule_mode', 'fixed') === 'fixed')>Tetap sesuai shift default</option>
                                 <option value="rolling" @selected(old('schedule_mode') === 'rolling')>Rolling mingguan</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-sm font-medium">Grup rolling</label>
-                            <select name="rotation_group" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                <option value="">Tidak ikut rolling</option>
-                                <option value="A" @selected(old('rotation_group') === 'A')>Grup A</option>
-                                <option value="B" @selected(old('rotation_group') === 'B')>Grup B</option>
                             </select>
                         </div>
                         <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Penetapan</button>
@@ -393,6 +386,16 @@
                             @forelse($group['assignments'] as $assignment)
                                 <div class="border-t border-gray-200 px-4 py-4 dark:border-gray-700">
                                     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        @php
+                                            $editShift = $assignment->workShift;
+                                            if (
+                                                $assignment->schedule_mode === 'rolling'
+                                                && $assignment->rotation_group
+                                                && isset($scheduleRotationShifts[$assignment->rotation_group])
+                                            ) {
+                                                $editShift = $scheduleRotationShifts[$assignment->rotation_group];
+                                            }
+                                        @endphp
                                         <div class="min-w-56">
                                             <p class="font-semibold text-gray-900 dark:text-white">{{ $assignment->user->name }}{{ $assignment->user->id_karyawan ? ' · ' . $assignment->user->id_karyawan : '' }}</p>
                                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -414,14 +417,14 @@
                                             @csrf
                                             @method('PUT')
                                             <input aria-label="Mulai berlaku" type="date" name="effective_from" min="{{ today()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->toDateString() }}" value="{{ $scheduleEffectiveFrom->toDateString() }}" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                            <select aria-label="Shift mulai berlaku" name="work_shift_id" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                                @foreach($shifts->where('is_active', true) as $shift)
+                                                    <option value="{{ $shift->id }}" @selected($editShift && $editShift->id === $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
+                                                @endforeach
+                                            </select>
                                             <select aria-label="Pola jadwal" name="schedule_mode" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                                 <option value="fixed" @selected($assignment->schedule_mode === 'fixed')>Tetap</option>
                                                 <option value="rolling" @selected($assignment->schedule_mode === 'rolling')>Rolling mingguan</option>
-                                            </select>
-                                            <select aria-label="Grup rolling" name="rotation_group" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                                <option value="">Pilih grup bila rolling</option>
-                                                <option value="A" @selected($assignment->rotation_group === 'A')>Grup A</option>
-                                                <option value="B" @selected($assignment->rotation_group === 'B')>Grup B</option>
                                             </select>
                                             <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Simpan</button>
                                         </form>
