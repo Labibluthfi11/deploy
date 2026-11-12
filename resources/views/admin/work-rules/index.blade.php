@@ -223,10 +223,10 @@
                         @csrf
                         <div>
                             <label class="mb-1 block text-sm font-medium">Karyawan</label>
-                            <select name="user_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <select id="work-assignment-user" name="user_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                 <option value="">Pilih karyawan</option>
                                 @foreach($employees as $employee)
-                                    <option value="{{ $employee->id }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }}{{ $employee->kategori_absensi === 'organik' ? ' · Organik' : '' }}</option>
+                                    <option value="{{ $employee->id }}" data-category="{{ $employee->kategori_absensi }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }} · {{ ucfirst($employee->kategori_absensi) }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -241,13 +241,13 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Skema upah</label>
-                            <select name="pay_scheme_id" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                <option value="">Tanpa perhitungan upah (khusus organik)</option>
+                            <select id="work-assignment-pay-scheme" name="pay_scheme_id" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="" data-empty-pay-scheme>Pilih karyawan dulu</option>
                                 @foreach($paySchemes->where('is_active', true) as $scheme)
                                     <option value="{{ $scheme->id }}" @selected(old('pay_scheme_id') == $scheme->id)>{{ $scheme->name }} · Rp{{ number_format((float) $scheme->daily_salary, 0, ',', '.') }}/hari</option>
                                 @endforeach
                             </select>
-                            <p class="mt-1 text-xs text-gray-500">Organik cukup pilih shift; skema upah wajib untuk kategori non-organik.</p>
+                            <p class="mt-1 text-xs text-gray-500">Organik tidak memakai skema upah. Freelance, borongan, dan magang wajib memakai skema upah aktif. Jika kategorinya tidak sesuai, periksa data/ID karyawan.</p>
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Berlaku mulai tanggal</label>
@@ -437,4 +437,32 @@
 
         </div>
     </div>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const employeeSelect = document.getElementById('work-assignment-user');
+                const paySchemeSelect = document.getElementById('work-assignment-pay-scheme');
+                const emptyPaySchemeOption = paySchemeSelect.querySelector('[data-empty-pay-scheme]');
+
+                const updatePaySchemeRequirement = () => {
+                    const selectedEmployee = employeeSelect.selectedOptions[0];
+                    const isOrganic = selectedEmployee?.dataset.category === 'organik';
+
+                    emptyPaySchemeOption.textContent = isOrganic
+                        ? 'Tanpa perhitungan upah (khusus organik)'
+                        : 'Pilih skema upah';
+                    emptyPaySchemeOption.disabled = !isOrganic;
+                    paySchemeSelect.required = !isOrganic;
+
+                    if (isOrganic) {
+                        paySchemeSelect.value = '';
+                    }
+                };
+
+                employeeSelect.addEventListener('change', updatePaySchemeRequirement);
+                updatePaySchemeRequirement();
+            });
+        </script>
+    @endpush
 </x-app-layout>

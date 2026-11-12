@@ -102,7 +102,11 @@ public static function cutiYangMemotong(): array
     public function getKategoriAbsensiAttribute(): string
     {
         $idKaryawan = strtoupper($this->id_karyawan ?? '');
-        $empType = strtolower($this->employment_type ?? 'organik');
+        $empType = strtolower($this->employment_type ?? '');
+
+        if ($empType === 'organik') {
+            return 'organik';
+        }
 
         // Order is important: check prefixes first
         if (strpos($idKaryawan, 'CS-AMB') === 0 || $empType === 'borongan') {

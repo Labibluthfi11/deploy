@@ -646,12 +646,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
 
                 } else {
 
-                    // Detect kategori
-                    $idKaryawan = $absensi->user->id_karyawan ?? '';
-                    $kategori = strtolower($absensi->user->employment_type ?? 'organik');
-                    if (strpos($idKaryawan, 'CS-AMB') === 0) $kategori = 'borongan';
-                    elseif (strpos($idKaryawan, 'MG-AMB') === 0) $kategori = 'magang';
-                    elseif (strpos($idKaryawan, 'AMB') === 0) $kategori = 'freelance';
+                    $kategori = $absensi->user->kategori_absensi;
 
                     // Pastikan base_salary & late_penalty ada
                     if ($absensi->parent_id && strtolower($absensi->tipe ?? '') === 'lembur') {
@@ -1189,11 +1184,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                 });
             } else {
                 // HADIR/LEMBUR
-                $idKaryawan = $absensi->user->id_karyawan ?? '';
-                $kategori = strtolower($absensi->user->employment_type ?? 'organik');
-                if (strpos($idKaryawan, 'CS-AMB') === 0) $kategori = 'borongan';
-                elseif (strpos($idKaryawan, 'MG-AMB') === 0) $kategori = 'magang';
-                elseif (strpos($idKaryawan, 'AMB') === 0) $kategori = 'freelance';
+                $kategori = $absensi->user->kategori_absensi;
 
                 if ($absensi->parent_id && strtolower($absensi->tipe ?? '') === 'lembur') {
                     $absensi->base_salary = 0;

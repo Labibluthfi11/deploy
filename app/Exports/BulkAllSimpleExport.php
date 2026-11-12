@@ -124,21 +124,7 @@ class BulkAllSimpleExport implements FromView, ShouldAutoSize, WithTitle
 
     private function detectKategori(User $user): string
     {
-        $idKaryawan = $user->id_karyawan ?? '';
-
-        if (strpos($idKaryawan, 'CS-AMB') === 0) {
-            return 'borongan';
-        }
-
-        if (strpos($idKaryawan, 'MG-AMB') === 0) {
-            return 'magang';
-        }
-
-        if (strpos($idKaryawan, 'AMB') === 0) {
-            return 'freelance';
-        }
-
-        return $user->employment_type ?? 'organik';
+        return $user->kategori_absensi;
     }
 
     public function title(): string
