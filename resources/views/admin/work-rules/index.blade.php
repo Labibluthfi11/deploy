@@ -438,31 +438,35 @@
         </div>
     </div>
 
-    @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const employeeSelect = document.getElementById('work-assignment-user');
-                const paySchemeSelect = document.getElementById('work-assignment-pay-scheme');
-                const emptyPaySchemeOption = paySchemeSelect.querySelector('[data-empty-pay-scheme]');
+    <script>
+        (() => {
+            const employeeSelect = document.getElementById('work-assignment-user');
+            const paySchemeSelect = document.getElementById('work-assignment-pay-scheme');
+            const emptyPaySchemeOption = paySchemeSelect?.querySelector('[data-empty-pay-scheme]');
 
-                const updatePaySchemeRequirement = () => {
-                    const selectedEmployee = employeeSelect.selectedOptions[0];
-                    const isOrganic = selectedEmployee?.dataset.category === 'organik';
+            if (!employeeSelect || !paySchemeSelect || !emptyPaySchemeOption) {
+                return;
+            }
 
-                    emptyPaySchemeOption.textContent = isOrganic
-                        ? 'Tanpa perhitungan upah (khusus organik)'
-                        : 'Pilih skema upah';
-                    emptyPaySchemeOption.disabled = !isOrganic;
-                    paySchemeSelect.required = !isOrganic;
+            const updatePaySchemeRequirement = () => {
+                const selectedEmployee = employeeSelect.selectedOptions[0];
+                const isOrganic = selectedEmployee?.dataset.category === 'organik';
 
-                    if (isOrganic) {
-                        paySchemeSelect.value = '';
-                    }
-                };
+                emptyPaySchemeOption.textContent = isOrganic
+                    ? 'Tanpa perhitungan upah (khusus organik)'
+                    : employeeSelect.value
+                        ? 'Pilih skema upah'
+                        : 'Pilih karyawan dulu';
+                emptyPaySchemeOption.disabled = !isOrganic && Boolean(employeeSelect.value);
+                paySchemeSelect.required = Boolean(employeeSelect.value) && !isOrganic;
 
-                employeeSelect.addEventListener('change', updatePaySchemeRequirement);
-                updatePaySchemeRequirement();
-            });
-        </script>
-    @endpush
+                if (isOrganic) {
+                    paySchemeSelect.value = '';
+                }
+            };
+
+            employeeSelect.addEventListener('change', updatePaySchemeRequirement);
+            updatePaySchemeRequirement();
+        })();
+    </script>
 </x-app-layout>
