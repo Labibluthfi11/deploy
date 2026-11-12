@@ -226,7 +226,7 @@
                             <select name="user_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                 <option value="">Pilih karyawan</option>
                                 @foreach($employees as $employee)
-                                    <option value="{{ $employee->id }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }}</option>
+                                    <option value="{{ $employee->id }}" @selected(old('user_id') == $employee->id)>{{ $employee->name }}{{ $employee->id_karyawan ? ' · ' . $employee->id_karyawan : '' }}{{ $employee->kategori_absensi === 'organik' ? ' · Organik' : '' }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -241,12 +241,13 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Skema upah</label>
-                            <select name="pay_scheme_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                <option value="">Pilih skema</option>
+                            <select name="pay_scheme_id" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">Tanpa perhitungan upah (khusus organik)</option>
                                 @foreach($paySchemes->where('is_active', true) as $scheme)
                                     <option value="{{ $scheme->id }}" @selected(old('pay_scheme_id') == $scheme->id)>{{ $scheme->name }} · Rp{{ number_format((float) $scheme->daily_salary, 0, ',', '.') }}/hari</option>
                                 @endforeach
                             </select>
+                            <p class="mt-1 text-xs text-gray-500">Organik cukup pilih shift; skema upah wajib untuk kategori non-organik.</p>
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Berlaku mulai tanggal</label>
@@ -400,7 +401,13 @@
                                                 @else
                                                     {{ isset($rotationShifts[$group['key']]) ? $rotationShifts[$group['key']]->name : $assignment->workShift->name }}
                                                 @endif
-                                                · {{ $assignment->payScheme->name }} · Rp{{ number_format((float) $assignment->payScheme->daily_salary, 0, ',', '.') }}
+                                                @if($assignment->user->kategori_absensi === 'organik')
+                                                    · Absensi saja (tanpa hitungan upah)
+                                                @elseif($assignment->payScheme)
+                                                    · {{ $assignment->payScheme->name }} · Rp{{ number_format((float) $assignment->payScheme->daily_salary, 0, ',', '.') }}
+                                                @else
+                                                    · Absensi saja (tanpa hitungan upah)
+                                                @endif
                                             </p>
                                         </div>
                                         <form action="{{ route('admin.work-rules.assignments.schedule.update', $assignment) }}" method="POST" class="grid w-full gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] lg:max-w-4xl">

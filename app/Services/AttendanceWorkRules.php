@@ -75,15 +75,12 @@ class AttendanceWorkRules
             }
         }
         $shift ??= $assignment?->workShift;
-        $payScheme = $assignment?->payScheme;
-
-        return [
-            'assignment' => $assignment,
-            'shift' => $shift,
-            'pay_scheme' => $payScheme,
-            'work_shift_id' => $shift?->id,
-            'pay_scheme_id' => $payScheme?->id,
-            'snapshot' => $shift && $payScheme ? [
+        $payrollEnabled = $user->kategori_absensi !== 'organik';
+        $payScheme = $payrollEnabled ? $assignment?->payScheme : null;
+        $snapshot = null;
+        if ($shift) {
+            $snapshot = [
+                'payroll_enabled' => $payrollEnabled,
                 'shift' => [
                     'name' => $shift->name,
                     'starts_at' => $shift->starts_at,
@@ -92,7 +89,9 @@ class AttendanceWorkRules
                     'break_ends_at' => $shift->break_ends_at,
                     'crosses_midnight' => $shift->crosses_midnight,
                 ],
-                'pay_scheme' => [
+            ];
+            if ($payScheme) {
+                $snapshot['pay_scheme'] = [
                     'name' => $payScheme->name,
                     'daily_salary' => (float) $payScheme->daily_salary,
                     'standard_work_minutes' => $payScheme->standard_work_minutes,
@@ -100,13 +99,26 @@ class AttendanceWorkRules
                     'overtime_rounding_minutes' => $payScheme->overtime_rounding_minutes,
                     'weekend_daily_multiplier' => (float) $payScheme->weekend_daily_multiplier,
                     'overtime_multiplier' => (float) $payScheme->overtime_multiplier,
-                ],
-            ] : null,
+                ];
+            }
+        }
+
+        return [
+            'assignment' => $assignment,
+            'shift' => $shift,
+            'pay_scheme' => $payScheme,
+            'work_shift_id' => $shift?->id,
+            'pay_scheme_id' => $payScheme?->id,
+            'snapshot' => $snapshot,
         ];
     }
 
-    public function lateMinutes(Carbon $checkIn, ?array $snapshot): int
+    public function lateMinutes(Carbon $checkIn, ?array $snapshot, bool $trackLateness = true): int
     {
+        if (!$trackLateness || ($snapshot['payroll_enabled'] ?? true) === false) {
+            return 0;
+        }
+
         $shiftStart = $snapshot['shift']['starts_at'] ?? null;
         if (!$shiftStart) {
             $shiftStart = '08:00:00';

@@ -33,7 +33,7 @@ class WorkRuleAdminController extends Controller
         $employees = User::query()
             ->whereNotIn('role', ['supervisor', 'manager', 'hrga', 'admin', 'super_admin', 'pkl'])
             ->orderBy('name')
-            ->get(['id', 'name', 'id_karyawan']);
+            ->get(['id', 'name', 'id_karyawan', 'employment_type']);
         $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
         $scheduleEffectiveFrom = $weekStart->greaterThan($nextWeekStart)
             ? $weekStart->copy()
@@ -47,7 +47,7 @@ class WorkRuleAdminController extends Controller
             ->whereDate('anchor_week_start', '<=', $weekStart)
             ->orderByDesc('anchor_week_start')
             ->first();
-        $weekAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan', 'workShift', 'payScheme'])
+        $weekAssignments = EmployeeWorkAssignment::with(['user:id,name,id_karyawan,employment_type', 'workShift', 'payScheme'])
             ->whereDate('effective_from', '<=', $weekEnd)
             ->where(function ($query) use ($weekStart) {
                 $query->whereNull('effective_until')
@@ -150,7 +150,7 @@ class WorkRuleAdminController extends Controller
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'work_shift_id' => ['required', 'integer', 'exists:work_shifts,id'],
-            'pay_scheme_id' => ['required', 'integer', 'exists:pay_schemes,id'],
+            'pay_scheme_id' => ['nullable', 'integer', 'exists:pay_schemes,id'],
             'effective_from' => ['required', 'date'],
             'schedule_mode' => ['required', 'in:fixed,rolling'],
             'rotation_group' => ['nullable', 'required_if:schedule_mode,rolling', 'in:A,B'],
@@ -161,11 +161,24 @@ class WorkRuleAdminController extends Controller
         DB::transaction(function () use ($data, $effectiveFrom, $request) {
             $user = User::query()->lockForUpdate()->findOrFail($data['user_id']);
             $shift = WorkShift::query()->findOrFail($data['work_shift_id']);
-            $payScheme = PayScheme::query()->findOrFail($data['pay_scheme_id']);
+            $isOrganic = $user->kategori_absensi === 'organik';
+            $payScheme = $isOrganic || empty($data['pay_scheme_id'])
+                ? null
+                : PayScheme::query()->findOrFail($data['pay_scheme_id']);
 
-            if (!$shift->is_active || !$payScheme->is_active) {
+            if (!$isOrganic && !$payScheme) {
                 throw ValidationException::withMessages([
-                    'work_shift_id' => 'Shift dan skema upah yang dipilih harus aktif.',
+                    'pay_scheme_id' => 'Pilih skema upah aktif untuk karyawan non-organik.',
+                ]);
+            }
+            if ($payScheme && !$payScheme->is_active) {
+                throw ValidationException::withMessages([
+                    'pay_scheme_id' => 'Skema upah yang dipilih harus aktif.',
+                ]);
+            }
+            if (!$shift->is_active) {
+                throw ValidationException::withMessages([
+                    'work_shift_id' => 'Shift yang dipilih harus aktif.',
                 ]);
             }
 
@@ -206,7 +219,7 @@ class WorkRuleAdminController extends Controller
             EmployeeWorkAssignment::create([
                 'user_id' => $user->id,
                 'work_shift_id' => $shift->id,
-                'pay_scheme_id' => $payScheme->id,
+                'pay_scheme_id' => $payScheme?->id,
                 'effective_from' => $effectiveFrom->toDateString(),
                 'effective_until' => $next
                     ? Carbon::parse($next->effective_from)->subDay()->toDateString()
@@ -255,6 +268,8 @@ class WorkRuleAdminController extends Controller
             $currentAssignment = EmployeeWorkAssignment::query()
                 ->lockForUpdate()
                 ->findOrFail($assignment->id);
+            $currentAssignment->loadMissing('user');
+            $isOrganic = $currentAssignment->user->kategori_absensi === 'organik';
 
             if (
                 $effectiveFrom->lt($currentAssignment->effective_from->copy()->startOfDay())
@@ -274,7 +289,7 @@ class WorkRuleAdminController extends Controller
             ];
 
             if ($effectiveFrom->equalTo($currentAssignment->effective_from->copy()->startOfDay())) {
-                $currentAssignment->update($schedule);
+                $currentAssignment->update($schedule + ($isOrganic ? ['pay_scheme_id' => null] : []));
                 return;
             }
 
@@ -285,7 +300,7 @@ class WorkRuleAdminController extends Controller
             EmployeeWorkAssignment::create([
                 'user_id' => $currentAssignment->user_id,
                 'work_shift_id' => $currentAssignment->work_shift_id,
-                'pay_scheme_id' => $currentAssignment->pay_scheme_id,
+                'pay_scheme_id' => $isOrganic ? null : $currentAssignment->pay_scheme_id,
                 'effective_from' => $effectiveFrom->toDateString(),
                 'effective_until' => $assignmentEnd,
                 ...$schedule,

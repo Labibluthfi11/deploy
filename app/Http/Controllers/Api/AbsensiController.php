@@ -230,7 +230,7 @@ class AbsensiController extends Controller
                 return response()->json([
 
                     'message' => 'Absensi berhasil! Izin yang ditolak otomatis diubah jadi hadir.'
-                                . ($isWeekend ? ' (Tarif akhir pekan berlaku)' : ''),
+                                . ($isWeekend && $kategori !== 'organik' ? ' (Tarif akhir pekan berlaku)' : ''),
                     'data' => $existingAbsensi
                 ], 200);
             }
@@ -303,7 +303,8 @@ class AbsensiController extends Controller
 
         return response()->json([
 
-            'message' => 'Absensi masuk berhasil' . ($isWeekend ? ' (Tarif akhir pekan berlaku)' : ''),
+            'message' => 'Absensi masuk berhasil'
+                . ($isWeekend && $kategori !== 'organik' ? ' (Tarif akhir pekan berlaku)' : ''),
             'data' => $absensi
         ], 201);
 
@@ -1364,7 +1365,8 @@ private function attachHistoryApproval(Absensi $record): void
                 $lemburEnd,
                 $request->istirahat,
                 $isWeekendOvertime,
-                $configuration['snapshot']
+                $configuration['snapshot'],
+                $user->kategori_absensi !== 'organik'
             );
 
 
@@ -1521,7 +1523,8 @@ private function attachHistoryApproval(Absensi $record): void
                 $lemburEnd,
                 $request->istirahat,
                 $isWeekendOvertime,
-                $configuration['snapshot']
+                $configuration['snapshot'],
+                $user->kategori_absensi !== 'organik'
             );
 
             $employment = strtolower($user->work_location ?? 'office');
@@ -2031,7 +2034,8 @@ private function attachHistoryApproval(Absensi $record): void
                 $lemburEnd,
                 $request->istirahat,
                 $isWeekendOvertime,
-                $configuration['snapshot']
+                $configuration['snapshot'],
+                $absensi->user->kategori_absensi !== 'organik'
             );
 
             $absensi->update(array_merge($newPaths, [
@@ -2140,6 +2144,14 @@ public function pengajuanTelat(Request $request)
         ]);
 
         $user = Auth::user();
+
+        if ($user->kategori_absensi === 'organik') {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Karyawan organik menggunakan waktu fleksibel dan tidak mengajukan keterlambatan.',
+            ], 422);
+        }
 
         
         $absensi = Absensi::where('id', $request->absensi_id)

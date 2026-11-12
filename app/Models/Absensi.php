@@ -181,13 +181,17 @@ class Absensi extends Model
 
     if (strtolower($status) === 'hadir' || strtolower($tipe ?? '') === 'lembur') {
         $payScheme = $payrollSnapshot['pay_scheme'] ?? null;
-        $hasConfiguredScheme = is_array($payScheme);
+        $payrollDisabled = strtolower($kategori) === 'organik'
+            || ($payrollSnapshot['payroll_enabled'] ?? true) === false;
+        $hasConfiguredScheme = !$payrollDisabled && is_array($payScheme);
         $isMultiplierDay = $hasConfiguredScheme
             ? self::isWeekend($checkIn ?? now())
             : ($isWeekend || $isHoliday);
-        $dailySalary = $hasConfiguredScheme
-            ? (float) $payScheme['daily_salary']
-            : ($isMultiplierDay ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY);
+        $dailySalary = $payrollDisabled
+            ? 0
+            : ($hasConfiguredScheme
+                ? (float) $payScheme['daily_salary']
+                : ($isMultiplierDay ? self::WEEKEND_DAILY_SALARY : self::DAILY_SALARY));
         $weekendMultiplier = $hasConfiguredScheme
             ? (float) ($payScheme['weekend_daily_multiplier'] ?? 2)
             : 2;
@@ -241,7 +245,9 @@ class Absensi extends Model
         $lateInterval = $hasConfiguredScheme
             ? max(1, (int) ($payScheme['late_rounding_minutes'] ?? 15))
             : 15;
-        $roundedLateMinutes = $actualLateMinutes > 0
+        $trackLateness = strtolower($kategori) !== 'organik'
+            && ($payrollSnapshot['late_tracking_enabled'] ?? true) !== false;
+        $roundedLateMinutes = $trackLateness && $actualLateMinutes > 0
             ? (int) ceil($actualLateMinutes / $lateInterval) * $lateInterval
             : 0;
         $latePenalty = $roundedLateMinutes * $salaryPerMinute;
@@ -299,7 +305,8 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
         $endTime,
         bool $hasRest,
         bool $isWeekend = false,
-        ?array $payrollSnapshot = null
+        ?array $payrollSnapshot = null,
+        bool $calculatePay = true
     ): array
     {
         try {
@@ -320,16 +327,22 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
                 $finalOvertimeMinutes = $finalOvertimeMinutes > 0
                     ? (int) ceil($finalOvertimeMinutes / $roundingMinutes) * $roundingMinutes
                     : 0;
-                $standardMinutes = max(1, (int) ($payScheme['standard_work_minutes'] ?? 480));
-                $hourlyRate = ((float) $payScheme['daily_salary'] / $standardMinutes) * 60;
-                $overtimeMultiplier = (float) ($payScheme['overtime_multiplier'] ?? 1);
+                if ($calculatePay) {
+                    $standardMinutes = max(1, (int) ($payScheme['standard_work_minutes'] ?? 480));
+                    $hourlyRate = ((float) $payScheme['daily_salary'] / $standardMinutes) * 60;
+                    $overtimeMultiplier = (float) ($payScheme['overtime_multiplier'] ?? 1);
+                }
             } else {
-                $isHoliday = \App\Models\Holiday::isHoliday($startTime);
-                $isMultiplierDay = $isWeekend || $isHoliday;
-                $hourlyRate = $isMultiplierDay ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
-                $overtimeMultiplier = 1;
+                if ($calculatePay) {
+                    $isHoliday = \App\Models\Holiday::isHoliday($startTime);
+                    $isMultiplierDay = $isWeekend || $isHoliday;
+                    $hourlyRate = $isMultiplierDay ? self::WEEKEND_HOURLY_SALARY : self::HOURLY_SALARY;
+                    $overtimeMultiplier = 1;
+                }
             }
-            $overtimePay = ($finalOvertimeMinutes / 60) * $hourlyRate * $overtimeMultiplier;
+            $overtimePay = $calculatePay
+                ? ($finalOvertimeMinutes / 60) * $hourlyRate * $overtimeMultiplier
+                : 0;
 
             return [
                 'minutes' => (int) round($finalOvertimeMinutes),

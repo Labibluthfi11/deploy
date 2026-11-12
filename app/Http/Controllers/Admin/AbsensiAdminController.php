@@ -972,7 +972,11 @@ public function updateCheckIn(Request $request, $id)
     );
 
     $user = $absensi->user;
-    $lateMinutes = $workRules->lateMinutes($newCheckIn, $configuration['snapshot']);
+    $lateMinutes = $workRules->lateMinutes(
+        $newCheckIn,
+        $configuration['snapshot'],
+        $user->kategori_absensi !== 'organik'
+    );
     $salaryData = Absensi::calculateSalary(
         $lateMinutes,
         $absensi->status,

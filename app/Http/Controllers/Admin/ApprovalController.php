@@ -222,6 +222,7 @@ class ApprovalController extends Controller
         }
 
         $this->ensureWorkRuleSnapshot($absensi);
+        $this->clearOrganicPayrollAmounts($absensi);
 
         $userTipe = $absensi->user->work_location ?? 'office';
         $currentLevel = $absensi->current_approval_level ?? 1;
@@ -500,6 +501,7 @@ class ApprovalController extends Controller
 
                             if ($absensi->user->employment_type === 'organik') {
                                 $updateData['base_salary'] = 0;
+                                $updateData['late_penalty'] = 0;
                                 $updateData['final_salary'] = 0;
                             } else {
                                 $salaryData = \App\Models\Absensi::calculateSalary(
@@ -686,7 +688,8 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                                 $absensi->lembur_end,
                                 (bool) $absensi->lembur_rest,
                                 false,
-                                $absensi->payroll_snapshot
+                                $absensi->payroll_snapshot,
+                                $absensi->user->kategori_absensi !== 'organik'
                             );
 
                             $overtimeMinutes = $overtimeData['minutes'];
@@ -1010,6 +1013,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
     private function approveSingleRecord(Absensi $absensi)
     {
         $this->ensureWorkRuleSnapshot($absensi);
+        $this->clearOrganicPayrollAmounts($absensi);
 
         $userTipe = $absensi->user->work_location ?? 'office';
         $currentLevel = $absensi->current_approval_level ?? 1;
@@ -1222,7 +1226,8 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                         $absensi->lembur_end,
                         (bool) $absensi->lembur_rest,
                         false,
-                        $absensi->payroll_snapshot
+                        $absensi->payroll_snapshot,
+                        $absensi->user->kategori_absensi !== 'organik'
                     );
                     $overtimeMinutes = $overtimeData['minutes'];
                     $overtimePay = $overtimeData['pay'];
@@ -1302,6 +1307,27 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
         if ($configuration['snapshot']) {
             $absensi->fill(app(AttendanceWorkRules::class)->attendanceAttributes($configuration));
             $absensi->save();
+        }
+    }
+
+    private function clearOrganicPayrollAmounts(Absensi $absensi): void
+    {
+        if ($absensi->user->kategori_absensi !== 'organik') {
+            return;
+        }
+
+        $amounts = [
+            'base_salary' => 0,
+            'late_penalty' => 0,
+            'final_salary' => 0,
+            'overtime_pay' => 0,
+        ];
+        $absensi->forceFill($amounts)->save();
+
+        if ($absensi->parent_id) {
+            Absensi::query()
+                ->whereKey($absensi->parent_id)
+                ->update($amounts);
         }
     }
 }

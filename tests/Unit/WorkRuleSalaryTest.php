@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Absensi;
+use App\Services\AttendanceWorkRules;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -53,7 +54,7 @@ it('rounds tardiness up to 15-minute blocks at each configured daily rate', func
         false,
         $checkIn,
         $checkOut,
-        'organik',
+        'freelance',
         null,
         configuredPayrollSnapshot(150000, '08:00:00', '12:00:00', '13:00:00')
     );
@@ -64,7 +65,7 @@ it('rounds tardiness up to 15-minute blocks at each configured daily rate', func
         false,
         $checkIn,
         $checkOut,
-        'organik',
+        'freelance',
         null,
         configuredPayrollSnapshot(125000, '08:00:00', '12:00:00', '13:00:00')
     );
@@ -90,7 +91,7 @@ it('uses the shift start date for weekend daily pay and excludes the overnight b
         false,
         $checkIn,
         $checkOut,
-        'organik',
+        'freelance',
         null,
         configuredPayrollSnapshot(125000, '20:00:00', '00:00:00', '01:00:00')
     );
@@ -101,7 +102,7 @@ it('uses the shift start date for weekend daily pay and excludes the overnight b
         false,
         $fridayCheckIn,
         $fridayCheckOut,
-        'organik',
+        'freelance',
         null,
         configuredPayrollSnapshot(125000, '20:00:00', '00:00:00', '01:00:00')
     );
@@ -135,4 +136,49 @@ it('rounds configured overtime up by 30 minutes without a weekend multiplier', f
         ->and($twentyFiveMinutes['pay'])->toBe(9375.0)
         ->and($thirtyOneMinutes['minutes'])->toBe(60)
         ->and($thirtyOneMinutes['pay'])->toBe(18750.0);
+});
+
+it('keeps organic attendance and overtime amounts at zero while retaining attendance minutes', function () {
+    $snapshot = [
+        'payroll_enabled' => false,
+        'shift' => [
+            'starts_at' => '08:00:00',
+            'ends_at' => '17:00:00',
+            'break_starts_at' => '12:00:00',
+            'break_ends_at' => '13:00:00',
+            'crosses_midnight' => false,
+        ],
+    ];
+    $checkIn = Carbon::parse('2026-11-09 08:16:00');
+    $checkOut = Carbon::parse('2026-11-09 17:00:00');
+
+    $salary = Absensi::calculateSalary(
+        16,
+        'hadir',
+        null,
+        false,
+        $checkIn,
+        $checkOut,
+        'organik',
+        null,
+        $snapshot
+    );
+    $lateMinutes = app(AttendanceWorkRules::class)->lateMinutes($checkIn, $snapshot);
+    $overtime = Absensi::calculateOvertimeFromInput(
+        $checkOut,
+        $checkOut->copy()->addMinutes(45),
+        false,
+        false,
+        $snapshot,
+        false
+    );
+
+    expect($salary['worked_minutes'])->toBe(480)
+        ->and($lateMinutes)->toBe(0)
+        ->and($salary['rounded_late_minutes'])->toBe(0)
+        ->and($salary['base_salary'])->toBe(0.0)
+        ->and($salary['late_penalty'])->toBe(0.0)
+        ->and($salary['final_salary'])->toBe(0.0)
+        ->and($overtime['minutes'])->toBe(45)
+        ->and($overtime['pay'])->toBe(0.0);
 });
