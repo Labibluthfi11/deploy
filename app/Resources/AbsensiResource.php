@@ -9,7 +9,13 @@ class AbsensiResource extends JsonResource
 {
     public function toArray($request)
     {
-        return [
+        $isOrganic = $this->user?->employment_type === 'organik';
+        $payrollSnapshot = $this->payroll_snapshot;
+        if ($isOrganic && is_array($payrollSnapshot) && is_array($payrollSnapshot['pay_scheme'] ?? null)) {
+            unset($payrollSnapshot['pay_scheme']['daily_salary']);
+        }
+
+        $data = [
             'id' => $this->id,
             'user_id' => $this->user_id,
             'nama_karyawan' => $this->user->name ?? 'User Tidak Ditemukan',
@@ -34,11 +40,13 @@ class AbsensiResource extends JsonResource
             // Payroll and shift configuration
             'work_shift_id' => $this->work_shift_id,
             'pay_scheme_id' => $this->pay_scheme_id,
-            'payroll_snapshot' => $this->payroll_snapshot,
+            'payroll_snapshot' => $payrollSnapshot,
             'base_salary' => $this->base_salary,
             'late_penalty' => $this->late_penalty,
             'overtime_minutes' => $this->overtime_minutes,
             'overtime_pay' => $this->overtime_pay,
+            'overtime_salary' => $this->overtime_salary,
+            'formatted_overtime_salary' => $this->formatted_overtime_salary,
             'final_salary' => $this->final_salary,
 
             // Data Lembur
@@ -69,5 +77,11 @@ class AbsensiResource extends JsonResource
             // Meta Data
             'terakhir_update' => $this->updated_at->diffForHumans(),
         ];
+
+        if ($isOrganic) {
+            unset($data['base_salary']);
+        }
+
+        return $data;
     }
 }

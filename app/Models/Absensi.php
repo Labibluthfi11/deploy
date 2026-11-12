@@ -132,7 +132,9 @@ class Absensi extends Model
         'formatted_base_salary',
         'formatted_late_penalty',
         'formatted_final_salary',
-        'formatted_overtime_pay'
+        'formatted_overtime_pay',
+        'overtime_salary',
+        'formatted_overtime_salary',
     ];
 
     // ===================================================================
@@ -400,6 +402,22 @@ private static function calculateWorkedMinutes(\Carbon\Carbon $checkIn, \Carbon\
     public function getFormattedOvertimePayAttribute(): ?string
     {
         return $this->overtime_pay ? 'Rp ' . number_format($this->overtime_pay, 0, ',', '.') : null;
+    }
+
+    public function getOvertimeSalaryAttribute(): ?float
+    {
+        $overtimePay = (float) ($this->overtime_pay ?? 0);
+
+        return $overtimePay > 0 ? round($overtimePay, 2) : null;
+    }
+
+    public function getFormattedOvertimeSalaryAttribute(): ?string
+    {
+        $overtimeSalary = $this->overtime_salary;
+
+        return $overtimeSalary !== null
+            ? 'Rp ' . number_format($overtimeSalary, 0, ',', '.')
+            : null;
     }
 
 

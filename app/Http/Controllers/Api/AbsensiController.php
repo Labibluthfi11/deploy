@@ -744,8 +744,11 @@ public function meAbsensi(Request $request)
             $item->file_bukti_url = $item->file_bukti ? Storage::url($item->file_bukti) : null;
 
             $this->attachHistoryApproval($item);
+            $isOrganic = $item->user?->employment_type === 'organik';
+            $this->prepareHistoryPayrollFields($item, $isOrganic);
             foreach ($item->children as $child) {
                 $this->attachHistoryApproval($child);
+                $this->prepareHistoryPayrollFields($child, $isOrganic);
             }
 
             return $item;
@@ -761,6 +764,20 @@ public function meAbsensi(Request $request)
             'success' => false,
             'message' => 'Terjadi kesalahan server. ' . (config('app.debug') ? $e->getMessage() : '')
         ], 500);
+    }
+}
+
+private function prepareHistoryPayrollFields(Absensi $record, bool $isOrganic): void
+{
+    if (!$isOrganic) {
+        return;
+    }
+
+    $record->makeHidden(['base_salary', 'formatted_base_salary']);
+    $payrollSnapshot = $record->payroll_snapshot;
+    if (is_array($payrollSnapshot) && is_array($payrollSnapshot['pay_scheme'] ?? null)) {
+        unset($payrollSnapshot['pay_scheme']['daily_salary']);
+        $record->setAttribute('payroll_snapshot', $payrollSnapshot);
     }
 }
 

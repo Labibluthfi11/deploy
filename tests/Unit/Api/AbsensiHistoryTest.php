@@ -79,6 +79,7 @@ beforeEach(function () {
         $table->decimal('late_penalty', 10, 2)->nullable();
         $table->decimal('final_salary', 10, 2)->nullable();
         $table->decimal('overtime_pay', 10, 2)->nullable();
+        $table->json('payroll_snapshot')->nullable();
         $table->boolean('is_weekend_overtime')->nullable();
         $table->boolean('is_mocked')->nullable();
         $table->boolean('is_kurang_8_jam')->nullable();
@@ -275,4 +276,40 @@ it('does not expose stale leave approval metadata as an active request after con
 
     expect($rejectedRequest->fresh()->workflow_status)->toBe(['manager' => 'pending'])
         ->and($rejectedRequest->fresh()->catatan_admin)->toBe('cuti_tahunan');
+});
+
+it('does not expose organic daily pay and does not report unpaid overtime as salary', function () {
+    $user = User::factory()->create(['employment_type' => 'organik']);
+    Sanctum::actingAs($user);
+    createHistoryRecord($user, [
+        'base_salary' => 0,
+        'overtime_pay' => 0,
+        'payroll_snapshot' => [
+            'payroll_enabled' => false,
+            'pay_scheme' => ['name' => 'Legacy scheme', 'daily_salary' => 150000],
+        ],
+    ]);
+
+    $record = $this->getJson('/api/v1/absensi/me')
+        ->assertOk()
+        ->json('data.0');
+
+    expect(array_key_exists('base_salary', $record))->toBeFalse()
+        ->and(array_key_exists('formatted_base_salary', $record))->toBeFalse()
+        ->and(array_key_exists('daily_salary', $record['payroll_snapshot']['pay_scheme']))->toBeFalse()
+        ->and($record['overtime_salary'])->toBeNull()
+        ->and($record['formatted_overtime_salary'])->toBeNull();
+});
+
+it('returns actual overtime salary for an employee with paid overtime', function () {
+    $user = User::factory()->create(['employment_type' => 'freelance']);
+    Sanctum::actingAs($user);
+    createHistoryRecord($user, ['overtime_pay' => 18750]);
+
+    $record = $this->getJson('/api/v1/absensi/me')
+        ->assertOk()
+        ->json('data.0');
+
+    expect($record['overtime_salary'])->toBe(18750.0)
+        ->and($record['formatted_overtime_salary'])->toBe('Rp 18.750');
 });
