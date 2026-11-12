@@ -162,6 +162,6 @@ class SalarySlipAdminController extends Controller
 
     private function authorizePublisher(): void
     {
-        abort_unless(in_array(auth()->user()?->role, ['admin', 'super_admin'], true), 403);
+        abort_unless(auth()->user()?->isAnyAdmin(), 403);
     }
 }

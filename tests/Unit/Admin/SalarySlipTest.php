@@ -190,10 +190,15 @@ it('only allows freelance and borongan recipients', function () {
     expect(SalarySlip::count())->toBe(0);
 });
 
-it('limits publishing access to admin and super admin roles', function () {
-    $manager = User::factory()->create(['role' => 'manager']);
+it('allows HRGA to publish slips but denies PKL', function () {
+    $hrga = User::factory()->create(['role' => 'hrga']);
+    $pkl = User::factory()->create(['role' => 'pkl']);
 
-    $this->actingAs($manager)
+    $this->actingAs($hrga)
+        ->get(route('admin.salary-slips.index'))
+        ->assertOk();
+
+    $this->actingAs($pkl)
         ->get(route('admin.salary-slips.index'))
         ->assertForbidden();
 });
