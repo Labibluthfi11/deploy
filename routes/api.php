@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AbsensiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserProfileController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\SalarySlipController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use App\Http\Controllers\Api\ScheduledLemburController;
 use App\Http\Controllers\Api\KpiIntegrationController;
@@ -106,6 +107,10 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
         // ========== ABSENSI - GET ENDPOINTS ==========
         Route::get('/absensi/me', [AbsensiController::class, 'meAbsensi']);
         Route::get('/absensi/detail/{id}', [AbsensiController::class, 'getDetailAbsensi']);
+
+        // ========== SLIP GAJI ==========
+        Route::get('/salary-slips', [SalarySlipController::class, 'index']);
+        Route::get('/salary-slips/{salarySlip}', [SalarySlipController::class, 'show']);
         
         // ========== NOTIFICATIONS ==========
         Route::get('/notifications', [NotificationController::class, 'index']);

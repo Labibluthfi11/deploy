@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AbsensiAdminController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Admin\LeaveBalanceController;
+use App\Http\Controllers\Admin\SalarySlipAdminController;
 use App\Http\Controllers\Admin\WorkRuleAdminController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,12 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::class])->prefix('admin')->group(function () {
+
+    Route::prefix('salary-slips')->name('admin.salary-slips.')->group(function () {
+        Route::get('/', [SalarySlipAdminController::class, 'index'])->name('index');
+        Route::post('/preview', [SalarySlipAdminController::class, 'preview'])->name('preview');
+        Route::post('/issue', [SalarySlipAdminController::class, 'issue'])->name('issue');
+    });
 
     Route::prefix('absensi')->group(function () {
 
@@ -51,7 +58,6 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         Route::middleware('super_admin')->group(function () {
             Route::get('/organik', [AbsensiAdminController::class, 'indexOrganik'])->name('admin.absensi.organik');
             Route::get('/user/{user}/export-slip', [AbsensiAdminController::class, 'exportSlipGaji'])->name('admin.absensi.user.export-slip')->middleware('block.pkl');
-            Route::post('/bulk-export-pdf', [AbsensiAdminController::class, 'bulkExportPdf'])->name('admin.absensi.bulk-export-pdf')->middleware('block.pkl');
             Route::get('/activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
         });
 

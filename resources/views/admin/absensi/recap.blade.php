@@ -11,6 +11,10 @@
                 class="inline-flex items-center px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm hover:shadow">
                 <i class="fas fa-arrow-left mr-2"></i> Kembali
             </a>
+            <a href="{{ route('admin.salary-slips.index') }}"
+                class="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-receipt mr-2"></i> Terbitkan Slip Gaji
+            </a>
         </div>
     </x-slot>
 
@@ -130,9 +134,6 @@
                             @if(auth()->user()->role !== 'pkl')
                              <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
-                            </button>
-                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
-                                <i class="fas fa-file-pdf mr-2"></i> PDF
                             </button>
                             @endif
                         </div>
@@ -270,9 +271,6 @@
                             </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
-                            </button>
-                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
-                                <i class="fas fa-file-pdf mr-2"></i> PDF
                             </button>
                         </div>
                     </div>
@@ -417,9 +415,6 @@
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
                             </button>
-                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
-                                <i class="fas fa-file-pdf mr-2"></i> PDF
-                            </button>
                         </div>
                     </div>
 
@@ -562,9 +557,6 @@
                             </button>
                             <button type="submit" formaction="{{ route('admin.absensi.bulk-export-detail') }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
                                 <i class="fas fa-file-excel mr-2"></i> Excel
-                            </button>
-                            <button type="submit" formaction="{{ route('admin.absensi.bulk-export-pdf') }}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200">
-                                <i class="fas fa-file-pdf mr-2"></i> PDF
                             </button>
                         </div>
                     </div>
