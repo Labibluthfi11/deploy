@@ -242,6 +242,45 @@ class WorkRuleAdminController extends Controller
         return $this->redirectWithSuccess('Penetapan shift dan skema upah berhasil disimpan.');
     }
 
+    public function updateAssignmentPayScheme(Request $request, EmployeeWorkAssignment $assignment)
+    {
+        $data = $request->validate([
+            'pay_scheme_id' => ['nullable', 'integer', 'exists:pay_schemes,id'],
+            'week' => ['nullable', 'date'],
+        ]);
+
+        DB::transaction(function () use ($assignment, $data) {
+            $currentAssignment = EmployeeWorkAssignment::query()
+                ->lockForUpdate()
+                ->findOrFail($assignment->id);
+            $currentAssignment->loadMissing('user');
+
+            if ($currentAssignment->user->kategori_absensi === 'organik') {
+                $currentAssignment->update(['pay_scheme_id' => null]);
+                return;
+            }
+
+            if (empty($data['pay_scheme_id'])) {
+                throw ValidationException::withMessages([
+                    'pay_scheme_id' => 'Pilih skema upah untuk karyawan non-organik.',
+                ]);
+            }
+
+            $payScheme = PayScheme::query()->findOrFail($data['pay_scheme_id']);
+            if (!$payScheme->is_active) {
+                throw ValidationException::withMessages([
+                    'pay_scheme_id' => 'Skema upah yang dipilih harus aktif.',
+                ]);
+            }
+
+            $currentAssignment->update(['pay_scheme_id' => $payScheme->id]);
+        });
+
+        return redirect()
+            ->route('admin.work-rules.index', array_filter(['week' => $data['week'] ?? null]))
+            ->with('success', 'Skema upah pada penetapan ini berhasil diperbarui.');
+    }
+
     public function updateAssignmentSchedule(Request $request, EmployeeWorkAssignment $assignment)
     {
         $data = $request->validate([

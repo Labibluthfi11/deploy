@@ -218,7 +218,7 @@
             <section class="grid gap-6 xl:grid-cols-2">
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">1. Daftarkan Shift & Upah Karyawan</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pakai saat pertama kali menetapkan karyawan atau mengubah skema upah. Kalau karyawan sudah terdaftar dan hanya mau ubah shift/polanya, pakai bagian “Rotasi Shift Mingguan” di bawah—jangan daftarkan ulang.</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pakai untuk menetapkan karyawan baru. Untuk mengedit skema upah yang sudah terpasang, gunakan tombol “Ubah Skema Upah” pada daftar karyawan di bawah.</p>
                     <form action="{{ route('admin.work-rules.assignments.store') }}" method="POST" class="mt-5 grid gap-4">
                         @csrf
                         <div>
@@ -412,6 +412,28 @@
                                                     · Absensi saja (tanpa hitungan upah)
                                                 @endif
                                             </p>
+                                            @if($assignment->user->kategori_absensi === 'organik')
+                                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Organik tidak memakai skema upah.</p>
+                                            @else
+                                                <form action="{{ route('admin.work-rules.assignments.pay-scheme.update', $assignment) }}" method="POST" class="mt-3 space-y-2">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="week" value="{{ $weekStart->toDateString() }}">
+                                                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">Edit skema upah</label>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <select name="pay_scheme_id" required class="min-w-48 rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                                            <option value="">Pilih skema upah</option>
+                                                            @foreach($paySchemes as $scheme)
+                                                                <option value="{{ $scheme->id }}" @selected($assignment->pay_scheme_id == $scheme->id)>
+                                                                    {{ $scheme->name }} · Rp{{ number_format((float) $scheme->daily_salary, 0, ',', '.') }}{{ $scheme->is_active ? '' : ' · Nonaktif' }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button class="rounded-lg border border-indigo-300 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/30">Ubah Skema Upah</button>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400">Hanya penetapan ini yang berubah. Snapshot absensi lama tidak dihitung ulang.</p>
+                                                </form>
+                                            @endif
                                         </div>
                                         <form action="{{ route('admin.work-rules.assignments.schedule.update', $assignment) }}" method="POST" class="grid w-full gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] lg:max-w-4xl">
                                             @csrf
