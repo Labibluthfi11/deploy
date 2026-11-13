@@ -1,7 +1,7 @@
 {{-- resources/views/admin/absensi/index.blade.php --}}
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-white">
                     {{ $dashboardTitle ?? 'Dashboard Absensi Karyawan' }}
@@ -10,74 +10,69 @@
                     Kelola dan pantau kehadiran karyawan secara real-time
                 </p>
             </div>
+            <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:min-w-[660px]">
+                <div>
+                    <label for="filter-month" class="sr-only">Bulan</label>
+                    <select id="filter-month" name="month" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        @for ($m = 1; $m <= 12; $m++)
+                            <option value="{{ $m }}" {{ request('month', $month) == $m ? 'selected' : '' }}>
+                                {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
+                            </option>
+                        @endfor
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-year" class="sr-only">Tahun</label>
+                    <select id="filter-year" name="year" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        @for ($y = date('Y'); $y >= 2020; $y--)
+                            <option value="{{ $y }}" {{ request('year', $year) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-employment-status" class="sr-only">Status Kepegawaian</label>
+                    <select id="filter-employment-status" name="employment_status" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="" {{ !request('employment_status') ? 'selected' : '' }}>Semua Status</option>
+                        <option value="organik" {{ request('employment_status') == 'organik' ? 'selected' : '' }}>Organik</option>
+                        <option value="freelance" {{ request('employment_status') == 'freelance' ? 'selected' : '' }}>Freelance</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-filter"></i>
+                    <span>Terapkan</span>
+                </button>
+            </form>
         </div>
     </x-slot>
 
     <div class="py-8 px-4 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto space-y-8">
 
-            {{-- Filter Section --}}
-            <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-                        <i class="fas fa-filter text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Filter Statistik</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Sesuaikan periode statistik</p>
+            {{-- Summary Cards --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+                <div class="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-md hover:shadow-lg transition-all p-6">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                    <div class="relative flex items-center justify-between">
+                        <div>
+                            <p class="text-blue-100 text-xs font-semibold uppercase tracking-wide">Total Karyawan</p>
+                            <p class="text-white text-3xl font-bold mt-2">{{ $statsProduksi['total'] + $statsOffice['total'] }}</p>
+                            <p class="text-blue-100 text-sm mt-1">Produksi &amp; office</p>
+                        </div>
+                        <div class="p-3 bg-white/20 rounded-full">
+                            <i class="fas fa-users text-white text-xl"></i>
+                        </div>
                     </div>
                 </div>
 
-                <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bulan</label>
-                        <select name="month" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                            @for ($m = 1; $m <= 12; $m++)
-                                <option value="{{ $m }}" {{ request('month', $month) == $m ? 'selected' : '' }}>
-                                    {{ \Carbon\Carbon::createFromFormat('!m', $m)->translatedFormat('F') }}
-                                </option>
-                            @endfor
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tahun</label>
-                        <select name="year" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                            @for ($y = date('Y'); $y >= 2020; $y--)
-                                <option value="{{ $y }}" {{ request('year', $year) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                            @endfor
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status Kepegawaian</label>
-                        <select name="employment_status" class="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                            <option value="" {{ !request('employment_status') ? 'selected' : '' }}>Semua Status</option>
-                            <option value="organik" {{ request('employment_status') == 'organik' ? 'selected' : '' }}>Organik</option>
-                            <option value="freelance" {{ request('employment_status') == 'freelance' ? 'selected' : '' }}>Freelance</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-end">
-                        <button type="submit" class="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2">
-                            <i class="fas fa-search"></i>
-                            <span>Terapkan</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            {{-- Summary Cards --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg hover:shadow-xl transition-all p-6">
+                <div class="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-md hover:shadow-lg transition-all p-6">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
                     <div class="relative">
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <p class="text-emerald-100 text-xs font-medium uppercase">Total Kehadiran</p>
+                                <p class="text-emerald-100 text-xs font-semibold uppercase tracking-wide">Hadir</p>
                                 <p class="text-white text-3xl font-bold mt-1">{{ $totalHadir }}</p>
                             </div>
-                            <div class="p-3 bg-white/20 rounded-xl">
+                            <div class="p-3 bg-white/20 rounded-full">
                                 <i class="fas fa-check-circle text-white text-xl"></i>
                             </div>
                         </div>
@@ -85,15 +80,15 @@
                     </div>
                 </div>
 
-                <div class="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-lg hover:shadow-xl transition-all p-6">
+                <div class="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-md hover:shadow-lg transition-all p-6">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
                     <div class="relative">
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <p class="text-amber-100 text-xs font-medium uppercase">Total Izin</p>
+                                <p class="text-amber-100 text-xs font-semibold uppercase tracking-wide">Izin</p>
                                 <p class="text-white text-3xl font-bold mt-1">{{ $totalIzin }}</p>
                             </div>
-                            <div class="p-3 bg-white/20 rounded-xl">
+                            <div class="p-3 bg-white/20 rounded-full">
                                 <i class="fas fa-sticky-note text-white text-xl"></i>
                             </div>
                         </div>
@@ -101,15 +96,15 @@
                     </div>
                 </div>
 
-                <div class="relative overflow-hidden bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl shadow-lg hover:shadow-xl transition-all p-6">
+                <div class="relative overflow-hidden bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl shadow-md hover:shadow-lg transition-all p-6">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
                     <div class="relative">
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <p class="text-rose-100 text-xs font-medium uppercase">Total Sakit</p>
+                                <p class="text-rose-100 text-xs font-semibold uppercase tracking-wide">Sakit</p>
                                 <p class="text-white text-3xl font-bold mt-1">{{ $totalSakit }}</p>
                             </div>
-                            <div class="p-3 bg-white/20 rounded-xl">
+                            <div class="p-3 bg-white/20 rounded-full">
                                 <i class="fas fa-medkit text-white text-xl"></i>
                             </div>
                         </div>
@@ -117,15 +112,15 @@
                     </div>
                 </div>
 
-                <div class="relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg hover:shadow-xl transition-all p-6">
+                <div class="relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-md hover:shadow-lg transition-all p-6">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
                     <div class="relative">
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <p class="text-violet-100 text-xs font-medium uppercase">Total Lembur</p>
+                                <p class="text-violet-100 text-xs font-semibold uppercase tracking-wide">Lembur</p>
                                 <p class="text-white text-3xl font-bold mt-1">{{ $totalLembur }}</p>
                             </div>
-                            <div class="p-3 bg-white/20 rounded-xl">
+                            <div class="p-3 bg-white/20 rounded-full">
                                 <i class="fas fa-clock text-white text-xl"></i>
                             </div>
                         </div>
@@ -136,7 +131,7 @@
 
             {{-- Attendance Today Summary (Produksi vs Office) --}}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
                     <div class="flex items-center gap-4">
                         <div class="p-4 bg-orange-100 dark:bg-orange-900/30 rounded-2xl">
                             <i class="fas fa-industry text-orange-600 dark:text-orange-400 text-2xl"></i>
@@ -164,7 +159,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
                     <div class="flex items-center gap-4">
                         <div class="p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl">
                             <i class="fas fa-building text-blue-600 dark:text-blue-400 text-2xl"></i>
@@ -195,7 +190,7 @@
 
             {{-- Comparison Cards --}}
             @if($currentStatus === 'semua' && $comparison)
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
                             <i class="fas fa-balance-scale text-white text-lg"></i>
@@ -327,9 +322,9 @@
             @endif
 
             {{-- Charts --}}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Statistik Bulanan --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
                             <i class="fas fa-chart-bar text-white"></i>
@@ -339,13 +334,13 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">Tahun {{ $year }}</p>
                         </div>
                     </div>
-                    <div class="h-80 px-2 pt-2">
+                    <div class="h-72 px-2 pt-2">
                         <canvas id="grafikBulananLine"></canvas>
                     </div>
                 </div>
 
                 {{-- Ringkasan Status --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl">
                             <i class="fas fa-chart-pie text-white"></i>
@@ -355,7 +350,7 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">Bulan ini</p>
                         </div>
                     </div>
-                    <div class="h-80 flex items-center justify-center">
+                    <div class="h-72 flex items-center justify-center">
                         <canvas id="grafikStatus"></canvas>
                     </div>
                 </div>
@@ -363,34 +358,34 @@
 
             {{-- 🔥 TODAY'S STATUS: 4 TABEL DENGAN ALPINE.JS TABS 🔥 --}}
             @if($currentStatus === 'semua')
-                <div x-data="{ activeTab: 'semua' }" class="space-y-6">
+                <div data-attendance-tabs class="space-y-6">
                     
                     {{-- Tab Navigation Pills --}}
                     <div class="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-3 rounded-2xl shadow-md border border-gray-200/50 dark:border-gray-700/50">
-                        <button @click="activeTab = 'semua'" :class="activeTab === 'semua' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                        <button type="button" data-attendance-tab="semua" class="bg-indigo-600 text-white shadow-md px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
                             <i class="fas fa-th-large"></i>
                             <span>Semua Status</span>
                         </button>
-                        <button @click="activeTab = 'organik'" :class="activeTab === 'organik' ? 'bg-emerald-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                        <button type="button" data-attendance-tab="organik" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
                             <i class="fas fa-users-cog"></i>
                             <span>Organik</span>
                         </button>
-                        <button @click="activeTab = 'freelance'" :class="activeTab === 'freelance' ? 'bg-cyan-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                        <button type="button" data-attendance-tab="freelance" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
                             <i class="fas fa-users"></i>
                             <span>Freelance</span>
                         </button>
-                        <button @click="activeTab = 'borongan'" :class="activeTab === 'borongan' ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                        <button type="button" data-attendance-tab="borongan" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
                             <i class="fas fa-hammer"></i>
                             <span>Borongan</span>
                         </button>
-                        <button @click="activeTab = 'magang'" :class="activeTab === 'magang' ? 'bg-sky-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                        <button type="button" data-attendance-tab="magang" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
                             <i class="fas fa-graduation-cap"></i>
                             <span>Magang</span>
                         </button>
                     </div>
 
                     {{-- Tabel Organik --}}
-                    <div x-show="activeTab === 'semua' || activeTab === 'organik'" x-transition.opacity id="tabel-organik" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                    <div data-attendance-panel="organik" id="tabel-organik" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
                             <i class="fas fa-users-cog text-white"></i>
@@ -402,7 +397,7 @@
                     </div>
 
                     {{-- Form Pencarian Organik --}}
-                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                    <form action="{{ url()->current() }}" method="GET" data-live-search="organik" class="mb-4">
                         <div class="flex items-center gap-2">
                             <div class="relative flex-grow">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -410,8 +405,8 @@
                                 </div>
                                 <input type="search" name="search_organik" id="search_organik" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan organik..." value="{{ request('search_organik') }}">
                             </div>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cari
+                            <button type="button" data-search-clear class="hidden items-center px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Hapus
                             </button>
                             @if(request('search_organik'))
                                 <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
@@ -423,21 +418,21 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
+                            <thead class="bg-gray-900">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Detail</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 [&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-700/30">
                                 @forelse ($dailyStatusesOrganik as $daily)
                                     <x-admin.absensi-row :daily="$daily" type="organik" />
                                 @empty
-                                    <tr>
+                                    <tr data-empty-state>
                                         <td colspan="6" class="text-center py-12">
                                             <div class="flex flex-col items-center">
                                                 <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
@@ -456,7 +451,7 @@
                 </div>
 
                 {{-- Tabel Freelance --}}
-                <div x-show="activeTab === 'semua' || activeTab === 'freelance'" x-transition.opacity id="tabel-freelance" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div data-attendance-panel="freelance" id="tabel-freelance" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
                             <i class="fas fa-users text-white"></i>
@@ -468,7 +463,7 @@
                     </div>
 
                     {{-- Form Pencarian Freelance --}}
-                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                    <form action="{{ url()->current() }}" method="GET" data-live-search="freelance" class="mb-4">
                         <div class="flex items-center gap-2">
                             <div class="relative flex-grow">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -476,8 +471,8 @@
                                 </div>
                                 <input type="search" name="search_freelance" id="search_freelance" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama freelance..." value="{{ request('search_freelance') }}">
                             </div>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cari
+                            <button type="button" data-search-clear class="hidden items-center px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Hapus
                             </button>
                             @if(request('search_freelance'))
                                 <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
@@ -489,21 +484,21 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
+                            <thead class="bg-gray-900">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Detail</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 [&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-700/30">
                                 @forelse ($dailyStatusesFreelance as $daily)
                                     <x-admin.absensi-row :daily="$daily" type="freelance" />
                                 @empty
-                                    <tr>
+                                    <tr data-empty-state>
                                         <td colspan="6" class="text-center py-12">
                                             <div class="flex flex-col items-center">
                                                 <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
@@ -522,7 +517,7 @@
                 </div>
 
                 {{-- Tabel Borongan --}}
-                <div x-show="activeTab === 'semua' || activeTab === 'borongan'" x-transition.opacity id="tabel-borongan" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div data-attendance-panel="borongan" id="tabel-borongan" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
                             <i class="fas fa-hammer text-white"></i>
@@ -534,7 +529,7 @@
                     </div>
 
                     {{-- Form Pencarian Borongan --}}
-                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                    <form action="{{ url()->current() }}" method="GET" data-live-search="borongan" class="mb-4">
                         <div class="flex items-center gap-2">
                             <div class="relative flex-grow">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -542,8 +537,8 @@
                                 </div>
                                 <input type="search" name="search_borongan" id="search_borongan" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan borongan..." value="{{ request('search_borongan') }}">
                             </div>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cari
+                            <button type="button" data-search-clear class="hidden items-center px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Hapus
                             </button>
                             @if(request('search_borongan'))
                                 <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
@@ -555,21 +550,21 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
+                            <thead class="bg-gray-900">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Detail</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 [&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-700/30">
                                 @forelse ($dailyStatusesBorongan as $daily)
                                     <x-admin.absensi-row :daily="$daily" type="borongan" />
                                 @empty
-                                    <tr>
+                                    <tr data-empty-state>
                                         <td colspan="6" class="text-center py-12">
                                             <div class="flex flex-col items-center">
                                                 <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
@@ -588,7 +583,7 @@
                 </div>
 
                 {{-- Tabel Magang --}}
-                <div x-show="activeTab === 'semua' || activeTab === 'magang'" x-transition.opacity id="tabel-magang" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div data-attendance-panel="magang" id="tabel-magang" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-xl">
                             <i class="fas fa-graduation-cap text-white"></i>
@@ -600,7 +595,7 @@
                     </div>
 
                     {{-- Form Pencarian Magang --}}
-                    <form action="{{ url()->current() }}" method="GET" class="mb-4">
+                    <form action="{{ url()->current() }}" method="GET" data-live-search="magang" class="mb-4">
                         <div class="flex items-center gap-2">
                             <div class="relative flex-grow">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -608,8 +603,8 @@
                                 </div>
                                 <input type="search" name="search_magang" id="search_magang" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Cari nama karyawan magang..." value="{{ request('search_magang') }}">
                             </div>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cari
+                            <button type="button" data-search-clear class="hidden items-center px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Hapus
                             </button>
                             @if(request('search_magang'))
                                 <a href="{{ route('admin.absensi.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-white">
@@ -621,21 +616,21 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
+                            <thead class="bg-gray-900">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Detail</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 [&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-700/30">
                                 @forelse ($dailyStatusesMagang as $daily)
                                     <x-admin.absensi-row :daily="$daily" type="magang" />
                                 @empty
-                                    <tr>
+                                    <tr data-empty-state>
                                         <td colspan="6" class="text-center py-12">
                                             <div class="flex flex-col items-center">
                                                 <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
@@ -654,7 +649,7 @@
                 </div>
             @else
                 {{-- Tabel Single (Kalo Filter Dipilih) --}}
-                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
                             <i class="fas fa-users-cog text-white"></i>
@@ -667,17 +662,17 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
+                            <thead class="bg-gray-900">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Karyawan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-in</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Keterlambatan</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Check-out</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Detail</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Karyawan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-in</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Keterlambatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Check-out</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-100 uppercase tracking-wider">Detail</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 [&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-700/30">
                                 @forelse ($dailyStatuses as $daily)
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                         <td class="px-6 py-4 whitespace-nowrap">
@@ -692,11 +687,11 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1
-                                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700
-                                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800
-                                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800
-                                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800
-                                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800
+                                                @if(str_contains($daily['status'], 'Belum')) bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200
+                                                @elseif(str_contains($daily['status'], 'Hadir')) bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200
+                                                @elseif(str_contains($daily['status'], 'Izin')) bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200
+                                                @elseif(str_contains($daily['status'], 'Sakit')) bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200
+                                                @elseif(str_contains($daily['status'], 'Pending')) bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200
                                                 @endif">
                                                 {{ $daily['status'] }}
                                             </span>
@@ -772,29 +767,96 @@
         </div>
     </div>
 
-    <script nonce="{{ config('app.csp_nonce') }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script nonce="{{ config('app.csp_nonce') }}" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script nonce="{{ config('app.csp_nonce') }}">
         document.addEventListener('DOMContentLoaded', () => {
-        // 🔥 AUTO SCROLL KE TABEL YANG DI-SEARCH 🔥
-        const urlParams = new URLSearchParams(window.location.search);
+            const tabButtons = document.querySelectorAll('[data-attendance-tab]');
+            const tabPanels = document.querySelectorAll('[data-attendance-panel]');
 
-        if (urlParams.has('search_organik') && urlParams.get('search_organik') !== '') {
-            setTimeout(() => {
-                document.getElementById('tabel-organik')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-        } else if (urlParams.has('search_freelance') && urlParams.get('search_freelance') !== '') {
-            setTimeout(() => {
-                document.getElementById('tabel-freelance')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-        } else if (urlParams.has('search_borongan') && urlParams.get('search_borongan') !== '') {
-            setTimeout(() => {
-                document.getElementById('tabel-borongan')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-        } else if (urlParams.has('search_magang') && urlParams.get('search_magang') !== '') {
-            setTimeout(() => {
-                document.getElementById('tabel-magang')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-        }
+            tabButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const activeTab = button.dataset.attendanceTab;
+
+                    tabButtons.forEach((tab) => {
+                        const selected = tab === button;
+                        tab.classList.toggle('bg-indigo-600', selected && activeTab === 'semua');
+                        tab.classList.toggle('bg-emerald-600', selected && activeTab === 'organik');
+                        tab.classList.toggle('bg-cyan-600', selected && activeTab === 'freelance');
+                        tab.classList.toggle('bg-purple-600', selected && activeTab === 'borongan');
+                        tab.classList.toggle('bg-sky-600', selected && activeTab === 'magang');
+                        tab.classList.toggle('text-white', selected);
+                        tab.classList.toggle('shadow-md', selected);
+                        tab.classList.toggle('bg-gray-100', !selected);
+                        tab.classList.toggle('dark:bg-gray-700', !selected);
+                        tab.classList.toggle('text-gray-700', !selected);
+                        tab.classList.toggle('dark:text-gray-300', !selected);
+                    });
+
+                    tabPanels.forEach((panel) => {
+                        panel.classList.toggle('hidden', activeTab !== 'semua' && panel.dataset.attendancePanel !== activeTab);
+                    });
+                });
+            });
+
+            document.querySelectorAll('[data-live-search]').forEach((form) => {
+                const category = form.dataset.liveSearch;
+                const input = form.querySelector('input[type="search"]');
+                const clearButton = form.querySelector('[data-search-clear]');
+                const panel = document.getElementById(`tabel-${category}`);
+                const tbody = panel ? panel.querySelector('tbody') : null;
+
+                if (!input || !tbody) {
+                    return;
+                }
+
+                const filterRows = () => {
+                    const query = input.value.trim().toLocaleLowerCase();
+                    const rows = Array.from(tbody.querySelectorAll('tr:not([data-empty-state]):not([data-live-empty])'));
+                    const emptyState = tbody.querySelector('[data-empty-state]');
+                    let visibleRows = 0;
+
+                    rows.forEach((row) => {
+                        const matches = row.textContent.toLocaleLowerCase().includes(query);
+                        row.classList.toggle('hidden', !matches);
+                        if (matches) {
+                            visibleRows++;
+                        }
+                    });
+
+                    if (emptyState) {
+                        emptyState.classList.toggle('hidden', query.length > 0);
+                    }
+
+                    let noResults = tbody.querySelector('[data-live-empty]');
+                    if (!noResults && query.length > 0) {
+                        noResults = document.createElement('tr');
+                        noResults.dataset.liveEmpty = '';
+                        const cell = document.createElement('td');
+                        cell.colSpan = 6;
+                        cell.className = 'text-center py-8 text-sm text-gray-500 dark:text-gray-400';
+                        cell.textContent = 'Tidak ada karyawan yang cocok dengan pencarian.';
+                        noResults.appendChild(cell);
+                        tbody.appendChild(noResults);
+                    }
+                    if (noResults) {
+                        noResults.classList.toggle('hidden', query.length === 0 || visibleRows > 0);
+                    }
+
+                    if (clearButton) {
+                        clearButton.classList.toggle('hidden', query.length === 0);
+                        clearButton.classList.toggle('inline-flex', query.length > 0);
+                    }
+                };
+
+                form.addEventListener('submit', (event) => event.preventDefault());
+                input.addEventListener('input', filterRows);
+                clearButton?.addEventListener('click', () => {
+                    input.value = '';
+                    filterRows();
+                    input.focus();
+                });
+                filterRows();
+            });
 
             const isDark = document.documentElement.classList.contains('dark');
 
@@ -802,31 +864,29 @@
             Chart.defaults.borderColor = isDark ? '#4a5568' : '#e5e7eb';
 
             new Chart(document.getElementById('grafikBulananLine'), {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: [@for ($i = 1; $i <= 12; $i++) "{{ \Carbon\Carbon::createFromFormat('!m', $i)->translatedFormat('M') }}", @endfor],
                     datasets: [
                         {
                             label: 'Organik',
                             data: [@for ($i = 1; $i <= 12; $i++) {{ $grafikBulananOrganik[$i] ?? 0 }}, @endfor],
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59,130,246,0.08)',
-                            tension: 0.4,
-                            pointBackgroundColor: '#3b82f6',
-                            pointBorderColor: '#fff',
-                            pointRadius: 7,
-                            fill: true,
+                            backgroundColor: [
+                                '#2563eb', '#4f46e5', '#7c3aed', '#9333ea', '#c026d3', '#db2777',
+                                '#e11d48', '#ea580c', '#d97706', '#65a30d', '#059669', '#0891b2'
+                            ],
+                            borderRadius: 6,
+                            borderSkipped: false,
                         },
                         {
                             label: 'Freelance',
                             data: [@for ($i = 1; $i <= 12; $i++) {{ $grafikBulananFreelance[$i] ?? 0 }}, @endfor],
-                            borderColor: '#fb923c',
-                            backgroundColor: 'rgba(251,146,60,0.08)',
-                            tension: 0.4,
-                            pointBackgroundColor: '#fb923c',
-                            pointBorderColor: '#fff',
-                            pointRadius: 7,
-                            fill: true,
+                            backgroundColor: [
+                                '#60a5fa', '#818cf8', '#a78bfa', '#c084fc', '#e879f9', '#f472b6',
+                                '#fb7185', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3ee'
+                            ],
+                            borderRadius: 6,
+                            borderSkipped: false,
                         }
                     ]
                 },
@@ -848,19 +908,43 @@
                             ticks: { color: isDark ? '#cbd5e0' : '#4b5563', font: { weight: 'bold' } }
                         },
                         y: {
+                            beginAtZero: true,
                             grid: { color: isDark ? 'rgba(100,116,139,0.15)' : 'rgba(100,116,139,0.07)' },
                             ticks: { color: isDark ? '#cbd5e0' : '#4b5563' }
                         }
-                    },
-                    elements: {
-                        line: { borderWidth: 3 },
-                        point: { borderWidth: 2 }
                     }
                 }
             });
 
+            const centerTextPlugin = {
+                id: 'attendanceCenterText',
+                afterDraw(chart) {
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) {
+                        return;
+                    }
+
+                    const total = [{{ $totalHadir }}, {{ $totalIzin }}, {{ $totalSakit }}, {{ $totalLembur }}]
+                        .reduce((sum, value) => sum + value, 0);
+                    const centerX = (chartArea.left + chartArea.right) / 2;
+                    const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = isDark ? '#f9fafb' : '#111827';
+                    ctx.font = '700 24px sans-serif';
+                    ctx.fillText(total.toLocaleString(), centerX, centerY - 8);
+                    ctx.fillStyle = isDark ? '#9ca3af' : '#6b7280';
+                    ctx.font = '500 12px sans-serif';
+                    ctx.fillText('Total', centerX, centerY + 16);
+                    ctx.restore();
+                }
+            };
+
             new Chart(document.getElementById('grafikStatus'), {
                 type: 'doughnut',
+                plugins: [centerTextPlugin],
                 data: {
                     labels: ['Hadir', 'Izin', 'Sakit', 'Lembur'],
                     datasets: [{
@@ -886,7 +970,7 @@
                             }
                         }
                     },
-                    cutout: '65%'
+                    cutout: '72%'
                 }
             });
         });
