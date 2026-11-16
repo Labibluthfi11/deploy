@@ -218,6 +218,16 @@
     {{-- TAB SWITCHING SCRIPT --}}
     <script nonce="{{ config('app.csp_nonce') }}">
     function showTab(tabName) {
+        if (!['freelance', 'organik'].includes(tabName)) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('tab') !== tabName) {
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState({}, '', url.toString());
+        }
+
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.add('hidden');
         });
@@ -250,11 +260,9 @@
             });
         });
 
-        @if($freelanceHRGA->count() == 0 && $organikHRGA->count() > 0)
-            showTab('organik');
-        @else
-            showTab('freelance');
-        @endif
+        const requestedTab = new URLSearchParams(window.location.search).get('tab');
+        const defaultTab = @if($freelanceHRGA->count() == 0 && $organikHRGA->count() > 0) 'organik' @else 'freelance' @endif;
+        showTab(['freelance', 'organik'].includes(requestedTab) ? requestedTab : defaultTab);
     });
 </script>
 
