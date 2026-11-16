@@ -682,7 +682,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                                 $absensi->lembur_start,
                                 $absensi->lembur_end,
                                 (bool) $absensi->lembur_rest,
-                                false,
+                                (bool) $absensi->is_weekend_overtime,
                                 $absensi->payroll_snapshot,
                                 $absensi->user->kategori_absensi !== 'organik'
                             );
@@ -1216,7 +1216,7 @@ if ($user && $absensi->parent_id === null && $absensi->hari_potong_cuti > 0) {
                         $absensi->lembur_start,
                         $absensi->lembur_end,
                         (bool) $absensi->lembur_rest,
-                        false,
+                        (bool) $absensi->is_weekend_overtime,
                         $absensi->payroll_snapshot,
                         $absensi->user->kategori_absensi !== 'organik'
                     );

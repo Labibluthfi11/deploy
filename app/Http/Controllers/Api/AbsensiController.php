@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Absensi;
+use App\Models\SalarySlip;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -1604,6 +1605,217 @@ private function attachHistoryApproval(Absensi $record): void
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function submitLemburLampau(Request $request)
+    {
+        $today = Carbon::today('Asia/Jakarta');
+        $minimumDate = $today->copy()->subDays(14)->toDateString();
+        $validated = $request->validate([
+            'tanggal' => ['required', 'date_format:Y-m-d', 'before:today', 'after_or_equal:' . $minimumDate],
+            'jam_mulai' => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i',
+            'istirahat' => 'required|boolean',
+            'keterangan' => 'required|string|min:5|max:500',
+            'keterangan_goals' => 'nullable|string|max:2000',
+            'foto_bukti' => 'required|image|max:2048',
+        ]);
+
+        $workDate = Carbon::createFromFormat('Y-m-d', $validated['tanggal'], 'Asia/Jakarta')->startOfDay();
+        $lemburStart = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $validated['tanggal'] . ' ' . $validated['jam_mulai'],
+            'Asia/Jakarta'
+        );
+        $lemburEnd = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $validated['tanggal'] . ' ' . $validated['jam_selesai'],
+            'Asia/Jakarta'
+        );
+
+        if ($lemburEnd->lte($lemburStart)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jam selesai harus lebih dari jam mulai.',
+            ], 422);
+        }
+
+        if ($lemburStart->diffInMinutes($lemburEnd) > 300) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Durasi lembur maksimal 5 jam.',
+            ], 422);
+        }
+
+        $user = Auth::user();
+        $fotoPath = null;
+
+        try {
+            $submission = DB::transaction(function () use (
+                $request,
+                $validated,
+                $user,
+                $workDate,
+                $lemburStart,
+                $lemburEnd,
+                &$fotoPath
+            ) {
+                User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+                $workRules = app(AttendanceWorkRules::class);
+                $attendanceCandidates = Absensi::query()
+                    ->where('user_id', $user->id)
+                    ->whereNull('parent_id')
+                    ->where('status', 'hadir')
+                    ->whereIn('status_approval', ['pending', 'approved'])
+                    ->whereBetween('check_in_at', [
+                        $workDate->copy()->subDay()->startOfDay(),
+                        $workDate->copy()->endOfDay(),
+                    ])
+                    ->orderByDesc('check_in_at')
+                    ->lockForUpdate()
+                    ->get();
+
+                $attendance = $attendanceCandidates->first(function (Absensi $candidate) use (
+                    $user,
+                    $workDate,
+                    $lemburStart,
+                    $workRules
+                ) {
+                    if (Carbon::parse($candidate->check_in_at)->greaterThan($lemburStart)) {
+                        return false;
+                    }
+
+                    $checkInDate = Carbon::parse($candidate->check_in_at)->startOfDay();
+                    if ($checkInDate->equalTo($workDate)) {
+                        return true;
+                    }
+
+                    $configuration = $workRules->forEmployee($user, $checkInDate, $candidate);
+
+                    return ($configuration['snapshot']['shift']['crosses_midnight'] ?? false)
+                        && $checkInDate->copy()->addDay()->equalTo($workDate);
+                });
+
+                if (!$attendance) {
+                    abort(409, 'Tidak ditemukan absensi hadir untuk tanggal lembur tersebut.');
+                }
+
+                if (!$attendance->check_out_at) {
+                    abort(409, 'Absensi tanggal tersebut belum memiliki jam pulang. Selesaikan koreksi absensi pulang terlebih dahulu.');
+                }
+
+                $attendanceDate = Carbon::parse($attendance->check_in_at)->toDateString();
+                $payrollDates = array_unique([$workDate->toDateString(), $attendanceDate]);
+                $hasIssuedSlip = SalarySlip::query()
+                    ->where('user_id', $user->id)
+                    ->where(function ($query) use ($payrollDates) {
+                        foreach ($payrollDates as $date) {
+                            $query->orWhere(function ($periodQuery) use ($date) {
+                                $periodQuery->whereDate('period_start', '<=', $date)
+                                    ->whereDate('period_end', '>=', $date);
+                            });
+                        }
+                    })
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($hasIssuedSlip) {
+                    abort(409, 'Slip gaji untuk periode absensi ini sudah terbit. Hubungi admin untuk koreksi.');
+                }
+
+                $hasExistingOvertime = Absensi::query()
+                    ->where('parent_id', $attendance->id)
+                    ->where('tipe', 'lembur')
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($hasExistingOvertime) {
+                    abort(409, 'Pengajuan lembur untuk tanggal tersebut sudah ada. Periksa riwayat atau ajukan ulang pengajuan yang ditolak.');
+                }
+
+                $configuration = $workRules->forEmployee(
+                    $user,
+                    Carbon::parse($attendance->check_in_at)->startOfDay(),
+                    $attendance
+                );
+                $attendanceAttributes = $workRules->attendanceAttributes($configuration);
+                $isWeekendOvertime = !$configuration['snapshot'] && Absensi::isWeekend($lemburStart);
+                $overtimeData = Absensi::calculateOvertimeFromInput(
+                    $lemburStart,
+                    $lemburEnd,
+                    (bool) $validated['istirahat'],
+                    $isWeekendOvertime,
+                    $configuration['snapshot'],
+                    $user->kategori_absensi !== 'organik'
+                );
+
+                $fotoPath = $request->file('foto_bukti')->store('absensi_foto', 'public');
+                $employment = strtolower($user->work_location ?? 'office');
+                $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['office'];
+
+                $submission = Absensi::create([
+                    'user_id' => $user->id,
+                    'parent_id' => $attendance->id,
+                    'status' => 'hadir',
+                    'tipe' => 'lembur',
+                    'submission_type' => 'lembur',
+                    'status_approval' => 'pending',
+                    'workflow_status' => $workflow,
+                    'current_approval_level' => 1,
+                    'check_in_at' => $lemburStart,
+                    'check_out_at' => $lemburEnd,
+                    'lembur_start' => $lemburStart,
+                    'lembur_end' => $lemburEnd,
+                    'lembur_rest' => $validated['istirahat'],
+                    'lembur_keterangan' => $validated['keterangan'],
+                    'keterangan_goals' => $validated['keterangan_goals'] ?? null,
+                    'foto_pulang' => $fotoPath,
+                    'overtime_minutes' => $overtimeData['minutes'],
+                    'overtime_pay' => $overtimeData['pay'],
+                    'base_salary' => 0,
+                    'late_penalty' => 0,
+                    'final_salary' => 0,
+                    'is_weekend_overtime' => $isWeekendOvertime,
+                    'is_mocked' => false,
+                ] + $attendanceAttributes);
+
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => 'Pengajuan Lembur Lampau',
+                    'message' => 'Pengajuan lembur tanggal '
+                        . $workDate->isoFormat('DD MMM YYYY')
+                        . ' berhasil dikirim dan menunggu persetujuan.',
+                    'type' => 'lembur_submitted',
+                    'target_page' => '/lembur_detail',
+                    'target_id' => $submission->id,
+                ]);
+
+                $submission->load('user');
+                $submission->foto_pulang_url = Storage::url($submission->foto_pulang);
+
+                return $submission;
+            });
+        } catch (\Throwable $exception) {
+            if ($fotoPath !== null) {
+                Storage::disk('public')->delete($fotoPath);
+            }
+
+            throw $exception;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan lembur lampau berhasil dikirim.',
+            'data' => $submission,
+            'overtime_info' => [
+                'minutes' => $submission->overtime_minutes,
+                'pay' => 'Rp ' . number_format((float) $submission->overtime_pay, 0, ',', '.'),
+                'formatted_duration' => floor($submission->overtime_minutes / 60)
+                    . ' jam ' . ($submission->overtime_minutes % 60) . ' menit',
+                'is_weekend' => $submission->is_weekend_overtime,
+            ],
+        ], 201);
     }
 
     

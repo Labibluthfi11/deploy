@@ -77,6 +77,7 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
             Route::post('/absensi/pulang', [AbsensiController::class, 'absenPulang']);
             Route::post('/absensi/lembur', [AbsensiController::class, 'absenLembur']);
             Route::post('/absensi/submit-lembur', [AbsensiController::class, 'submitLembur']);
+            Route::post('/absensi/lembur/lampau', [AbsensiController::class, 'submitLemburLampau']);
             Route::post('/absensi/sakit', [AbsensiController::class, 'absenSakit']);
             Route::post('/absensi/izin', [AbsensiController::class, 'absenIzin']);
             Route::post('/absensi/telat', [AbsensiController::class, 'pengajuanTelat']);

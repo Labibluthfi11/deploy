@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Absensi;
 use App\Models\Notification;
 use App\Models\SalarySlip;
 use App\Models\User;
@@ -39,11 +40,33 @@ class SalarySlipAdminController extends Controller
             ->get()
             ->groupBy('user_id');
 
-        $previewRows = $users->map(function (User $user) use ($salarySlipService, $startDate, $endDate, $existingSlips) {
+        $pendingOvertimeUserIds = Absensi::query()
+            ->whereIn('user_id', $users->pluck('id'))
+            ->whereNotNull('parent_id')
+            ->where('tipe', 'lembur')
+            ->where('status_approval', 'pending')
+            ->whereHas('parent', function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('check_in_at', [
+                    $startDate->copy()->startOfDay(),
+                    $endDate->copy()->endOfDay(),
+                ]);
+            })
+            ->distinct()
+            ->pluck('user_id')
+            ->flip();
+
+        $previewRows = $users->map(function (User $user) use (
+            $salarySlipService,
+            $startDate,
+            $endDate,
+            $existingSlips,
+            $pendingOvertimeUserIds
+        ) {
             return [
                 'user' => $user,
                 'payroll' => $salarySlipService->calculate($user, $startDate, $endDate),
                 'existing_slip' => $existingSlips->get($user->id)?->first(),
+                'pending_overtime' => $pendingOvertimeUserIds->has($user->id),
             ];
         });
 
@@ -54,7 +77,9 @@ class SalarySlipAdminController extends Controller
             'periodStart' => $startDate,
             'periodEnd' => $endDate,
             'publishableCount' => $previewRows->filter(
-                fn (array $row) => $row['payroll'] !== null && $row['existing_slip'] === null
+                fn (array $row) => $row['payroll'] !== null
+                    && $row['existing_slip'] === null
+                    && !$row['pending_overtime']
             )->count(),
         ]);
     }
@@ -69,6 +94,7 @@ class SalarySlipAdminController extends Controller
         $users = $salarySlipService->recipients($data['recipient_mode'], $data['user_ids'] ?? []);
         $issuedCount = 0;
         $skippedCount = 0;
+        $pendingOvertimeCount = 0;
 
         DB::transaction(function () use (
             $users,
@@ -76,10 +102,30 @@ class SalarySlipAdminController extends Controller
             $startDate,
             $endDate,
             &$issuedCount,
-            &$skippedCount
+            &$skippedCount,
+            &$pendingOvertimeCount
         ) {
             foreach ($users as $user) {
                 User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+                $pendingOvertime = Absensi::query()
+                    ->where('user_id', $user->id)
+                    ->whereNotNull('parent_id')
+                    ->where('tipe', 'lembur')
+                    ->where('status_approval', 'pending')
+                    ->whereHas('parent', function ($query) use ($startDate, $endDate) {
+                        $query->whereBetween('check_in_at', [
+                            $startDate->copy()->startOfDay(),
+                            $endDate->copy()->endOfDay(),
+                        ]);
+                    })
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($pendingOvertime->isNotEmpty()) {
+                    $pendingOvertimeCount++;
+                    continue;
+                }
 
                 $overlappingSlip = SalarySlip::query()
                     ->where('user_id', $user->id)
@@ -129,15 +175,23 @@ class SalarySlipAdminController extends Controller
         });
 
         if ($issuedCount === 0) {
+            $message = 'Tidak ada slip baru yang diterbitkan. Periksa data absensi approved dan periode slip yang sudah ada.';
+            if ($pendingOvertimeCount > 0) {
+                $message .= " {$pendingOvertimeCount} karyawan dilewati karena masih memiliki pengajuan lembur yang menunggu persetujuan.";
+            }
+
             return redirect()
                 ->route('admin.salary-slips.index')
                 ->withInput()
-                ->with('error', 'Tidak ada slip baru yang diterbitkan. Periksa data absensi approved dan periode slip yang sudah ada.');
+                ->with('error', $message);
         }
 
         $message = "{$issuedCount} slip gaji berhasil diterbitkan.";
         if ($skippedCount > 0) {
             $message .= " {$skippedCount} karyawan dilewati karena tidak memiliki absensi approved atau periodenya bertabrakan dengan slip yang sudah terbit.";
+        }
+        if ($pendingOvertimeCount > 0) {
+            $message .= " {$pendingOvertimeCount} karyawan dilewati karena masih memiliki pengajuan lembur yang menunggu persetujuan.";
         }
 
         return redirect()

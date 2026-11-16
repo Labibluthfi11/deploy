@@ -144,6 +144,8 @@
                                         <td class="px-4 py-3 text-sm">
                                             @if ($row['existing_slip'])
                                                 <span class="text-amber-700">Sudah ada slip untuk periode yang bertabrakan</span>
+                                            @elseif ($row['pending_overtime'])
+                                                <span class="text-amber-700">Menunggu persetujuan lembur. Terbitkan setelah selesai.</span>
                                             @elseif ($row['payroll'])
                                                 <span class="text-green-700">Siap diterbitkan</span>
                                             @else
@@ -168,7 +170,7 @@
                                 @endforeach
                             @endif
                             <p class="text-sm text-gray-600 dark:text-gray-400">
-                                {{ $publishableCount }} slip siap diterbitkan. Angka akan diambil dari data payroll approved saat penerbitan.
+                                {{ $publishableCount }} slip siap diterbitkan. Karyawan dengan pengajuan lembur menunggu persetujuan akan dilewati.
                             </p>
                             <button type="submit"
                                 class="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
