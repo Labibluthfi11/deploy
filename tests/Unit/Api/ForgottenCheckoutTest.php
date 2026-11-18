@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Absensi;
+use App\Models\ScheduledLembur;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,10 +16,15 @@ uses(TestCase::class);
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-11-04 15:00:00', 'Asia/Jakarta'));
     Storage::fake('public');
+    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
     Schema::dropIfExists('notifications');
     Schema::dropIfExists('activity_logs');
     Schema::dropIfExists('holidays');
+    Schema::dropIfExists('scheduled_lemburs');
+    Schema::dropIfExists('izin_keluars');
+    Schema::dropIfExists('employee_shift_overrides');
+    Schema::dropIfExists('employee_work_assignments');
     Schema::dropIfExists('absensis');
     Schema::dropIfExists('users');
 
@@ -74,6 +80,9 @@ beforeEach(function () {
         $table->boolean('is_weekend_overtime')->nullable();
         $table->boolean('is_mocked')->nullable();
         $table->string('lokasi_masuk')->nullable();
+        $table->unsignedBigInteger('work_shift_id')->nullable();
+        $table->unsignedBigInteger('pay_scheme_id')->nullable();
+        $table->json('payroll_snapshot')->nullable();
         $table->timestamps();
     });
 
@@ -96,6 +105,41 @@ beforeEach(function () {
         $table->timestamps();
     });
 
+    Schema::create('scheduled_lemburs', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('user_id');
+        $table->date('tanggal_lembur');
+        $table->text('keterangan');
+        $table->string('foto_bukti')->nullable();
+        $table->string('status')->default('pending');
+        $table->integer('current_approval_level')->default(1);
+        $table->boolean('is_reminder_sent')->default(false);
+        $table->timestamps();
+    });
+
+    Schema::create('izin_keluars', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('user_id');
+    });
+
+    Schema::create('employee_work_assignments', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('user_id');
+        $table->unsignedBigInteger('work_shift_id')->nullable();
+        $table->unsignedBigInteger('pay_scheme_id')->nullable();
+        $table->date('effective_from');
+        $table->date('effective_until')->nullable();
+        $table->string('schedule_mode')->nullable();
+        $table->string('rotation_group')->nullable();
+    });
+
+    Schema::create('employee_shift_overrides', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('user_id');
+        $table->unsignedBigInteger('work_shift_id')->nullable();
+        $table->date('work_date');
+    });
+
     Schema::create('activity_logs', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('user_id')->nullable();
@@ -112,6 +156,10 @@ afterEach(function () {
     Schema::dropIfExists('notifications');
     Schema::dropIfExists('activity_logs');
     Schema::dropIfExists('holidays');
+    Schema::dropIfExists('scheduled_lemburs');
+    Schema::dropIfExists('izin_keluars');
+    Schema::dropIfExists('employee_shift_overrides');
+    Schema::dropIfExists('employee_work_assignments');
     Schema::dropIfExists('absensis');
     Schema::dropIfExists('users');
 });
@@ -164,11 +212,18 @@ it('requires a photo proof and only allows requests within the last 30 days', fu
     $user = User::factory()->create();
     Sanctum::actingAs($user);
 
-    $payload = retroactiveAttendancePayload('lupa_keduanya');
-    unset($payload['file_bukti']);
-    $this->postJson('/api/v1/absensi/pengajuan-lampau', $payload)
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['file_bukti']);
+    foreach ([
+        [],
+        ['file_bukti' => null],
+        ['file_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+        ['file_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+    ] as $evidence) {
+        $payload = retroactiveAttendancePayload('lupa_keduanya');
+        unset($payload['file_bukti']);
+        $this->postJson('/api/v1/absensi/pengajuan-lampau', array_merge($payload, $evidence))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['file_bukti']);
+    }
 
     $payload = retroactiveAttendancePayload('lupa_keduanya');
     $payload['tanggal'] = '2026-10-04';
@@ -288,6 +343,7 @@ it('submits a missed checkout for approval and holds salary until review', funct
         'jenis_koreksi' => 'lupa_absen_pulang',
         'jam_pulang' => '17:00',
         'keterangan' => 'Lupa melakukan absen pulang kemarin.',
+        'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
     ])
         ->assertCreated()
         ->assertJsonPath('data.status_approval', 'pending')
@@ -300,6 +356,7 @@ it('submits a missed checkout for approval and holds salary until review', funct
         'base_salary' => 0,
         'final_salary' => 0,
     ]);
+    $this->assertTrue(Storage::disk('public')->exists($attendance->fresh()->file_bukti));
 });
 
 it('allows a previously auto-filled checkout to be corrected and holds its salary', function () {
@@ -324,6 +381,7 @@ it('allows a previously auto-filled checkout to be corrected and holds its salar
         'jenis_koreksi' => 'pulang_lebih_awal',
         'jam_pulang' => '13:00',
         'keterangan' => 'Jam pulang otomatis bukan jam pulang sebenarnya.',
+        'file_bukti' => UploadedFile::fake()->image('bukti.jpg'),
     ])
         ->assertCreated()
         ->assertJsonPath('data.status_approval', 'pending')
@@ -431,6 +489,7 @@ it('resubmits a rejected half-day leave with corrected time and explanation', fu
         'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
         'jam_pulang_rencana' => '12:00',
         'keterangan_izin_sakit' => 'Jam pulang sebelumnya salah.',
+        'file_bukti' => Storage::disk('public')->putFile('bukti_sakit_izin', UploadedFile::fake()->image('lama.jpg')),
     ]);
 
     $this->postJson("/api/v1/absensi/izin/{$attendance->id}/resubmit", [
@@ -446,6 +505,7 @@ it('resubmits a rejected half-day leave with corrected time and explanation', fu
         'status_approval' => 'pending',
         'jam_pulang_rencana' => '13:00',
     ]);
+    $this->assertTrue(Storage::disk('public')->exists($attendance->fresh()->file_bukti));
 });
 
 it('allows an organic employee to submit a half-day request after checking in', function () {
@@ -473,6 +533,286 @@ it('allows an organic employee to submit a half-day request after checking in', 
         'status_approval' => 'pending',
         'base_salary' => 0,
     ]);
+    $this->assertTrue(Storage::disk('public')->exists($attendance->fresh()->file_bukti));
+});
+
+it('requires valid evidence for both checkout correction types without changing attendance on failure', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+
+    foreach (['lupa_absen_pulang', 'pulang_lebih_awal'] as $type) {
+        $attendance = createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-03 08:15:00', 'Asia/Jakarta'));
+        $payload = [
+            'jenis_koreksi' => $type,
+            'jam_pulang' => $type === 'lupa_absen_pulang' ? '17:00' : '13:00',
+            'keterangan' => 'Mohon koreksi jam pulang pada tanggal tersebut.',
+        ];
+
+        foreach ([
+            [],
+            ['file_bukti' => null],
+            ['file_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+            ['file_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+        ] as $evidence) {
+            $this->postJson("/api/v1/absensi/{$attendance->id}/checkout-correction", array_merge($payload, $evidence))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['file_bukti']);
+        }
+
+        $this->assertDatabaseHas('absensis', [
+            'id' => $attendance->id,
+            'status_approval' => 'approved',
+            'file_bukti' => null,
+        ]);
+    }
+});
+
+it('requires and stores evidence for scheduled overtime submissions', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    $payload = [
+        'tanggal_lembur' => '2026-11-05',
+        'keterangan' => 'Mempersiapkan pekerjaan untuk jadwal besok.',
+    ];
+    foreach ([
+        [],
+        ['foto_bukti' => null],
+        ['foto_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+        ['foto_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+    ] as $evidence) {
+        $this->postJson('/api/v1/absensi/scheduled-lembur', array_merge($payload, $evidence))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['foto_bukti']);
+    }
+    $this->assertDatabaseCount('scheduled_lemburs', 0);
+
+    $this->postJson('/api/v1/absensi/scheduled-lembur', array_merge($payload, [
+        'foto_bukti' => UploadedFile::fake()->image('bukti.jpg'),
+    ]))->assertOk()->assertJsonPath('success', true);
+
+    $record = ScheduledLembur::firstOrFail();
+    expect($record->foto_bukti)->not->toBeNull();
+    $this->assertTrue(Storage::disk('public')->exists($record->foto_bukti));
+});
+
+it('routes scheduled overtime resubmission through the common endpoint using foto_bukti', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    $attendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin',
+        'status_approval' => 'rejected',
+        'check_in_at' => Carbon::parse('2026-11-03 08:00:00', 'Asia/Jakarta'),
+    ]);
+    $record = ScheduledLembur::create([
+        'user_id' => $user->id,
+        'tanggal_lembur' => '2026-11-05',
+        'keterangan' => 'Pengajuan lembur ditolak.',
+        'status' => 'rejected',
+    ]);
+    expect($record->id)->toBe($attendance->id);
+    $payload = [
+        'tanggal_lembur' => '2026-11-06',
+        'keterangan' => 'Memperbarui jadwal pekerjaan lembur.',
+    ];
+
+    foreach ([
+        [],
+        ['foto_bukti' => null],
+        ['foto_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+        ['foto_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+    ] as $evidence) {
+        $this->postJson("/api/v1/absensi/resubmit/{$record->id}", array_merge($payload, $evidence))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['foto_bukti']);
+    }
+    expect($record->fresh()->status)->toBe('rejected');
+    expect($attendance->fresh()->status_approval)->toBe('rejected');
+
+    $oldEvidence = UploadedFile::fake()->image('bukti-lama.jpg')->store('absensi_foto', 'public');
+    $record->update(['foto_bukti' => $oldEvidence]);
+    $this->postJson("/api/v1/absensi/resubmit/{$record->id}", $payload)
+        ->assertOk()
+        ->assertJsonPath('data.foto_bukti', $oldEvidence);
+    expect($record->fresh()->foto_bukti)->toBe($oldEvidence);
+    $this->assertTrue(Storage::disk('public')->exists($oldEvidence));
+
+    $replacementOldEvidence = UploadedFile::fake()->image('bukti-lama-kedua.jpg')->store('absensi_foto', 'public');
+    $replacementRecord = ScheduledLembur::create([
+        'user_id' => $user->id,
+        'tanggal_lembur' => '2026-11-05',
+        'keterangan' => 'Pengajuan lembur ditolak.',
+        'foto_bukti' => $replacementOldEvidence,
+        'status' => 'rejected',
+    ]);
+    $replacement = UploadedFile::fake()->image('bukti-baru.jpg');
+    $this->postJson("/api/v1/absensi/resubmit/{$replacementRecord->id}", array_merge($payload, [
+        'foto_bukti' => $replacement,
+    ]))->assertOk();
+    expect($replacementRecord->fresh()->foto_bukti)->not->toBe($replacementOldEvidence);
+    $this->assertTrue(Storage::disk('public')->exists($replacementRecord->fresh()->foto_bukti));
+    $this->assertFalse(Storage::disk('public')->exists($replacementOldEvidence));
+});
+
+it('does not let scheduled overtime resubmit reuse a missing stored file', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    $record = ScheduledLembur::create([
+        'user_id' => $user->id,
+        'tanggal_lembur' => '2026-11-05',
+        'keterangan' => 'Pengajuan lembur ditolak.',
+        'foto_bukti' => 'absensi_foto/file-yang-tidak-ada.jpg',
+        'status' => 'rejected',
+    ]);
+
+    $this->postJson("/api/v1/absensi/resubmit/{$record->id}", [
+        'tanggal_lembur' => '2026-11-06',
+        'keterangan' => 'Memperbarui jadwal pekerjaan lembur.',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['foto_bukti']);
+
+    expect($record->fresh()->status)->toBe('rejected')
+        ->and($record->fresh()->foto_bukti)->toBe('absensi_foto/file-yang-tidak-ada.jpg');
+
+    $emptyEvidencePath = 'absensi_foto/bukti-kosong.pdf';
+    Storage::disk('public')->put($emptyEvidencePath, '');
+    $emptyEvidenceRecord = ScheduledLembur::create([
+        'user_id' => $user->id,
+        'tanggal_lembur' => '2026-11-05',
+        'keterangan' => 'Pengajuan lembur ditolak.',
+        'foto_bukti' => $emptyEvidencePath,
+        'status' => 'rejected',
+    ]);
+
+    $this->postJson("/api/v1/absensi/resubmit/{$emptyEvidenceRecord->id}", [
+        'tanggal_lembur' => '2026-11-06',
+        'keterangan' => 'Memperbarui jadwal pekerjaan lembur.',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['foto_bukti']);
+
+    expect($emptyEvidenceRecord->fresh()->status)->toBe('rejected');
+});
+
+it('requires valid file_bukti for the early-leave izin submission', function () {
+    $user = User::factory()->create(['employment_type' => 'organik', 'work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = createAttendanceWithoutCheckout($user, Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'));
+    $payload = [
+        'status' => 'izin',
+        'catatan_admin' => 'izin_pulang_cepat',
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Ada keperluan keluarga setelah jam makan siang.',
+    ];
+
+    foreach ([
+        [],
+        ['file_bukti' => null],
+        ['file_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+        ['file_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+    ] as $evidence) {
+        $this->postJson('/api/v1/absensi/izin', array_merge($payload, $evidence))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['file_bukti']);
+    }
+
+    $this->assertDatabaseHas('absensis', [
+        'id' => $attendance->id,
+        'status_approval' => 'approved',
+        'file_bukti' => null,
+    ]);
+});
+
+it('requires new or actually stored evidence when resubmitting early-leave izin', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin_pulang_cepat',
+        'status_approval' => 'rejected',
+        'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
+        'jam_pulang_rencana' => '12:00',
+        'keterangan_izin_sakit' => 'Jam pulang sebelumnya salah.',
+    ]);
+    $payload = [
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Jam pulang yang benar adalah pukul satu siang.',
+    ];
+
+    foreach ([
+        [],
+        ['file_bukti' => null],
+        ['file_bukti' => UploadedFile::fake()->create('bukti-kosong.pdf', 0, 'application/pdf')],
+        ['file_bukti' => UploadedFile::fake()->create('bukti.txt', 10, 'text/plain')],
+    ] as $evidence) {
+        $this->postJson("/api/v1/absensi/izin/{$attendance->id}/resubmit", array_merge($payload, $evidence))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['file_bukti']);
+    }
+    expect($attendance->fresh()->status_approval)->toBe('rejected');
+
+    $oldEvidence = UploadedFile::fake()->image('bukti-lama.jpg')->store('bukti_sakit_izin', 'public');
+    $attendance->update(['file_bukti' => $oldEvidence]);
+    $this->postJson("/api/v1/absensi/izin/{$attendance->id}/resubmit", $payload)
+        ->assertOk();
+    expect($attendance->fresh()->file_bukti)->toBe($oldEvidence)
+        ->and($attendance->fresh()->status_approval)->toBe('pending');
+    $this->assertTrue(Storage::disk('public')->exists($oldEvidence));
+
+    $newEvidenceAttendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin_pulang_cepat',
+        'status_approval' => 'rejected',
+        'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
+    ]);
+    $this->postJson("/api/v1/absensi/izin/{$newEvidenceAttendance->id}/resubmit", array_merge($payload, [
+        'file_bukti' => UploadedFile::fake()->image('bukti-baru.jpg'),
+    ]))->assertOk();
+    $this->assertTrue(Storage::disk('public')->exists($newEvidenceAttendance->fresh()->file_bukti));
+});
+
+it('does not allow early-leave resubmit to reuse a missing stored file', function () {
+    $user = User::factory()->create(['work_location' => 'office']);
+    Sanctum::actingAs($user);
+    $attendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin_pulang_cepat',
+        'status_approval' => 'rejected',
+        'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
+        'file_bukti' => 'bukti_sakit_izin/file-yang-tidak-ada.jpg',
+    ]);
+
+    $this->postJson("/api/v1/absensi/izin/{$attendance->id}/resubmit", [
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Jam pulang yang benar adalah pukul satu siang.',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['file_bukti']);
+
+    expect($attendance->fresh()->status_approval)->toBe('rejected');
+
+    $emptyEvidencePath = 'bukti_sakit_izin/bukti-kosong.pdf';
+    Storage::disk('public')->put($emptyEvidencePath, '');
+    $emptyEvidenceAttendance = Absensi::create([
+        'user_id' => $user->id,
+        'status' => 'izin',
+        'tipe' => 'izin',
+        'submission_type' => 'izin_pulang_cepat',
+        'status_approval' => 'rejected',
+        'check_in_at' => Carbon::parse('2026-11-04 08:00:00', 'Asia/Jakarta'),
+        'file_bukti' => $emptyEvidencePath,
+    ]);
+
+    $this->postJson("/api/v1/absensi/izin/{$emptyEvidenceAttendance->id}/resubmit", [
+        'jam_pulang_rencana' => '13:00',
+        'keterangan_izin_sakit' => 'Jam pulang yang benar adalah pukul satu siang.',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['file_bukti']);
+
+    expect($emptyEvidenceAttendance->fresh()->status_approval)->toBe('rejected');
 });
 
 it('does not assign a full-shift salary when checkout is missing', function () {

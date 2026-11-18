@@ -16,12 +16,15 @@ class ScheduledLemburController extends Controller
         $request->validate([
             'tanggal_lembur' => 'required|date|after:today',
             'keterangan'     => 'required|max:500',
-            'foto_bukti'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
+            'foto_bukti'     => 'required|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048'
         ]);
 
-        $fotoPath = null;
-        if ($request->hasFile('foto_bukti')) {
-            $fotoPath = $request->file('foto_bukti')->store('absensi_foto', 'public');
+        $fotoPath = $request->file('foto_bukti')->store('absensi_foto', 'public');
+        if (!$fotoPath) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Foto bukti gagal disimpan.',
+            ], 500);
         }
 
         $record = ScheduledLembur::create([

@@ -329,7 +329,7 @@ class AbsensiController extends Controller
                 'lat' => 'required|numeric',
                 'lng' => 'required|numeric',
                 'tipe' => 'nullable|in:lembur,cuti,sakit,izin',
-                'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+                'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
                 'keterangan_izin_sakit' => 'nullable|string|max:500',
                 'is_mocked' => 'nullable|boolean',
             ]);
@@ -832,7 +832,7 @@ private function attachHistoryApproval(Absensi $record): void
                 'jenis_koreksi' => 'required|in:lupa_absen_pulang,pulang_lebih_awal',
                 'jam_pulang' => 'required|date_format:H:i',
                 'keterangan' => 'required|string|min:5|max:500',
-                'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
             ]);
 
             $absensi = Absensi::query()
@@ -902,9 +902,12 @@ private function attachHistoryApproval(Absensi $record): void
                 $workflow = $this->resetWorkflowFromLevel($workflow, $startLevel, $employment);
             }
 
-            $filePath = $absensi->file_bukti;
-            if ($request->hasFile('file_bukti')) {
-                $filePath = $request->file('file_bukti')->store('bukti_koreksi_absensi', 'public');
+            $filePath = $request->file('file_bukti')->store('bukti_koreksi_absensi', 'public');
+            if (!$filePath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File bukti gagal disimpan.',
+                ], 500);
             }
 
             $correctionType = $validated['jenis_koreksi'] === 'pulang_lebih_awal'
@@ -1003,7 +1006,7 @@ private function attachHistoryApproval(Absensi $record): void
                 : 'nullable|date|after_or_equal:start_date';
 
             $request->validate([
-                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
                 'keterangan_izin_sakit' => 'required|string|max:500',
                 'status' => 'nullable|in:sakit,izin',
                 'start_date' => $startDateRule,
@@ -1146,6 +1149,13 @@ private function attachHistoryApproval(Absensi $record): void
             }
 
             $fileBuktiPath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+            if (!$fileBuktiPath) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File bukti gagal disimpan.',
+                ], 500);
+            }
             $employment = strtolower($user->work_location ?? 'office');
             $workflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
 
@@ -1281,6 +1291,13 @@ private function attachHistoryApproval(Absensi $record): void
                 ]
             ], 201);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             if (isset($fileBuktiPath)) Storage::disk('public')->delete($fileBuktiPath);
@@ -1821,6 +1838,18 @@ private function attachHistoryApproval(Absensi $record): void
     
     public function resubmit(Request $request, $id)
     {
+        if ($request->has('tanggal_lembur') || $request->hasFile('foto_bukti')) {
+            $scheduledLembur = \App\Models\ScheduledLembur::find($id);
+            if (!$scheduledLembur) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan atau tipe tidak didukung.'], 404);
+            }
+            if ($scheduledLembur->user_id !== Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+            }
+
+            return $this->handleResubmitScheduledLembur($request, $id);
+        }
+
         // 1. Coba cari di Absensi (Sakit, Izin, Lembur, Telat)
         $absensi = Absensi::find($id);
         if ($absensi) {
@@ -1866,10 +1895,13 @@ private function attachHistoryApproval(Absensi $record): void
 
     private function handleResubmitIzinPulangCepat(Request $request, Absensi $absensi)
     {
+        $hasStoredEvidence = $absensi->file_bukti
+            && Storage::disk('public')->exists($absensi->file_bukti)
+            && Storage::disk('public')->size($absensi->file_bukti) > 0;
         $validated = $request->validate([
             'jam_pulang_rencana' => 'required|date_format:H:i',
             'keterangan_izin_sakit' => 'required|string|min:5|max:500',
-            'file_bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'file_bukti' => ($hasStoredEvidence ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
         ]);
 
         if (!in_array($absensi->status_approval, ['rejected', 'ditolak'], true)) {
@@ -1898,9 +1930,15 @@ private function attachHistoryApproval(Absensi $record): void
         $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['office'];
         $workflow = $this->resetWorkflowFromLevel($baseWorkflow, $startLevel, $employment);
 
-        $filePath = $absensi->file_bukti;
+        $filePath = $hasStoredEvidence ? $absensi->file_bukti : null;
         if ($request->hasFile('file_bukti')) {
             $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+            if (!$filePath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File bukti gagal disimpan.',
+                ], 500);
+            }
         }
 
         $absensi->forceFill([
@@ -1987,28 +2025,39 @@ private function attachHistoryApproval(Absensi $record): void
             return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang ditolak yang bisa diajukan ulang.'], 409);
         }
 
-        $request->validate([
+        $hasStoredEvidence = $lembur->foto_bukti
+            && Storage::disk('public')->exists($lembur->foto_bukti)
+            && Storage::disk('public')->size($lembur->foto_bukti) > 0;
+        $validated = $request->validate([
             'tanggal_lembur' => 'required|date|after:today',
             'keterangan'     => 'required|max:500',
-            'foto_bukti'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
+            'foto_bukti'     => ($hasStoredEvidence ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048'
         ]);
 
-        $fotoPath = $lembur->foto_bukti;
+        $oldFotoPath = $lembur->foto_bukti;
+        $fotoPath = $hasStoredEvidence ? $oldFotoPath : null;
         if ($request->hasFile('foto_bukti')) {
-            if ($lembur->foto_bukti && Storage::disk('public')->exists($lembur->foto_bukti)) {
-                Storage::disk('public')->delete($lembur->foto_bukti);
-            }
             $fotoPath = $request->file('foto_bukti')->store('absensi_foto', 'public');
+            if (!$fotoPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Foto bukti gagal disimpan.',
+                ], 500);
+            }
         }
 
         $lembur->update([
-            'tanggal_lembur' => $request->tanggal_lembur,
-            'keterangan'     => $request->keterangan,
+            'tanggal_lembur' => $validated['tanggal_lembur'],
+            'keterangan'     => $validated['keterangan'],
             'foto_bukti'     => $fotoPath,
             'status'         => 'pending',
             'current_approval_level' => 1,
             'updated_at' => now(),
         ]);
+
+        if ($request->hasFile('foto_bukti') && $oldFotoPath && $oldFotoPath !== $fotoPath) {
+            Storage::disk('public')->delete($oldFotoPath);
+        }
 
         return response()->json(['success' => true, 'message' => 'Lembur terjadwal berhasil diajukan ulang.', 'data' => $lembur], 200);
     }
@@ -2036,7 +2085,7 @@ private function attachHistoryApproval(Absensi $record): void
 
             
             $request->validate([
-                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
                 'keterangan_izin_sakit' => 'nullable|string|max:500',
                 'catatan' => 'nullable|string|max:500', // support both keys
                 'start_date' => 'nullable|date',
@@ -2089,11 +2138,15 @@ private function attachHistoryApproval(Absensi $record): void
             }
 
             
-            if ($absensi->file_bukti && Storage::disk('public')->exists($absensi->file_bukti)) {
-                Storage::disk('public')->delete($absensi->file_bukti);
-            }
-
+            $oldEvidencePath = $absensi->file_bukti;
             $filePath = $request->file('file_bukti')->store('bukti_sakit_izin', 'public');
+            if (!$filePath) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File bukti gagal disimpan.',
+                ], 500);
+            }
             $employment = strtolower($absensi->user->work_location ?? 'office');
             $startLevel = $this->determineResubmitLevel($absensi->rejected_by, $absensi->workflow_status);
             $baseWorkflow = $this->workflowTemplates[$employment] ?? $this->workflowTemplates['organik'];
@@ -2156,11 +2209,21 @@ private function attachHistoryApproval(Absensi $record): void
             ]);
 
             DB::commit();
+            if ($oldEvidencePath && $oldEvidencePath !== $filePath) {
+                Storage::disk('public')->delete($oldEvidencePath);
+            }
             $absensi->load('user');
             $absensi->file_bukti_url = Storage::url($absensi->file_bukti);
 
             return response()->json(['success' => true, 'message' => "Pengajuan {$type} berhasil direvisi dan diajukan ulang.", 'data' => $absensi], 200);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -2367,7 +2430,7 @@ public function pengajuanTelat(Request $request)
 
     try {
         $request->validate([
-            'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'file_bukti' => 'required|file|mimes:jpg,jpeg,png,pdf|min:0.001|max:2048',
             'keterangan' => 'required|string|max:500',
             'absensi_id' => 'required|integer|exists:absensis,id',
         ]);
