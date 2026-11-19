@@ -85,12 +85,12 @@
                         {{-- ALASAN --}}
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-700 dark:text-gray-300 max-w-xs">
-                                <p class="font-medium text-gray-900 dark:text-white mb-1" title="{{ $item->alasan_keluar }}">
-                                    {{ Str::limit($item->alasan_keluar, 60) }}
+                                <p class="whitespace-pre-wrap break-words font-medium text-gray-900 dark:text-white mb-1" title="{{ $item->alasan_keluar }}">
+                                    {{ $item->alasan_keluar }}
                                 </p>
                                 @if($item->keterangan_kembali)
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 italic" title="{{ $item->keterangan_kembali }}">
-                                        Kembali: {{ Str::limit($item->keterangan_kembali, 50) }}
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 italic whitespace-pre-wrap break-words" title="{{ $item->keterangan_kembali }}">
+                                        Kembali: {{ $item->keterangan_kembali }}
                                     </p>
                                 @endif
                             </div>

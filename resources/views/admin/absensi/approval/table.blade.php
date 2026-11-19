@@ -146,7 +146,7 @@
                 {{-- KETERANGAN --}}
                 <div class="mb-4">
                     <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Keterangan</p>
-                    <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2">
+                    <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
                         {{ $isOvertime ? ($submission->lembur_keterangan ?? '-') : ($submission->keterangan_izin_sakit ?? '-') }}
                     </p>
                 </div>

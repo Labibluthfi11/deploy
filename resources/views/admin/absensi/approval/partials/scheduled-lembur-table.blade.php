@@ -64,7 +64,7 @@
                         {{-- KETERANGAN --}}
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-700 dark:text-gray-300 max-w-xs">
-                                <p class="truncate font-medium text-gray-900 dark:text-white" title="{{ $item->keterangan }}">
+                                <p class="whitespace-pre-wrap break-words font-medium text-gray-900 dark:text-white" title="{{ $item->keterangan }}">
                                     {{ $item->keterangan }}
                                 </p>
                             </div>
