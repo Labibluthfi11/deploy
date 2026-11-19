@@ -71,12 +71,12 @@
             <div>
                 {{-- CARD HEADER --}}
                 <div class="flex justify-between items-start gap-3 mb-4">
-                    <div class="flex items-center gap-3 min-w-0">
+                    <div class="flex items-start gap-3 min-w-0 flex-1">
                         <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 text-xs font-semibold tracking-wider flex-shrink-0">
                             {{ $initial }}
                         </div>
                         <div class="min-w-0">
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $user->name ?? '-' }}</h3>
+                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white whitespace-normal break-words">{{ $user->name ?? '-' }}</h3>
                             <span class="inline-block text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-0.5">{{ $typeLabel }}</span>
                         </div>
                     </div>
