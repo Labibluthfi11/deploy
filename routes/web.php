@@ -83,6 +83,7 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
         Route::post('/assignments', [WorkRuleAdminController::class, 'storeAssignment'])->name('assignments.store');
         Route::put('/assignments/{assignment}/pay-scheme', [WorkRuleAdminController::class, 'updateAssignmentPayScheme'])->name('assignments.pay-scheme.update');
         Route::put('/assignments/{assignment}/schedule', [WorkRuleAdminController::class, 'updateAssignmentSchedule'])->name('assignments.schedule.update');
+        Route::post('/single-shift-policy', [WorkRuleAdminController::class, 'storeSingleShiftPolicy'])->name('single-shift-policy.store');
         Route::post('/shift-overrides', [WorkRuleAdminController::class, 'storeOverride'])->name('shift-overrides.store');
         Route::post('/rotation-settings', [WorkRuleAdminController::class, 'storeRotationSetting'])->name('rotation-settings.store');
     });

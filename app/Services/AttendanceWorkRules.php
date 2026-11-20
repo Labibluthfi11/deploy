@@ -6,6 +6,7 @@ use App\Models\Absensi;
 use App\Models\EmployeeShiftOverride;
 use App\Models\EmployeeWorkAssignment;
 use App\Models\User;
+use App\Models\WorkShiftPolicy;
 use App\Models\WorkShiftRotationSetting;
 use Carbon\Carbon;
 
@@ -50,13 +51,14 @@ class AttendanceWorkRules
             ->orderByDesc('effective_from')
             ->first();
 
-        $override = EmployeeShiftOverride::query()
+        $shiftPolicy = WorkShiftPolicy::forDate($workDate);
+        $override = $shiftPolicy ? null : EmployeeShiftOverride::query()
             ->where('user_id', $user->id)
             ->whereDate('work_date', $workDate)
             ->with('workShift')
             ->first();
 
-        $shift = $override?->workShift;
+        $shift = $shiftPolicy?->workShift ?? $override?->workShift;
         if (!$shift && $assignment?->schedule_mode === 'rolling' && $assignment->rotation_group) {
             $weekStart = $workDate->copy()->startOfWeek(Carbon::MONDAY);
             $rotation = WorkShiftRotationSetting::query()

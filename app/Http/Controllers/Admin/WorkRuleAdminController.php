@@ -8,6 +8,7 @@ use App\Models\EmployeeWorkAssignment;
 use App\Models\PayScheme;
 use App\Models\User;
 use App\Models\WorkShift;
+use App\Models\WorkShiftPolicy;
 use App\Models\WorkShiftRotationSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -27,6 +28,10 @@ class WorkRuleAdminController extends Controller
         $shifts = WorkShift::withCount(['employeeAssignments', 'employeeOverrides'])
             ->orderBy('name')
             ->get();
+        $activeShifts = $shifts->where('is_active', true);
+        $defaultSingleShift = $activeShifts->first(
+            fn (WorkShift $shift) => stripos($shift->name, 'pagi') !== false
+        ) ?? $activeShifts->sortBy('starts_at')->first();
         $paySchemes = PayScheme::withCount('employeeAssignments')
             ->orderBy('name')
             ->get();
@@ -38,6 +43,31 @@ class WorkRuleAdminController extends Controller
         $scheduleEffectiveFrom = $weekStart->greaterThan($nextWeekStart)
             ? $weekStart->copy()
             : $nextWeekStart->copy();
+        $shiftPolicy = WorkShiftPolicy::forDate($weekStart);
+        $scheduledShiftPolicy = WorkShiftPolicy::forDate($scheduleEffectiveFrom);
+        $hasPolicyAfterViewedWeek = WorkShiftPolicy::query()
+            ->whereDate('effective_from', '>', $weekEnd)
+            ->exists();
+        $overrideShifts = $hasPolicyAfterViewedWeek
+            ? $shifts
+            : $shifts->where('is_active', true);
+        $transitionAssignments = EmployeeWorkAssignment::query()
+            ->where(function ($query) use ($scheduleEffectiveFrom) {
+                $query->whereDate('effective_from', '>=', $scheduleEffectiveFrom)
+                    ->orWhere(function ($query) use ($scheduleEffectiveFrom) {
+                        $query->whereDate('effective_from', '<', $scheduleEffectiveFrom)
+                            ->where(function ($query) use ($scheduleEffectiveFrom) {
+                                $query->whereNull('effective_until')
+                                    ->orWhereDate('effective_until', '>=', $scheduleEffectiveFrom);
+                            });
+                    });
+            });
+        $transitionEmployeeCount = (clone $transitionAssignments)
+            ->distinct('user_id')
+            ->count('user_id');
+        $transitionOverrideCount = EmployeeShiftOverride::query()
+            ->whereDate('work_date', '>=', $scheduleEffectiveFrom)
+            ->count();
         $scheduleRotationShifts = $this->rotationShiftsForWeek($scheduleEffectiveFrom);
         $overrides = EmployeeShiftOverride::with(['user:id,name,id_karyawan', 'workShift'])
             ->whereDate('work_date', '>=', today())
@@ -99,6 +129,7 @@ class WorkRuleAdminController extends Controller
 
         return view('admin.work-rules.index', compact(
             'shifts',
+            'defaultSingleShift',
             'paySchemes',
             'employees',
             'overrides',
@@ -109,13 +140,23 @@ class WorkRuleAdminController extends Controller
             'employeeScheduleGroups',
             'scheduleEffectiveFrom',
             'scheduleRotationShifts',
-            'rotationShifts'
+            'rotationShifts',
+            'shiftPolicy',
+            'scheduledShiftPolicy',
+            'overrideShifts',
+            'transitionEmployeeCount',
+            'transitionOverrideCount'
         ));
     }
 
     public function storeShift(Request $request)
     {
         $data = $this->validateShift($request);
+        if ($data['is_active'] && WorkShiftPolicy::query()->exists()) {
+            throw ValidationException::withMessages([
+                'is_active' => 'Template shift baru harus tetap nonaktif selama kebijakan satu shift berlaku.',
+            ]);
+        }
         $data['crosses_midnight'] = $data['ends_at'] <= $data['starts_at'];
 
         WorkShift::create($data);
@@ -127,6 +168,15 @@ class WorkRuleAdminController extends Controller
     {
         $data = $this->validateShift($request, $shift);
         $data['crosses_midnight'] = $data['ends_at'] <= $data['starts_at'];
+
+        $latestPolicy = WorkShiftPolicy::query()->orderByDesc('effective_from')->first();
+        if ($latestPolicy &&
+            (($shift->id !== $latestPolicy->work_shift_id && $data['is_active']) ||
+             ($shift->id === $latestPolicy->work_shift_id && !$data['is_active']))) {
+            throw ValidationException::withMessages([
+                'is_active' => 'Template shift tidak dapat diaktifkan atau dinonaktifkan selama kebijakan satu shift berlaku.',
+            ]);
+        }
 
         $shift->update($data);
 
@@ -158,6 +208,7 @@ class WorkRuleAdminController extends Controller
         ]);
 
         $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
+        $this->ensurePolicyAssignment($data['work_shift_id'], $data['schedule_mode'], $effectiveFrom);
 
         DB::transaction(function () use ($data, $effectiveFrom) {
             $user = User::query()->lockForUpdate()->findOrFail($data['user_id']);
@@ -167,6 +218,7 @@ class WorkRuleAdminController extends Controller
                     'work_shift_id' => 'Shift yang dipilih harus aktif.',
                 ]);
             }
+            $this->ensurePolicyAssignment($shift->id, $data['schedule_mode'], $effectiveFrom);
 
             $isOrganic = $user->kategori_absensi === 'organik';
             $payScheme = $isOrganic || empty($data['pay_scheme_id'])
@@ -296,6 +348,7 @@ class WorkRuleAdminController extends Controller
                 'effective_from' => 'Perubahan pola harus mulai hari Senin minggu depan atau setelahnya.',
             ]);
         }
+        $this->ensurePolicyAssignment($data['work_shift_id'], $data['schedule_mode'], $effectiveFrom);
 
         DB::transaction(function () use ($assignment, $data, $effectiveFrom) {
             $currentAssignment = EmployeeWorkAssignment::query()
@@ -310,6 +363,7 @@ class WorkRuleAdminController extends Controller
                     'work_shift_id' => 'Shift yang dipilih harus aktif.',
                 ]);
             }
+            $this->ensurePolicyAssignment($shift->id, $data['schedule_mode'], $effectiveFrom);
 
             $rotationGroup = $data['schedule_mode'] === 'rolling'
                 ? $this->rotationGroupForShift($shift, $effectiveFrom)
@@ -414,6 +468,11 @@ class WorkRuleAdminController extends Controller
                 'anchor_week_start' => 'Tanggal mulai rotasi harus hari Senin minggu depan atau setelahnya.',
             ]);
         }
+        if (WorkShiftPolicy::forDate($anchorWeekStart)) {
+            throw ValidationException::withMessages([
+                'anchor_week_start' => 'Rotasi tidak dapat diatur selama kebijakan satu shift berlaku.',
+            ]);
+        }
 
         $shifts = WorkShift::query()
             ->whereIn('id', [$data['group_a_shift_id'], $data['group_b_shift_id']])
@@ -448,7 +507,16 @@ class WorkRuleAdminController extends Controller
         ]);
 
         $shift = WorkShift::query()->findOrFail($data['work_shift_id']);
-        if (!$shift->is_active) {
+        $workDate = Carbon::parse($data['work_date']);
+        if (WorkShiftPolicy::forDate($workDate)) {
+            throw ValidationException::withMessages([
+                'work_date' => 'Jadwal khusus per orang dinonaktifkan selama kebijakan satu shift berlaku.',
+            ]);
+        }
+        $hasLaterPolicy = WorkShiftPolicy::query()
+            ->whereDate('effective_from', '>', $workDate)
+            ->exists();
+        if (!$shift->is_active && !$hasLaterPolicy) {
             throw ValidationException::withMessages([
                 'work_shift_id' => 'Shift yang dipilih tidak aktif.',
             ]);
@@ -480,6 +548,154 @@ class WorkRuleAdminController extends Controller
         );
 
         return $this->redirectWithSuccess('Jadwal shift khusus berhasil disimpan.');
+    }
+
+    public function storeSingleShiftPolicy(Request $request)
+    {
+        $data = $request->validate([
+            'effective_from' => ['required', 'date'],
+            'work_shift_id' => ['required', 'integer', 'exists:work_shifts,id'],
+            'confirm' => ['required', 'accepted'],
+        ]);
+
+        $effectiveFrom = Carbon::parse($data['effective_from'])->startOfDay();
+        $nextWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
+        if (!$effectiveFrom->isMonday() || $effectiveFrom->lt($nextWeekStart)) {
+            throw ValidationException::withMessages([
+                'effective_from' => 'Perubahan massal harus mulai hari Senin minggu depan atau setelahnya.',
+            ]);
+        }
+
+        $targetShift = WorkShift::query()->findOrFail($data['work_shift_id']);
+        if (!$targetShift->is_active) {
+            throw ValidationException::withMessages([
+                'work_shift_id' => 'Pilih template shift yang aktif.',
+            ]);
+        }
+
+        $assignmentCount = 0;
+        $overrideCount = 0;
+        DB::transaction(function () use ($request, $data, $effectiveFrom, &$assignmentCount, &$overrideCount) {
+            $shift = WorkShift::query()->whereKey($data['work_shift_id'])->lockForUpdate()->firstOrFail();
+            if (!$shift->is_active) {
+                throw ValidationException::withMessages([
+                    'work_shift_id' => 'Pilih template shift yang aktif.',
+                ]);
+            }
+
+            if (WorkShiftPolicy::query()->whereDate('effective_from', '>', $effectiveFrom)->exists()) {
+                throw ValidationException::withMessages([
+                    'effective_from' => 'Ada kebijakan shift lain yang sudah dijadwalkan setelah tanggal ini. Selesaikan perubahan itu terlebih dahulu.',
+                ]);
+            }
+
+            $assignments = EmployeeWorkAssignment::query()
+                ->where(function ($query) use ($effectiveFrom) {
+                    $query->whereDate('effective_from', '>=', $effectiveFrom)
+                        ->orWhere(function ($query) use ($effectiveFrom) {
+                            $query->whereDate('effective_from', '<', $effectiveFrom)
+                                ->where(function ($query) use ($effectiveFrom) {
+                                    $query->whereNull('effective_until')
+                                        ->orWhereDate('effective_until', '>=', $effectiveFrom);
+                                });
+                        });
+                })
+                ->orderBy('user_id')
+                ->orderBy('effective_from')
+                ->lockForUpdate()
+                ->get()
+                ->groupBy('user_id');
+
+            $assignmentCount = $assignments->count();
+            foreach ($assignments as $employeeAssignments) {
+                $coveringAssignments = $employeeAssignments->filter(
+                    fn (EmployeeWorkAssignment $assignment) => $assignment->effective_from->lt($effectiveFrom)
+                        && (!$assignment->effective_until || $assignment->effective_until->gte($effectiveFrom))
+                );
+
+                if ($coveringAssignments->count() > 1) {
+                    throw ValidationException::withMessages([
+                        'effective_from' => 'Ada penetapan shift yang tumpang tindih. Periksa riwayat penetapan sebelum melanjutkan.',
+                    ]);
+                }
+
+                $futureAssignments = $employeeAssignments->filter(
+                    fn (EmployeeWorkAssignment $assignment) => $assignment->effective_from->gte($effectiveFrom)
+                )->values();
+
+                if ($coveringAssignments->isNotEmpty()) {
+                    $current = $coveringAssignments->first();
+                    $nextFuture = $futureAssignments->first();
+                    if ($nextFuture &&
+                        (!$current->effective_until || $current->effective_until->gte($nextFuture->effective_from))) {
+                        throw ValidationException::withMessages([
+                            'effective_from' => 'Ada penetapan shift yang tumpang tindih. Periksa riwayat penetapan sebelum melanjutkan.',
+                        ]);
+                    }
+
+                    $currentEnd = $current->effective_until?->toDateString();
+                    $current->update(['effective_until' => $effectiveFrom->copy()->subDay()->toDateString()]);
+
+                    EmployeeWorkAssignment::create([
+                        'user_id' => $current->user_id,
+                        'work_shift_id' => $shift->id,
+                        'pay_scheme_id' => $current->pay_scheme_id,
+                        'effective_from' => $effectiveFrom->toDateString(),
+                        'effective_until' => $currentEnd,
+                        'schedule_mode' => 'fixed',
+                        'rotation_group' => null,
+                    ]);
+                }
+
+                foreach ($futureAssignments as $futureAssignment) {
+                    $futureAssignment->update([
+                        'work_shift_id' => $shift->id,
+                        'schedule_mode' => 'fixed',
+                        'rotation_group' => null,
+                    ]);
+                }
+            }
+
+            $overrideCount = EmployeeShiftOverride::query()
+                ->whereDate('work_date', '>=', $effectiveFrom)
+                ->count();
+            EmployeeShiftOverride::query()
+                ->whereDate('work_date', '>=', $effectiveFrom)
+                ->delete();
+
+            WorkShift::query()
+                ->where('id', '!=', $shift->id)
+                ->update(['is_active' => false]);
+
+            WorkShiftPolicy::updateOrCreate(
+                ['effective_from' => $effectiveFrom->toDateString()],
+                [
+                    'work_shift_id' => $shift->id,
+                    'created_by' => $request->user()->id,
+                ]
+            );
+        });
+
+        return redirect()
+            ->route('admin.work-rules.index', ['week' => $effectiveFrom->toDateString()])
+            ->with(
+                'success',
+                "Shift {$targetShift->name} berlaku permanen mulai {$effectiveFrom->format('d M Y')}. {$assignmentCount} karyawan dengan penetapan diperbarui; {$overrideCount} jadwal khusus mendatang dihapus."
+            );
+    }
+
+    private function ensurePolicyAssignment(int $shiftId, string $scheduleMode, Carbon $effectiveFrom): void
+    {
+        $policy = WorkShiftPolicy::forDate($effectiveFrom);
+        if (!$policy) {
+            return;
+        }
+
+        if ((int) $policy->work_shift_id !== $shiftId || $scheduleMode !== 'fixed') {
+            throw ValidationException::withMessages([
+                'work_shift_id' => "Kebijakan satu shift berlaku: gunakan {$policy->workShift->name} dengan pola tetap.",
+            ]);
+        }
     }
 
     private function validateShift(Request $request, ?WorkShift $shift = null): array

@@ -27,6 +27,57 @@
                 </div>
             @endif
 
+            @if($scheduledShiftPolicy)
+                <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white"><i class="fas fa-sun"></i></span>
+                        <div>
+                            <h3 class="font-bold text-emerald-900 dark:text-emerald-100">Mode satu shift aktif</h3>
+                            <p class="mt-1 text-sm text-emerald-800 dark:text-emerald-200">
+                                Semua karyawan menggunakan {{ $scheduledShiftPolicy->workShift->name }} mulai {{ $scheduledShiftPolicy->effective_from->format('d M Y') }}. Jadwal fixed dan rolling, serta override tanggal, tidak dapat mengganti shift ini.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            @else
+                <section class="rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm dark:border-indigo-900 dark:bg-gray-800 sm:p-6">
+                    <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                        <div class="max-w-2xl">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Tetapkan satu shift untuk semua</h3>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                Perubahan permanen mulai Senin yang dipilih. Penetapan lama tetap menjadi riwayat, skema upah dipertahankan, dan override tanggal setelahnya akan dibersihkan.
+                            </p>
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                {{ $transitionEmployeeCount }} karyawan memiliki penetapan shift yang akan diperbarui · {{ $transitionOverrideCount }} override mendatang akan dihapus.
+                            </p>
+                        </div>
+                        <form action="{{ route('admin.work-rules.single-shift-policy.store') }}" method="POST" class="grid w-full max-w-3xl gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            @csrf
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Mulai berlaku (Senin)</label>
+                                <input type="date" name="effective_from" min="{{ today()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->toDateString() }}" value="{{ old('effective_from', $scheduleEffectiveFrom->toDateString()) }}" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Shift untuk semua</label>
+                                <select name="work_shift_id" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    <option value="">Pilih shift aktif</option>
+                                    @foreach($shifts->where('is_active', true) as $shift)
+                                        <option value="{{ $shift->id }}" @selected(old('work_shift_id', $defaultSingleShift?->id) == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <label class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 sm:col-span-2 xl:col-span-3">
+                                <input type="checkbox" name="confirm" value="1" required class="mt-0.5 rounded border-gray-300 text-indigo-600">
+                                Saya paham jadwal fixed/rolling diubah, override mendatang dihapus, dan template shift lain dinonaktifkan.
+                            </label>
+                            <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                Terapkan shift permanen
+                            </button>
+                        </form>
+                    </div>
+                </section>
+            @endif
+
             <section class="grid gap-6 xl:grid-cols-2">
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Template Shift</h3>
@@ -252,14 +303,19 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Berlaku mulai tanggal</label>
-                            <input type="date" name="effective_from" value="{{ old('effective_from', today()->toDateString()) }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <input type="date" name="effective_from" value="{{ old('effective_from', $scheduleEffectiveFrom->toDateString()) }}" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium">Pola jadwal</label>
-                            <select name="schedule_mode" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                <option value="fixed" @selected(old('schedule_mode', 'fixed') === 'fixed')>Tetap sesuai shift default</option>
-                                <option value="rolling" @selected(old('schedule_mode') === 'rolling')>Rolling mingguan</option>
-                            </select>
+                            @if($scheduledShiftPolicy)
+                                <input type="hidden" name="schedule_mode" value="fixed">
+                                <p class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">Tetap · {{ $scheduledShiftPolicy->workShift->name }}</p>
+                            @else
+                                <select name="schedule_mode" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                    <option value="fixed" @selected(old('schedule_mode', 'fixed') === 'fixed')>Tetap sesuai shift default</option>
+                                    <option value="rolling" @selected(old('schedule_mode') === 'rolling')>Rolling mingguan</option>
+                                </select>
+                            @endif
                         </div>
                         <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Penetapan</button>
                     </form>
@@ -268,6 +324,11 @@
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Jadwal Shift Khusus</h3>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Gunakan untuk tukar atau perubahan shift pada satu tanggal. Skema upah tetap mengikuti penetapan karyawan.</p>
+                    @if($shiftPolicy)
+                        <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                            Jadwal khusus per orang dinonaktifkan selama mode satu shift berlaku.
+                        </div>
+                    @else
                     <form action="{{ route('admin.work-rules.shift-overrides.store') }}" method="POST" class="mt-5 grid gap-4">
                         @csrf
                         <div>
@@ -283,8 +344,8 @@
                             <label class="mb-1 block text-sm font-medium">Shift pada tanggal tersebut</label>
                             <select name="work_shift_id" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                                 <option value="">Pilih shift</option>
-                                @foreach($shifts->where('is_active', true) as $shift)
-                                    <option value="{{ $shift->id }}" @selected(old('work_shift_id') == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
+                                @foreach($overrideShifts as $shift)
+                                    <option value="{{ $shift->id }}" @selected(old('work_shift_id') == $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }}){{ $shift->is_active ? '' : ' · Nonaktif setelah cutover' }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -294,6 +355,7 @@
                         </div>
                         <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Jadwal Khusus</button>
                     </form>
+                    @endif
 
                     <div class="mt-6">
                         <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Jadwal khusus mendatang</h4>
@@ -329,6 +391,11 @@
                     </form>
                 </div>
 
+                @if($shiftPolicy || $scheduledShiftPolicy)
+                    <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                        Rotasi Grup A/B tidak berlaku selama mode satu shift aktif.
+                    </div>
+                @else
                 <form action="{{ route('admin.work-rules.rotation-settings.store') }}" method="POST" class="mt-5 grid gap-4 rounded-xl bg-gray-50 p-4 dark:bg-gray-900 sm:grid-cols-2 xl:grid-cols-4">
                         @csrf
                         <div class="sm:col-span-2 xl:col-span-4">
@@ -359,6 +426,7 @@
                         </div>
                         <button class="justify-self-start rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">Simpan Pola Rolling</button>
                 </form>
+                @endif
 
                 <div class="mt-6 space-y-6">
                     <div>
@@ -366,7 +434,11 @@
                             Atur Pola Karyawan · {{ $weekStart->format('d M') }} – {{ $weekEnd->format('d M Y') }}
                         </h4>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Daftar dipisah berdasarkan grup. Ubah pola mulai Senin yang dipilih; skema upah tidak berubah.</p>
-                        @if($rotationSetting)
+                        @if($shiftPolicy)
+                            <p class="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                Mode satu shift: {{ $shiftPolicy->workShift->name }} · berlaku mulai {{ $shiftPolicy->effective_from->format('d M Y') }}.
+                            </p>
+                        @elseif($rotationSetting)
                             @if($weekStart->lt($rotationSetting->anchor_week_start))
                                 <p class="mt-2 text-sm text-amber-700 dark:text-amber-300">Rotasi belum dimulai untuk minggu ini.</p>
                             @else
@@ -444,10 +516,15 @@
                                                     <option value="{{ $shift->id }}" @selected($editShift && $editShift->id === $shift->id)>{{ $shift->name }} ({{ substr($shift->starts_at, 0, 5) }}–{{ substr($shift->ends_at, 0, 5) }})</option>
                                                 @endforeach
                                             </select>
-                                            <select aria-label="Pola jadwal" name="schedule_mode" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                                <option value="fixed" @selected($assignment->schedule_mode === 'fixed')>Tetap</option>
-                                                <option value="rolling" @selected($assignment->schedule_mode === 'rolling')>Rolling mingguan</option>
-                                            </select>
+                                            @if($scheduledShiftPolicy)
+                                                <input type="hidden" name="schedule_mode" value="fixed">
+                                                <p class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">Tetap · {{ $scheduledShiftPolicy->workShift->name }}</p>
+                                            @else
+                                                <select aria-label="Pola jadwal" name="schedule_mode" required class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                                    <option value="fixed" @selected($assignment->schedule_mode === 'fixed')>Tetap</option>
+                                                    <option value="rolling" @selected($assignment->schedule_mode === 'rolling')>Rolling mingguan</option>
+                                                </select>
+                                            @endif
                                             <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Simpan</button>
                                         </form>
                                     </div>
