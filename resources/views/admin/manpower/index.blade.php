@@ -359,27 +359,27 @@
                             <i class="fas fa-door-open text-indigo-500"></i>
                         </div>
                         <div class="space-y-4 p-4">
-                            <form method="POST" action="{{ route('admin.manpower.rooms.store') }}" class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                            @csrf
-                            <select name="department_id" required class="rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                                <option value="">Pilih departemen</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
-                            <input name="name" required maxlength="255" placeholder="Nama ruangan baru" class="rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            <button class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">
-                                <i class="fas fa-plus text-xs"></i> Tambah
-                            </button>
+                            <form method="POST" action="{{ route('admin.manpower.rooms.store') }}" class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                                @csrf
+                                <select name="department_id" required class="w-full min-w-0 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                                    <option value="">Pilih departemen</option>
+                                    @foreach ($departments as $department)
+                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                    @endforeach
+                                </select>
+                                <input name="name" required maxlength="255" placeholder="Nama ruangan baru" class="w-full min-w-0 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                                <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:col-span-2">
+                                    <i class="fas fa-plus text-xs"></i> Tambah ruangan
+                                </button>
                             </form>
-                            <div class="max-h-72 space-y-4 overflow-y-auto pr-1">
-                            @forelse ($departments as $department)
+                            <div class="space-y-4">
+                            @forelse ($departments->filter(fn ($department) => $department->rooms->isNotEmpty()) as $department)
                                 <div>
                                     <h4 class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>{{ $department->name }}
                                     </h4>
                                     <div class="space-y-2">
-                                        @forelse ($department->rooms as $room)
+                                        @foreach ($department->rooms as $room)
                                             <div class="flex min-w-0 items-center gap-2 rounded-xl border border-slate-100 p-2 dark:border-slate-700">
                                                 <form method="POST" action="{{ route('admin.manpower.rooms.update', $room) }}" class="flex min-w-0 flex-1 items-center gap-2">
                                                     @csrf
@@ -396,13 +396,11 @@
                                                     </button>
                                                 </form>
                                             </div>
-                                        @empty
-                                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">Belum ada ruangan.</p>
-                                        @endforelse
+                                        @endforeach
                                     </div>
                                 </div>
                             @empty
-                                <p class="rounded-xl bg-slate-50 px-3 py-4 text-center text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">Tambahkan departemen terlebih dahulu.</p>
+                                <p class="rounded-xl bg-slate-50 px-3 py-4 text-center text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">Belum ada ruangan. Pilih departemen dan tambahkan ruangan baru.</p>
                             @endforelse
                             </div>
                         </div>
