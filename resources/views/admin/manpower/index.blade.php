@@ -294,7 +294,7 @@
                 </div>
             </div>
 
-            <details id="kelola-struktur" class="group rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <details id="kelola-struktur" @if (request()->boolean('manage')) open @endif class="group rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden sm:px-6">
                     <div class="flex items-center gap-3">
                         <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><i class="fas fa-sliders"></i></div>
@@ -461,14 +461,77 @@
         </section>
     </div>
 
+    <dialog id="manpower-delete-dialog" aria-labelledby="manpower-delete-title" aria-describedby="manpower-delete-message" class="w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/60 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+        <form method="dialog" class="p-6">
+            <div class="flex items-start gap-4">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+                    <i class="fas fa-trash"></i>
+                </span>
+                <div>
+                    <h2 id="manpower-delete-title" class="text-lg font-bold">Yakin ingin menghapus?</h2>
+                    <p id="manpower-delete-message" class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300"></p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button value="cancel" autofocus class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                    Batal
+                </button>
+                <button id="manpower-delete-confirm" type="button" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60">
+                    Ya, hapus
+                </button>
+            </div>
+        </form>
+    </dialog>
+
     @push('scripts')
         <script nonce="{{ config('app.csp_nonce') }}">
+            var deleteDialog = document.getElementById('manpower-delete-dialog');
+            var deleteMessage = document.getElementById('manpower-delete-message');
+            var deleteConfirmButton = document.getElementById('manpower-delete-confirm');
+            var pendingDeleteForm = null;
+
             document.addEventListener('submit', function (event) {
                 var form = event.target.closest('form[data-confirm]');
-                if (form && !window.confirm(form.dataset.confirm)) {
-                    event.preventDefault();
-                }
+                if (!form) return;
+
+                event.preventDefault();
+                pendingDeleteForm = form;
+                deleteMessage.textContent = form.dataset.confirm;
+                deleteDialog.showModal();
             });
+
+            deleteDialog.addEventListener('close', function () {
+                pendingDeleteForm = null;
+                deleteConfirmButton.disabled = false;
+            });
+
+            deleteConfirmButton.addEventListener('click', function () {
+                if (!pendingDeleteForm) return;
+
+                try {
+                    window.sessionStorage.setItem('manpower-delete-scroll', String(window.scrollY));
+                } catch (error) {
+                    console.warn('Posisi halaman Manpower tidak dapat disimpan.', error);
+                }
+
+                deleteConfirmButton.disabled = true;
+                pendingDeleteForm.submit();
+            });
+
+            try {
+                var savedScroll = window.sessionStorage.getItem('manpower-delete-scroll');
+                if (savedScroll !== null) {
+                    window.sessionStorage.removeItem('manpower-delete-scroll');
+                    var scrollPosition = Number(savedScroll);
+                    if (Number.isFinite(scrollPosition) && scrollPosition >= 0) {
+                        window.requestAnimationFrame(function () {
+                            window.scrollTo(0, scrollPosition);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn('Posisi halaman Manpower tidak dapat dipulihkan.', error);
+            }
         </script>
     @endpush
 </x-app-layout>

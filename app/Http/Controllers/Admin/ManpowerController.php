@@ -159,7 +159,9 @@ class ManpowerController extends Controller
             $department->delete();
         });
 
-        return back()->with('status', 'Departemen, ruangan, dan riwayat penempatannya berhasil dihapus.');
+        return redirect()
+            ->route('admin.manpower.index', ['manage' => 1])
+            ->with('status', 'Departemen, ruangan, dan riwayat penempatannya berhasil dihapus.');
     }
 
     public function storeRoom(Request $request): RedirectResponse
@@ -213,7 +215,9 @@ class ManpowerController extends Controller
             $room->delete();
         });
 
-        return back()->with('status', 'Ruangan dan seluruh riwayat penempatannya berhasil dihapus.');
+        return redirect()
+            ->route('admin.manpower.index', ['manage' => 1])
+            ->with('status', 'Ruangan dan seluruh riwayat penempatannya berhasil dihapus.');
     }
 
     public function assign(Request $request, User $user): RedirectResponse
