@@ -109,28 +109,7 @@
             </div>
 
             @forelse ($departments as $department)
-                @php
-                    $departmentTotal = $department->directEmployees->count()
-                        + $department->rooms->sum(fn ($room) => $room->employees->count());
-                    $departmentPresent = $department->direct_present_count
-                        + $department->rooms->sum('present_count');
-                @endphp
                 <div data-department-panel="{{ $department->id }}" @if ($selectedDepartmentId !== $department->id) hidden @endif class="space-y-4">
-                    <div class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex items-center gap-4">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"><i class="fas fa-building"></i></div>
-                            <div>
-                                <h3 class="font-bold text-slate-900 dark:text-white">{{ $department->name }}</h3>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ $departmentTotal }} karyawan · {{ $department->rooms->count() }} ruangan</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 self-start rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900 sm:self-auto">
-                            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $departmentPresent }}</span>
-                            <span class="text-slate-500 dark:text-slate-400">hadir hari ini</span>
-                        </div>
-                    </div>
-
                     @if ($department->directEmployees->isNotEmpty())
                         <details data-preserve-open="department-employees-{{ $department->id }}" class="group overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-900/50 [&::-webkit-details-marker]:hidden">
