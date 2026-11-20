@@ -83,6 +83,31 @@
                 <p class="max-w-xl text-sm text-slate-500 dark:text-slate-400">Perhitungan hanya memakai penempatan aktif dan absensi yang disetujui. Riwayat tidak ikut terhitung.</p>
             </div>
 
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label="Pilih departemen">
+                @foreach ($departments as $department)
+                    @php
+                        $departmentTotal = $department->directEmployees->count()
+                            + $department->rooms->sum(fn ($room) => $room->employees->count());
+                        $departmentPresent = $department->direct_present_count
+                            + $department->rooms->sum('present_count');
+                        $isSelectedDepartment = $selectedDepartmentId === $department->id;
+                    @endphp
+                    <button
+                        type="button"
+                        data-department-select="{{ $department->id }}"
+                        aria-pressed="{{ $isSelectedDepartment ? 'true' : 'false' }}"
+                        class="department-tile flex min-w-0 items-start gap-3 rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $isSelectedDepartment ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 dark:border-indigo-400 dark:bg-indigo-950/40' : 'border-slate-200 bg-white hover:border-indigo-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-800' }}"
+                    >
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"><i class="fas fa-building"></i></span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-bold text-slate-900 dark:text-white">{{ $department->name }}</span>
+                            <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{{ $departmentTotal }} karyawan · {{ $department->rooms->count() }} ruangan</span>
+                            <span class="mt-1 block text-xs font-medium text-emerald-700 dark:text-emerald-300">{{ $departmentPresent }} hadir</span>
+                        </span>
+                    </button>
+                @endforeach
+            </div>
+
             @forelse ($departments as $department)
                 @php
                     $departmentTotal = $department->directEmployees->count()
@@ -90,16 +115,16 @@
                     $departmentPresent = $department->direct_present_count
                         + $department->rooms->sum('present_count');
                 @endphp
-                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <div class="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-5 dark:border-slate-700 dark:from-slate-800 dark:to-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div data-department-panel="{{ $department->id }}" @if ($selectedDepartmentId !== $department->id) hidden @endif class="space-y-4">
+                    <div class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-4">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"><i class="fas fa-building"></i></div>
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"><i class="fas fa-building"></i></div>
                             <div>
-                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ $department->name }}</h3>
-                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $departmentTotal }} karyawan ditempatkan · {{ $department->rooms->count() }} ruangan khusus</p>
+                                <h3 class="font-bold text-slate-900 dark:text-white">{{ $department->name }}</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ $departmentTotal }} karyawan · {{ $department->rooms->count() }} ruangan</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 self-start rounded-xl bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 sm:self-auto">
+                        <div class="flex items-center gap-2 self-start rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900 sm:self-auto">
                             <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
                             <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $departmentPresent }}</span>
                             <span class="text-slate-500 dark:text-slate-400">hadir hari ini</span>
@@ -107,14 +132,14 @@
                     </div>
 
                     @if ($department->directEmployees->isNotEmpty())
-                        <div class="mx-4 mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 sm:mx-5">
-                            <div class="flex flex-col gap-1 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Tim departemen</h4>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">Penempatan langsung, tanpa ruangan khusus</p>
-                                </div>
-                                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">{{ $department->directEmployees->count() }} orang · {{ $department->direct_present_count }} hadir</span>
-                            </div>
+                        <details data-preserve-open="department-employees-{{ $department->id }}" class="group overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-900/50 [&::-webkit-details-marker]:hidden">
+                                <span>
+                                    <span class="block text-sm font-bold text-slate-800 dark:text-slate-200">Tim departemen</span>
+                                    <span class="block text-xs text-slate-500 dark:text-slate-400">Penempatan langsung · {{ $department->directEmployees->count() }} orang · {{ $department->direct_present_count }} hadir</span>
+                                </span>
+                                <i class="fas fa-chevron-down text-xs text-slate-400 transition group-open:rotate-180"></i>
+                            </summary>
                             <div class="divide-y divide-slate-100 dark:divide-slate-700">
                                 @foreach ($department->directEmployees as $employee)
                                     @php $isPresent = in_array($employee->id, $presentUserIds, true); @endphp
@@ -129,7 +154,7 @@
                                                 </span>
                                             </div>
                                         </div>
-                                        <form method="POST" action="{{ route('admin.manpower.assignment', $employee) }}" class="flex w-full gap-2 sm:w-auto">
+                                        <form method="POST" action="{{ route('admin.manpower.assignment', $employee) }}" class="flex w-full gap-2 sm:w-auto" data-preserve-scroll>
                                             @csrf
                                             @method('PUT')
                                             <select name="destination" aria-label="Ubah penempatan {{ $employee->name }}" class="min-w-0 flex-1 rounded-lg border-slate-200 py-2 text-xs text-slate-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 sm:max-w-64">
@@ -150,7 +175,7 @@
                                     </div>
                                 @endforeach
                             </div>
-                        </div>
+                        </details>
                     @endif
 
                     @if ($department->rooms->isNotEmpty())
@@ -210,7 +235,7 @@
                                         </div>
                                     </div>
 
-                                    <details class="group border-t border-slate-100 dark:border-slate-700">
+                                    <details data-preserve-open="room-employees-{{ $room->id }}" class="group border-t border-slate-100 dark:border-slate-700">
                                         <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/40 [&::-webkit-details-marker]:hidden">
                                             <span class="flex items-center gap-2">
                                                 <i class="fas fa-users text-slate-400"></i>
@@ -266,7 +291,7 @@
                         </div>
                     @endif
                     @if ($department->directEmployees->isEmpty() && $department->rooms->isEmpty())
-                        <div class="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        <div class="mx-auto max-w-md rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                             Belum ada ruangan atau karyawan yang ditempatkan di departemen ini.
                         </div>
                     @endif
@@ -522,10 +547,38 @@
             var deleteMessage = document.getElementById('manpower-delete-message');
             var deleteConfirmButton = document.getElementById('manpower-delete-confirm');
             var pendingDeleteForm = null;
+            var departmentSelectedClasses = ['border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-500/20', 'dark:border-indigo-400', 'dark:bg-indigo-950/40'];
+            var departmentUnselectedClasses = ['border-slate-200', 'bg-white', 'hover:border-indigo-200', 'dark:border-slate-700', 'dark:bg-slate-800', 'dark:hover:border-indigo-800'];
+
+            document.querySelectorAll('[data-department-select]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var departmentId = button.dataset.departmentSelect;
+
+                    document.querySelectorAll('[data-department-panel]').forEach(function (panel) {
+                        panel.hidden = panel.dataset.departmentPanel !== departmentId;
+                    });
+
+                    document.querySelectorAll('[data-department-select]').forEach(function (departmentButton) {
+                        var selected = departmentButton === button;
+                        departmentButton.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                        departmentButton.classList.remove.apply(departmentButton.classList, selected ? departmentUnselectedClasses : departmentSelectedClasses);
+                        departmentButton.classList.add.apply(departmentButton.classList, selected ? departmentSelectedClasses : departmentUnselectedClasses);
+                    });
+
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('department_id', departmentId);
+                    window.history.replaceState({}, '', url.toString());
+                });
+            });
 
             function saveManpowerScrollPosition() {
                 try {
                     window.sessionStorage.setItem('manpower-scroll-position', String(window.scrollY));
+                    var openLists = Array.from(document.querySelectorAll('details[data-preserve-open][open]'))
+                        .map(function (details) {
+                            return details.dataset.preserveOpen;
+                        });
+                    window.sessionStorage.setItem('manpower-open-lists', JSON.stringify(openLists));
                 } catch (error) {
                     console.warn('Posisi halaman Manpower tidak dapat disimpan.', error);
                 }
@@ -569,6 +622,17 @@
                     if (Number.isFinite(scrollPosition) && scrollPosition >= 0) {
                         window.requestAnimationFrame(function () {
                             window.scrollTo(0, scrollPosition);
+                        });
+                    }
+                }
+
+                var savedOpenLists = window.sessionStorage.getItem('manpower-open-lists');
+                if (savedOpenLists !== null) {
+                    window.sessionStorage.removeItem('manpower-open-lists');
+                    var openListIds = JSON.parse(savedOpenLists);
+                    if (Array.isArray(openListIds)) {
+                        document.querySelectorAll('details[data-preserve-open]').forEach(function (details) {
+                            details.open = openListIds.includes(details.dataset.preserveOpen);
                         });
                     }
                 }

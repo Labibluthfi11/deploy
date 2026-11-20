@@ -59,8 +59,8 @@ test('manpower only counts approved attendance for currently assigned employees'
         ->get(route('admin.manpower.index'))
         ->assertOk()
         ->assertSee('Ruang A')
-        ->assertSee('2 karyawan ditempatkan')
-        ->assertSee('1 hadir hari ini')
+        ->assertSee('2 karyawan · 1 ruangan')
+        ->assertSee('1 hadir')
         ->assertSee('Karyawan ditempatkan')
         ->assertSee('Belum tercatat hadir');
 });

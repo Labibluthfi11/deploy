@@ -50,6 +50,11 @@ class ManpowerController extends Controller
             ->with(['rooms' => fn ($query) => $query->where('is_active', true)->with('leader')->orderBy('name')])
             ->orderBy('name')
             ->get();
+        $departmentIdQuery = $request->query('department_id');
+        $requestedDepartmentId = is_scalar($departmentIdQuery) ? (int) $departmentIdQuery : 0;
+        $selectedDepartmentId = $departments->contains('id', $requestedDepartmentId)
+            ? $requestedDepartmentId
+            : $departments->first()?->id;
 
         foreach ($departments as $department) {
             $directEmployees = $employees->filter(
@@ -81,6 +86,7 @@ class ManpowerController extends Controller
 
         return view('admin.manpower.index', [
             'departments' => $departments,
+            'selectedDepartmentId' => $selectedDepartmentId,
             'poolEmployees' => $poolEmployees,
             'presentUserIds' => $presentUserIds,
             'totalPlaced' => $placedEmployees->count(),
@@ -252,7 +258,10 @@ class ManpowerController extends Controller
         });
 
         return redirect()
-            ->route('admin.manpower.index', ['manage' => 1])
+            ->route('admin.manpower.index', [
+                'manage' => 1,
+                'department_id' => $room->department_id,
+            ])
             ->with('status', 'Ruangan dan seluruh riwayat penempatannya berhasil dihapus.');
     }
 
