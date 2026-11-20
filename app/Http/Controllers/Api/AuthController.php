@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use App\Models\ActivityLog;
 
 
@@ -25,7 +26,11 @@ class AuthController extends Controller
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
                 'id_karyawan' => 'required|string|max:255|unique:users',
-                'departemen' => 'required|string|max:255',
+                'departemen' => [
+                    'required',
+                    'string',
+                    Rule::exists('departments', 'name')->where('is_active', true),
+                ],
                 'employment_type' => 'required|in:organik,freelance',
                 'work_location' => 'required|in:office,produksi',
             ]);

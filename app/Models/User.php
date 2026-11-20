@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -73,6 +74,16 @@ public static function cutiYangMemotong(): array
     public function workAssignments(): HasMany
     {
         return $this->hasMany(EmployeeWorkAssignment::class);
+    }
+
+    public function roomAssignments(): HasMany
+    {
+        return $this->hasMany(EmployeeRoomAssignment::class);
+    }
+
+    public function currentRoomAssignment(): HasOne
+    {
+        return $this->hasOne(EmployeeRoomAssignment::class)->whereNull('ended_at');
     }
 
     public function shiftOverrides(): HasMany

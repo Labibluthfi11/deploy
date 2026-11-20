@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SalarySlipController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use App\Http\Controllers\Api\ScheduledLemburController;
 use App\Http\Controllers\Api\KpiIntegrationController;
+use App\Http\Controllers\Api\DepartmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +37,7 @@ Route::middleware('throttle:api')->prefix('v1')->group(function () {
     // ✅ REGISTER - Rate limit: 10 attempts per menit
     Route::post('/register', [AuthController::class, 'register'])
         ->middleware('throttle:10,1');
+    Route::get('/departments', [DepartmentController::class, 'index']);
 
     // ✅ LOGIN - Rate limit: 5 attempts per menit (anti brute force)
     Route::post('/login', [AuthController::class, 'login'])
