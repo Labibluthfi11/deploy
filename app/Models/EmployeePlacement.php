@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EmployeeRoomAssignment extends Model
+class EmployeePlacement extends Model
 {
+    protected $table = 'employee_room_assignments';
+
     protected $fillable = [
         'user_id',
+        'department_id',
         'room_id',
         'assigned_by',
         'started_at',
@@ -18,6 +21,8 @@ class EmployeeRoomAssignment extends Model
     protected function casts(): array
     {
         return [
+            'department_id' => 'integer',
+            'room_id' => 'integer',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
@@ -26,6 +31,11 @@ class EmployeeRoomAssignment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function room(): BelongsTo

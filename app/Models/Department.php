@@ -18,4 +18,9 @@ class Department extends Model
     {
         return $this->hasMany(Room::class);
     }
+
+    public function placements(): HasMany
+    {
+        return $this->hasMany(EmployeePlacement::class);
+    }
 }

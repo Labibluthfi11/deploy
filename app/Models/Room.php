@@ -20,13 +20,13 @@ class Room extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function assignments(): HasMany
+    public function placements(): HasMany
     {
-        return $this->hasMany(EmployeeRoomAssignment::class);
+        return $this->hasMany(EmployeePlacement::class);
     }
 
-    public function currentAssignments(): HasMany
+    public function currentPlacements(): HasMany
     {
-        return $this->assignments()->whereNull('ended_at');
+        return $this->placements()->whereNull('ended_at');
     }
 }

@@ -76,14 +76,14 @@ public static function cutiYangMemotong(): array
         return $this->hasMany(EmployeeWorkAssignment::class);
     }
 
-    public function roomAssignments(): HasMany
+    public function placements(): HasMany
     {
-        return $this->hasMany(EmployeeRoomAssignment::class);
+        return $this->hasMany(EmployeePlacement::class);
     }
 
-    public function currentRoomAssignment(): HasOne
+    public function currentPlacement(): HasOne
     {
-        return $this->hasOne(EmployeeRoomAssignment::class)->whereNull('ended_at');
+        return $this->hasOne(EmployeePlacement::class)->whereNull('ended_at');
     }
 
     public function shiftOverrides(): HasMany

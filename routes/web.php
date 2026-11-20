@@ -29,8 +29,10 @@ Route::middleware(['auth', 'admin', \App\Http\Middleware\ActivityLogMiddleware::
     Route::get('/manpower', [ManpowerController::class, 'index'])->name('admin.manpower.index');
     Route::post('/manpower/departments', [ManpowerController::class, 'storeDepartment'])->name('admin.manpower.departments.store');
     Route::put('/manpower/departments/{department}', [ManpowerController::class, 'updateDepartment'])->name('admin.manpower.departments.update');
+    Route::delete('/manpower/departments/{department}', [ManpowerController::class, 'destroyDepartment'])->name('admin.manpower.departments.destroy');
     Route::post('/manpower/rooms', [ManpowerController::class, 'storeRoom'])->name('admin.manpower.rooms.store');
     Route::put('/manpower/rooms/{room}', [ManpowerController::class, 'updateRoom'])->name('admin.manpower.rooms.update');
+    Route::delete('/manpower/rooms/{room}', [ManpowerController::class, 'destroyRoom'])->name('admin.manpower.rooms.destroy');
     Route::put('/manpower/employees/{user}/assignment', [ManpowerController::class, 'assign'])->name('admin.manpower.assignment');
 
     Route::prefix('salary-slips')->name('admin.salary-slips.')->group(function () {

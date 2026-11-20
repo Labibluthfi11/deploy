@@ -52,12 +52,23 @@ class UserProfileController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
+        $currentPlacement = $user->currentPlacement()->with('department')->first();
+        $departmentRules = [
+            'required',
+            'string',
+            'max:255',
+            Rule::exists('departments', 'name')->where('is_active', true),
+        ];
+
+        if ($currentPlacement) {
+            $departmentRules[] = Rule::in([$currentPlacement->department->name]);
+        }
 
         // Validasi input
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'id_karyawan' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'departemen' => 'required|string|max:255',
+            'departemen' => $departmentRules,
             'profile_photo' => 'nullable|image|max:2048', // Maksimal 2MB (Cegah Bom Penyimpanan)
         ]);
 

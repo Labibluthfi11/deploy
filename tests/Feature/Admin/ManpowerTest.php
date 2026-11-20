@@ -2,7 +2,7 @@
 
 use App\Models\Absensi;
 use App\Models\Department;
-use App\Models\EmployeeRoomAssignment;
+use App\Models\EmployeePlacement;
 use App\Models\Room;
 use App\Models\User;
 
@@ -32,8 +32,9 @@ test('manpower only counts approved attendance for currently assigned employees'
     $pendingEmployee = manpowerUser();
 
     foreach ([$employee, $pendingEmployee] as $assignedEmployee) {
-        EmployeeRoomAssignment::create([
+        EmployeePlacement::create([
             'user_id' => $assignedEmployee->id,
+            'department_id' => $department->id,
             'room_id' => $room->id,
             'assigned_by' => $admin->id,
             'started_at' => now()->subDay(),
@@ -58,7 +59,7 @@ test('manpower only counts approved attendance for currently assigned employees'
         ->get(route('admin.manpower.index'))
         ->assertOk()
         ->assertSee('Ruang A')
-        ->assertSee('2 ditempatkan')
+        ->assertSee('2 karyawan ditempatkan')
         ->assertSee('1 hadir hari ini')
         ->assertSee('Karyawan ditempatkan')
         ->assertSee('Belum tercatat hadir');
@@ -72,20 +73,118 @@ test('moving an employee preserves old room history and keeps one active placeme
     $employee = manpowerUser();
 
     $this->actingAs($admin)
-        ->put(route('admin.manpower.assignment', $employee), ['room_id' => $roomA->id])
+        ->put(route('admin.manpower.assignment', $employee), ['destination' => 'room:' . $roomA->id])
         ->assertRedirect();
 
-    $firstAssignment = EmployeeRoomAssignment::where('user_id', $employee->id)->firstOrFail();
+    $firstAssignment = EmployeePlacement::where('user_id', $employee->id)->firstOrFail();
     expect($firstAssignment->ended_at)->toBeNull();
 
     $this->actingAs($admin)
-        ->put(route('admin.manpower.assignment', $employee), ['room_id' => $roomB->id])
+        ->put(route('admin.manpower.assignment', $employee), ['destination' => 'room:' . $roomB->id])
         ->assertRedirect();
 
-    expect(EmployeeRoomAssignment::where('user_id', $employee->id)->count())->toBe(2)
-        ->and(EmployeeRoomAssignment::where('user_id', $employee->id)->whereNull('ended_at')->count())->toBe(1)
+    $this->actingAs($admin)
+        ->put(route('admin.manpower.assignment', $employee), ['destination' => 'department:' . $department->id])
+        ->assertRedirect();
+
+    expect(EmployeePlacement::where('user_id', $employee->id)->count())->toBe(3)
+        ->and(EmployeePlacement::where('user_id', $employee->id)->whereNull('ended_at')->count())->toBe(1)
         ->and($firstAssignment->fresh()->ended_at)->not->toBeNull()
-        ->and($employee->fresh()->currentRoomAssignment->room_id)->toBe($roomB->id);
+        ->and($employee->fresh()->currentPlacement->department_id)->toBe($department->id)
+        ->and($employee->fresh()->currentPlacement->room_id)->toBeNull();
+});
+
+test('department-only placements are counted without requiring a room', function () {
+    $department = Department::create(['name' => 'IT']);
+    $admin = manpowerUser(['role' => 'super_admin']);
+    $employee = manpowerUser();
+
+    $this->actingAs($admin)
+        ->put(route('admin.manpower.assignment', $employee), ['destination' => 'department:' . $department->id])
+        ->assertRedirect();
+
+    $this->actingAs($admin)
+        ->get(route('admin.manpower.index'))
+        ->assertOk()
+        ->assertSee('Tim departemen')
+        ->assertSee('1 orang')
+        ->assertSee('IT · Langsung di departemen');
+});
+
+test('deleting a room removes its placement history and returns assigned employees to the pool', function () {
+    $department = Department::create(['name' => 'Produksi']);
+    $room = Room::create(['department_id' => $department->id, 'name' => 'Ruang A']);
+    $admin = manpowerUser(['role' => 'super_admin']);
+    $employee = manpowerUser();
+
+    EmployeePlacement::create([
+        'user_id' => $employee->id,
+        'department_id' => $department->id,
+        'room_id' => $room->id,
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDay(),
+        'ended_at' => now(),
+    ]);
+    EmployeePlacement::create([
+        'user_id' => $employee->id,
+        'department_id' => $department->id,
+        'room_id' => $room->id,
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->delete(route('admin.manpower.rooms.destroy', $room))
+        ->assertRedirect();
+
+    expect(Room::find($room->id))->toBeNull()
+        ->and(EmployeePlacement::where('user_id', $employee->id)->exists())->toBeFalse()
+        ->and($employee->fresh()->currentPlacement)->toBeNull()
+        ->and($employee->fresh()->departemen)->toBe('Produksi');
+});
+
+test('deleting a department removes its history and preserves employees active elsewhere', function () {
+    $department = Department::create(['name' => 'IT']);
+    $room = Room::create(['department_id' => $department->id, 'name' => 'Ruang IT']);
+    $otherDepartment = Department::create(['name' => 'HRGA']);
+    $admin = manpowerUser(['role' => 'super_admin']);
+    $employee = manpowerUser(['departemen' => 'IT']);
+    $movedEmployee = manpowerUser(['departemen' => 'HRGA']);
+
+    EmployeePlacement::create([
+        'user_id' => $employee->id,
+        'department_id' => $department->id,
+        'room_id' => $room->id,
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+    EmployeePlacement::create([
+        'user_id' => $movedEmployee->id,
+        'department_id' => $department->id,
+        'room_id' => $room->id,
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(2),
+        'ended_at' => now()->subDay(),
+    ]);
+    EmployeePlacement::create([
+        'user_id' => $movedEmployee->id,
+        'department_id' => $otherDepartment->id,
+        'room_id' => null,
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($admin)
+        ->delete(route('admin.manpower.departments.destroy', $department))
+        ->assertRedirect();
+
+    expect(Department::find($department->id))->toBeNull()
+        ->and(Room::find($room->id))->toBeNull()
+        ->and(EmployeePlacement::where('user_id', $employee->id)->exists())->toBeFalse()
+        ->and($employee->fresh()->departemen)->toBeNull()
+        ->and(EmployeePlacement::where('user_id', $movedEmployee->id)->count())->toBe(1)
+        ->and($movedEmployee->fresh()->departemen)->toBe('HRGA')
+        ->and($movedEmployee->fresh())->not->toBeNull();
 });
 
 test('registration departments endpoint only returns active department options', function () {

@@ -5,13 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Absensi;
 use App\Models\Department;
-use App\Models\EmployeeRoomAssignment;
+use App\Models\EmployeePlacement;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ManpowerController extends Controller
@@ -28,7 +29,7 @@ class ManpowerController extends Controller
                 $query->whereNull('is_admin')->orWhere('is_admin', false);
             })
             ->whereNotIn('role', self::EXCLUDED_ROLES)
-            ->with(['currentRoomAssignment.room.department'])
+            ->with(['currentPlacement.department', 'currentPlacement.room.department'])
             ->orderBy('name')
             ->get();
 
@@ -51,9 +52,20 @@ class ManpowerController extends Controller
             ->get();
 
         foreach ($departments as $department) {
+            $directEmployees = $employees->filter(
+                fn (User $employee) => $employee->currentPlacement?->department_id === $department->id
+                    && $employee->currentPlacement?->room_id === null
+            )->values();
+
+            $department->setRelation('directEmployees', $directEmployees);
+            $department->setAttribute(
+                'direct_present_count',
+                $directEmployees->filter(fn (User $employee) => isset($presentLookup[$employee->id]))->count()
+            );
+
             foreach ($department->rooms as $room) {
                 $roomEmployees = $employees->filter(
-                    fn (User $employee) => $employee->currentRoomAssignment?->room_id === $room->id
+                    fn (User $employee) => $employee->currentPlacement?->room_id === $room->id
                 )->values();
 
                 $room->setRelation('employees', $roomEmployees);
@@ -64,24 +76,18 @@ class ManpowerController extends Controller
             }
         }
 
-        $placedEmployees = $employees->filter(fn (User $employee) => $employee->currentRoomAssignment !== null);
-        $poolEmployees = $employees->filter(fn (User $employee) => $employee->currentRoomAssignment === null)->values();
+        $placedEmployees = $employees->filter(fn (User $employee) => $employee->currentPlacement !== null);
+        $poolEmployees = $employees->filter(fn (User $employee) => $employee->currentPlacement === null)->values();
 
         return view('admin.manpower.index', [
             'departments' => $departments,
-            'allRooms' => Room::query()
-                ->where('is_active', true)
-                ->whereHas('department', fn ($query) => $query->where('is_active', true))
-                ->with('department')
-                ->orderBy('name')
-                ->get(),
             'poolEmployees' => $poolEmployees,
             'presentUserIds' => $presentUserIds,
             'totalPlaced' => $placedEmployees->count(),
             'totalPresent' => $placedEmployees->filter(fn (User $employee) => isset($presentLookup[$employee->id]))->count(),
-            'assignmentHistory' => EmployeeRoomAssignment::query()
+            'assignmentHistory' => EmployeePlacement::query()
                 ->whereNotNull('ended_at')
-                ->with(['user', 'room.department'])
+                ->with(['user', 'department', 'room'])
                 ->orderByDesc('ended_at')
                 ->limit(50)
                 ->get(),
@@ -119,6 +125,41 @@ class ManpowerController extends Controller
         });
 
         return back()->with('status', 'Nama departemen berhasil diperbarui.');
+    }
+
+    public function destroyDepartment(Request $request, Department $department): RedirectResponse
+    {
+        $this->ensureAdmin($request);
+
+        DB::transaction(function () use ($department) {
+            $roomIds = $department->rooms()->pluck('id');
+            $activePlacementUserIds = EmployeePlacement::query()
+                ->where(function ($query) use ($department, $roomIds) {
+                    $query->where('department_id', $department->id)
+                        ->orWhereIn('room_id', $roomIds);
+                })
+                ->whereNull('ended_at')
+                ->pluck('user_id');
+
+            User::query()
+                ->where(function ($query) use ($activePlacementUserIds, $department) {
+                    $query->whereIn('id', $activePlacementUserIds)
+                        ->orWhere('departemen', $department->name);
+                })
+                ->update(['departemen' => null]);
+
+            EmployeePlacement::query()
+                ->where(function ($query) use ($department, $roomIds) {
+                    $query->where('department_id', $department->id)
+                        ->orWhereIn('room_id', $roomIds);
+                })
+                ->delete();
+
+            $department->rooms()->delete();
+            $department->delete();
+        });
+
+        return back()->with('status', 'Departemen, ruangan, dan riwayat penempatannya berhasil dihapus.');
     }
 
     public function storeRoom(Request $request): RedirectResponse
@@ -160,6 +201,21 @@ class ManpowerController extends Controller
         return back()->with('status', 'Nama ruangan berhasil diperbarui.');
     }
 
+    public function destroyRoom(Request $request, Room $room): RedirectResponse
+    {
+        $this->ensureAdmin($request);
+
+        DB::transaction(function () use ($room) {
+            EmployeePlacement::query()
+                ->where('room_id', $room->id)
+                ->delete();
+
+            $room->delete();
+        });
+
+        return back()->with('status', 'Ruangan dan seluruh riwayat penempatannya berhasil dihapus.');
+    }
+
     public function assign(Request $request, User $user): RedirectResponse
     {
         $this->ensureAdmin($request);
@@ -170,38 +226,52 @@ class ManpowerController extends Controller
         );
 
         $data = $request->validate([
-            'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
+            'destination' => ['required', 'string', 'max:64'],
         ]);
 
+        $department = null;
         $room = null;
-        if (!empty($data['room_id'])) {
+        if ($data['destination'] === 'pool') {
+            // Pool is represented by closing the active placement without creating another one.
+        } elseif (preg_match('/\Adepartment:(\d+)\z/', $data['destination'], $matches)) {
+            $department = Department::query()
+                ->where('is_active', true)
+                ->findOrFail((int) $matches[1]);
+        } elseif (preg_match('/\Aroom:(\d+)\z/', $data['destination'], $matches)) {
             $room = Room::with('department')
                 ->where('is_active', true)
                 ->whereHas('department', fn ($query) => $query->where('is_active', true))
-                ->findOrFail($data['room_id']);
+                ->findOrFail((int) $matches[1]);
+            $department = $room->department;
+        } else {
+            throw ValidationException::withMessages([
+                'destination' => 'Pilih Pool Uji Coba, departemen, atau ruangan yang tersedia.',
+            ]);
         }
 
-        DB::transaction(function () use ($user, $room, $request) {
+        DB::transaction(function () use ($user, $department, $room, $request) {
             $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
-            $currentAssignment = EmployeeRoomAssignment::query()
+            $currentPlacement = EmployeePlacement::query()
                 ->where('user_id', $lockedUser->id)
                 ->whereNull('ended_at')
                 ->lockForUpdate()
                 ->first();
 
-            if ($currentAssignment?->room_id === $room?->id) {
+            if ($currentPlacement?->department_id === $department?->id &&
+                $currentPlacement?->room_id === $room?->id) {
                 return;
             }
 
             $now = now();
-            $currentAssignment?->update(['ended_at' => $now]);
+            $currentPlacement?->update(['ended_at' => $now]);
 
-            if ($room) {
-                $lockedUser->update(['departemen' => $room->department->name]);
+            if ($department) {
+                $lockedUser->update(['departemen' => $department->name]);
 
-                EmployeeRoomAssignment::create([
+                EmployeePlacement::create([
                     'user_id' => $lockedUser->id,
-                    'room_id' => $room->id,
+                    'department_id' => $department->id,
+                    'room_id' => $room?->id,
                     'assigned_by' => $request->user()->id,
                     'started_at' => $now,
                 ]);
@@ -210,7 +280,9 @@ class ManpowerController extends Controller
 
         return back()->with(
             'status',
-            $room ? 'Penempatan karyawan berhasil diperbarui.' : 'Karyawan dipindahkan ke Pool Uji Coba.'
+            $department
+                ? 'Penempatan karyawan berhasil diperbarui.'
+                : 'Karyawan dipindahkan ke Pool Uji Coba.'
         );
     }
 
