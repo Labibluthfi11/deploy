@@ -154,18 +154,18 @@
                     @endif
 
                     @if ($department->rooms->isNotEmpty())
-                        <div class="grid grid-cols-1 gap-4 p-4 sm:p-5 xl:grid-cols-2">
+                        <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 2xl:grid-cols-4">
                             @foreach ($department->rooms as $room)
                                 @php
                                     $roomTotal = $room->employees->count();
                                     $roomAttendanceRate = $roomTotal > 0 ? (int) round(($room->present_count / $roomTotal) * 100) : 0;
                                 @endphp
-                                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-indigo-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-800">
-                                    <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-700">
+                                <div class="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-indigo-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-800">
+                                    <div class="p-4">
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="flex items-center gap-3">
                                                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><i class="fas fa-door-open"></i></div>
-                                                <div>
+                                                <div class="min-w-0">
                                                     <h4 class="font-bold text-slate-900 dark:text-white">{{ $room->name }}</h4>
                                                     <p class="text-xs text-slate-500 dark:text-slate-400">Ruangan kerja</p>
                                                 </div>
@@ -175,6 +175,32 @@
                                                 <p class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">orang</p>
                                             </div>
                                         </div>
+
+                                        <div class="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+                                            <div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                                                <i class="fas fa-crown"></i>
+                                                Leader ruangan
+                                            </div>
+                                            <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $room->leader?->name ?? 'Belum ditentukan' }}</p>
+                                            <form method="POST" action="{{ route('admin.manpower.rooms.leader.update', $room) }}" class="mt-2 flex min-w-0 gap-2" data-preserve-scroll>
+                                                @csrf
+                                                @method('PUT')
+                                                <select name="leader_user_id" aria-label="Pilih leader ruangan {{ $room->name }}" @disabled($room->employees->isEmpty()) class="min-w-0 flex-1 rounded-lg border-slate-200 bg-white py-2 text-xs text-slate-700 focus:border-indigo-500 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:disabled:bg-slate-700">
+                                                    @if ($room->employees->isEmpty())
+                                                        <option>Belum ada karyawan</option>
+                                                    @else
+                                                        <option value="" @selected(!$room->leader_user_id)>Tanpa leader</option>
+                                                        @foreach ($room->employees as $leaderCandidate)
+                                                            <option value="{{ $leaderCandidate->id }}" @selected($room->leader_user_id === $leaderCandidate->id)>{{ $leaderCandidate->name }}</option>
+                                                        @endforeach
+                                                    @endif
+                                                </select>
+                                                <button type="submit" @disabled($room->employees->isEmpty()) class="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Simpan leader ruangan {{ $room->name }}">
+                                                    Simpan
+                                                </button>
+                                            </form>
+                                        </div>
+
                                         <div class="mt-4 flex items-center justify-between text-xs">
                                             <span class="font-medium text-slate-500 dark:text-slate-400">Kehadiran disetujui</span>
                                             <span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ $room->present_count }} / {{ $roomTotal }}</span>
@@ -184,10 +210,18 @@
                                         </div>
                                     </div>
 
-                                    <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                                    <details class="group border-t border-slate-100 dark:border-slate-700">
+                                        <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/40 [&::-webkit-details-marker]:hidden">
+                                            <span class="flex items-center gap-2">
+                                                <i class="fas fa-users text-slate-400"></i>
+                                                Daftar karyawan ({{ $roomTotal }})
+                                            </span>
+                                            <i class="fas fa-chevron-down text-[10px] text-slate-400 transition group-open:rotate-180"></i>
+                                        </summary>
+                                        <div class="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-700 dark:border-slate-700">
                                         @forelse ($room->employees as $employee)
                                             @php $isPresent = in_array($employee->id, $presentUserIds, true); @endphp
-                                            <div class="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+                                            <div class="flex flex-col gap-3 px-4 py-3.5">
                                                 <div class="flex min-w-0 items-center gap-3">
                                                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
                                                         {{ strtoupper(substr($employee->name ?? 'U', 0, 1)) }}
@@ -200,10 +234,10 @@
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <form method="POST" action="{{ route('admin.manpower.assignment', $employee) }}" class="flex w-full gap-2 sm:w-auto">
+                                                <form method="POST" action="{{ route('admin.manpower.assignment', $employee) }}" class="flex w-full gap-2" data-preserve-scroll>
                                                     @csrf
                                                     @method('PUT')
-                                                    <select name="destination" aria-label="Ubah penempatan {{ $employee->name }}" class="min-w-0 flex-1 rounded-lg border-slate-200 py-2 text-xs text-slate-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 sm:max-w-64">
+                                                    <select name="destination" aria-label="Ubah penempatan {{ $employee->name }}" class="min-w-0 flex-1 rounded-lg border-slate-200 py-2 text-xs text-slate-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
                                                         <option value="pool">Pool Uji Coba</option>
                                                         @foreach ($departments as $targetDepartment)
                                                             <option value="department:{{ $targetDepartment->id }}" @selected($employee->currentPlacement->department_id === $targetDepartment->id && $employee->currentPlacement->room_id === null)>
@@ -215,9 +249,9 @@
                                                                 </option>
                                                             @endforeach
                                                         @endforeach
-                                                    </select>
-                                                    <button class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500">Ubah</button>
-                                                </form>
+                                                            </select>
+                                                            <button class="shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500">Ubah</button>
+                                                        </form>
                                             </div>
                                         @empty
                                             <div class="px-4 py-8 text-center">
@@ -225,7 +259,8 @@
                                                 <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Belum ada karyawan di ruangan ini.</p>
                                             </div>
                                         @endforelse
-                                    </div>
+                                        </div>
+                                    </details>
                                 </div>
                             @endforeach
                         </div>
@@ -488,14 +523,29 @@
             var deleteConfirmButton = document.getElementById('manpower-delete-confirm');
             var pendingDeleteForm = null;
 
+            function saveManpowerScrollPosition() {
+                try {
+                    window.sessionStorage.setItem('manpower-scroll-position', String(window.scrollY));
+                } catch (error) {
+                    console.warn('Posisi halaman Manpower tidak dapat disimpan.', error);
+                }
+            }
+
             document.addEventListener('submit', function (event) {
-                var form = event.target.closest('form[data-confirm]');
+                var form = event.target.closest('form');
                 if (!form) return;
 
-                event.preventDefault();
-                pendingDeleteForm = form;
-                deleteMessage.textContent = form.dataset.confirm;
-                deleteDialog.showModal();
+                if (form.hasAttribute('data-confirm')) {
+                    event.preventDefault();
+                    pendingDeleteForm = form;
+                    deleteMessage.textContent = form.dataset.confirm;
+                    deleteDialog.showModal();
+                    return;
+                }
+
+                if (form.hasAttribute('data-preserve-scroll')) {
+                    saveManpowerScrollPosition();
+                }
             });
 
             deleteDialog.addEventListener('close', function () {
@@ -506,20 +556,15 @@
             deleteConfirmButton.addEventListener('click', function () {
                 if (!pendingDeleteForm) return;
 
-                try {
-                    window.sessionStorage.setItem('manpower-delete-scroll', String(window.scrollY));
-                } catch (error) {
-                    console.warn('Posisi halaman Manpower tidak dapat disimpan.', error);
-                }
-
+                saveManpowerScrollPosition();
                 deleteConfirmButton.disabled = true;
                 pendingDeleteForm.submit();
             });
 
             try {
-                var savedScroll = window.sessionStorage.getItem('manpower-delete-scroll');
+                var savedScroll = window.sessionStorage.getItem('manpower-scroll-position');
                 if (savedScroll !== null) {
-                    window.sessionStorage.removeItem('manpower-delete-scroll');
+                    window.sessionStorage.removeItem('manpower-scroll-position');
                     var scrollPosition = Number(savedScroll);
                     if (Number.isFinite(scrollPosition) && scrollPosition >= 0) {
                         window.requestAnimationFrame(function () {

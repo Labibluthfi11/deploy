@@ -111,6 +111,33 @@ test('department-only placements are counted without requiring a room', function
         ->assertSee('IT · Langsung di departemen');
 });
 
+test('room leaders must be assigned employees and are cleared when moved out', function () {
+    $department = Department::create(['name' => 'Produksi']);
+    $room = Room::create(['department_id' => $department->id, 'name' => 'Ruang A']);
+    $admin = manpowerUser(['role' => 'super_admin']);
+    $leader = manpowerUser();
+    $unassignedEmployee = manpowerUser();
+
+    $this->actingAs($admin)
+        ->put(route('admin.manpower.assignment', $leader), ['destination' => 'room:' . $room->id])
+        ->assertRedirect();
+
+    $this->put(route('admin.manpower.rooms.leader.update', $room), [
+        'leader_user_id' => $unassignedEmployee->id,
+    ])->assertSessionHasErrors('leader_user_id');
+
+    $this->put(route('admin.manpower.rooms.leader.update', $room), [
+        'leader_user_id' => $leader->id,
+    ])->assertRedirect();
+
+    expect($room->fresh()->leader_user_id)->toBe($leader->id);
+
+    $this->put(route('admin.manpower.assignment', $leader), ['destination' => 'pool'])
+        ->assertRedirect();
+
+    expect($room->fresh()->leader_user_id)->toBeNull();
+});
+
 test('deleting a room removes its placement history and returns assigned employees to the pool', function () {
     $department = Department::create(['name' => 'Produksi']);
     $room = Room::create(['department_id' => $department->id, 'name' => 'Ruang A']);

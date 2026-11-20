@@ -8,16 +8,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Room extends Model
 {
-    protected $fillable = ['department_id', 'name', 'is_active'];
+    protected $fillable = ['department_id', 'leader_user_id', 'name', 'is_active'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active' => 'boolean',
+            'leader_user_id' => 'integer',
+        ];
     }
 
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function leader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'leader_user_id');
     }
 
     public function placements(): HasMany

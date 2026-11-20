@@ -47,7 +47,7 @@ class ManpowerController extends Controller
         $presentLookup = array_fill_keys($presentUserIds, true);
         $departments = Department::query()
             ->where('is_active', true)
-            ->with(['rooms' => fn ($query) => $query->where('is_active', true)->orderBy('name')])
+            ->with(['rooms' => fn ($query) => $query->where('is_active', true)->with('leader')->orderBy('name')])
             ->orderBy('name')
             ->get();
 
@@ -203,6 +203,42 @@ class ManpowerController extends Controller
         return back()->with('status', 'Nama ruangan berhasil diperbarui.');
     }
 
+    public function updateRoomLeader(Request $request, Room $room): RedirectResponse
+    {
+        $this->ensureAdmin($request);
+
+        $data = $request->validate([
+            'leader_user_id' => ['nullable', 'integer'],
+        ]);
+        $leaderId = $data['leader_user_id'] ?? null;
+
+        DB::transaction(function () use ($room, $leaderId) {
+            $lockedRoom = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
+
+            if ($leaderId !== null) {
+                $isEligibleLeader = User::query()
+                    ->whereKey($leaderId)
+                    ->where('is_active', true)
+                    ->where(function ($query) {
+                        $query->whereNull('is_admin')->orWhere('is_admin', false);
+                    })
+                    ->whereNotIn('role', self::EXCLUDED_ROLES)
+                    ->whereHas('currentPlacement', fn ($query) => $query->where('room_id', $lockedRoom->id))
+                    ->exists();
+
+                if (!$isEligibleLeader) {
+                    throw ValidationException::withMessages([
+                        'leader_user_id' => 'Pilih karyawan aktif yang ditempatkan di ruangan ini.',
+                    ]);
+                }
+            }
+
+            $lockedRoom->update(['leader_user_id' => $leaderId]);
+        });
+
+        return back()->with('status', 'Leader ruangan berhasil diperbarui.');
+    }
+
     public function destroyRoom(Request $request, Room $room): RedirectResponse
     {
         $this->ensureAdmin($request);
@@ -264,6 +300,14 @@ class ManpowerController extends Controller
             if ($currentPlacement?->department_id === $department?->id &&
                 $currentPlacement?->room_id === $room?->id) {
                 return;
+            }
+
+            if ($currentPlacement?->room_id !== null &&
+                $currentPlacement->room_id !== $room?->id) {
+                Room::query()
+                    ->whereKey($currentPlacement->room_id)
+                    ->where('leader_user_id', $lockedUser->id)
+                    ->update(['leader_user_id' => null]);
             }
 
             $now = now();
