@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Absensi;
 use App\Models\EmployeeShiftOverride;
 use App\Models\EmployeeWorkAssignment;
 use App\Models\PayScheme;
@@ -129,4 +130,59 @@ it('gives the permanent shift policy priority over rolling schedules and daily o
 
     expect($beforePolicy['shift']->id)->toBe($night->id)
         ->and($duringPolicy['shift']->id)->toBe($morning->id);
+});
+
+it('replaces an old attendance shift snapshot with the effective policy while preserving its pay scheme', function () {
+    $effectiveFrom = Carbon::today()->startOfWeek(Carbon::MONDAY)->addWeek();
+    $employee = User::factory()->create([
+        'role' => 'user',
+        'employment_type' => 'freelance',
+    ]);
+    $morning = shiftPolicyTemplate('Snapshot policy morning', '08:00:00', '17:00:00');
+    $night = shiftPolicyTemplate('Snapshot policy night', '20:00:00', '05:00:00');
+    $payScheme = shiftPolicyPayScheme();
+
+    WorkShiftPolicy::create([
+        'effective_from' => $effectiveFrom->toDateString(),
+        'work_shift_id' => $morning->id,
+    ]);
+    $attendance = Absensi::create([
+        'user_id' => $employee->id,
+        'status' => 'hadir',
+        'status_approval' => 'approved',
+        'check_in_at' => $effectiveFrom->copy()->setTime(8, 0),
+        'check_out_at' => $effectiveFrom->copy()->setTime(17, 0),
+        'work_shift_id' => $night->id,
+        'pay_scheme_id' => $payScheme->id,
+        'payroll_snapshot' => [
+            'payroll_enabled' => true,
+            'shift' => [
+                'name' => $night->name,
+                'starts_at' => $night->starts_at,
+                'ends_at' => $night->ends_at,
+                'break_starts_at' => null,
+                'break_ends_at' => null,
+                'crosses_midnight' => true,
+            ],
+            'pay_scheme' => [
+                'daily_salary' => (float) $payScheme->daily_salary,
+                'standard_work_minutes' => $payScheme->standard_work_minutes,
+                'late_rounding_minutes' => $payScheme->late_rounding_minutes,
+                'overtime_rounding_minutes' => $payScheme->overtime_rounding_minutes,
+                'weekend_daily_multiplier' => (float) $payScheme->weekend_daily_multiplier,
+                'overtime_multiplier' => (float) $payScheme->overtime_multiplier,
+            ],
+        ],
+    ]);
+
+    $configuration = app(AttendanceWorkRules::class)->forEmployee(
+        $employee,
+        $effectiveFrom,
+        $attendance
+    );
+
+    expect($configuration['work_shift_id'])->toBe($morning->id)
+        ->and($configuration['pay_scheme_id'])->toBe($payScheme->id)
+        ->and($configuration['snapshot']['shift']['starts_at'])->toBe('08:00:00')
+        ->and($configuration['snapshot']['pay_scheme']['daily_salary'])->toBe(125000.0);
 });

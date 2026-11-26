@@ -14,14 +14,39 @@ class AttendanceWorkRules
 {
     public function forEmployee(User $user, Carbon $workDate, ?Absensi $absensi = null): array
     {
+        $shiftPolicy = WorkShiftPolicy::forDate($workDate);
+
         if ($absensi?->payroll_snapshot) {
+            $snapshot = $absensi->payroll_snapshot;
+            $policyShift = $shiftPolicy?->workShift;
+
+            if ($policyShift) {
+                $snapshot['shift'] = [
+                    'name' => $policyShift->name,
+                    'starts_at' => $policyShift->starts_at,
+                    'ends_at' => $policyShift->ends_at,
+                    'break_starts_at' => $policyShift->break_starts_at,
+                    'break_ends_at' => $policyShift->break_ends_at,
+                    'crosses_midnight' => $policyShift->crosses_midnight,
+                ];
+
+                return [
+                    'assignment' => null,
+                    'shift' => $policyShift,
+                    'pay_scheme' => null,
+                    'work_shift_id' => $policyShift->id,
+                    'pay_scheme_id' => $absensi->pay_scheme_id,
+                    'snapshot' => $snapshot,
+                ];
+            }
+
             return [
                 'assignment' => null,
                 'shift' => null,
                 'pay_scheme' => null,
                 'work_shift_id' => $absensi->work_shift_id,
                 'pay_scheme_id' => $absensi->pay_scheme_id,
-                'snapshot' => $absensi->payroll_snapshot,
+                'snapshot' => $snapshot,
             ];
         }
 
@@ -51,7 +76,6 @@ class AttendanceWorkRules
             ->orderByDesc('effective_from')
             ->first();
 
-        $shiftPolicy = WorkShiftPolicy::forDate($workDate);
         $override = $shiftPolicy ? null : EmployeeShiftOverride::query()
             ->where('user_id', $user->id)
             ->whereDate('work_date', $workDate)
