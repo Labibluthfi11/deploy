@@ -65,6 +65,51 @@ test('manpower only counts approved attendance for currently assigned employees'
         ->assertSee('Belum tercatat hadir');
 });
 
+test('manpower displays leave type and approval status for employees by department', function () {
+    $department = Department::create(['name' => 'Produksi']);
+    $room = Room::create(['department_id' => $department->id, 'name' => 'Ruang A']);
+    $admin = manpowerUser(['role' => 'super_admin']);
+    $employees = [
+        'pendingIzin' => manpowerUser(),
+        'pendingSakit' => manpowerUser(),
+        'rejectedSakit' => manpowerUser(),
+        'approvedIzin' => manpowerUser(),
+    ];
+
+    foreach ($employees as $employee) {
+        EmployeePlacement::create([
+            'user_id' => $employee->id,
+            'department_id' => $department->id,
+            'room_id' => $room->id,
+            'assigned_by' => $admin->id,
+            'started_at' => now()->subDay(),
+        ]);
+    }
+
+    foreach ([
+        ['employee' => $employees['pendingIzin'], 'status' => 'izin', 'approval' => 'pending'],
+        ['employee' => $employees['pendingSakit'], 'status' => 'sakit', 'approval' => 'pending'],
+        ['employee' => $employees['rejectedSakit'], 'status' => 'sakit', 'approval' => 'rejected'],
+        ['employee' => $employees['approvedIzin'], 'status' => 'izin', 'approval' => 'approved'],
+    ] as $leave) {
+        Absensi::create([
+            'user_id' => $leave['employee']->id,
+            'status' => $leave['status'],
+            'status_approval' => $leave['approval'],
+            'check_in_at' => now('Asia/Jakarta'),
+        ]);
+    }
+
+    $this->actingAs($admin)
+        ->get(route('admin.manpower.index'))
+        ->assertOk()
+        ->assertSee('Izin · Pending')
+        ->assertSee('Sakit · Pending')
+        ->assertSee('Sakit · Ditolak')
+        ->assertSee('Izin')
+        ->assertDontSee('Belum terverifikasi');
+});
+
 test('moving an employee preserves old room history and keeps one active placement', function () {
     $department = Department::create(['name' => 'Produksi']);
     $roomA = Room::create(['department_id' => $department->id, 'name' => 'Ruang A']);

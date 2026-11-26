@@ -44,6 +44,21 @@ class ManpowerController extends Controller
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        $leaveStatusByUserId = Absensi::query()
+            ->whereIn('user_id', $employees->pluck('id'))
+            ->whereDate('check_in_at', now('Asia/Jakarta')->toDateString())
+            ->whereIn('status', ['izin', 'sakit'])
+            ->whereIn('status_approval', ['pending', 'approved', 'rejected'])
+            ->orderByDesc('id')
+            ->get(['user_id', 'status', 'status_approval'])
+            ->unique('user_id')
+            ->mapWithKeys(fn (Absensi $absence) => [
+                (int) $absence->user_id => ucfirst($absence->status)
+                    . ($absence->status_approval === 'pending' ? ' · Pending' : '')
+                    . ($absence->status_approval === 'rejected' ? ' · Ditolak' : ''),
+            ])
+            ->all();
+
         $presentLookup = array_fill_keys($presentUserIds, true);
         $departments = Department::query()
             ->where('is_active', true)
@@ -89,6 +104,7 @@ class ManpowerController extends Controller
             'selectedDepartmentId' => $selectedDepartmentId,
             'poolEmployees' => $poolEmployees,
             'presentUserIds' => $presentUserIds,
+            'leaveStatusByUserId' => $leaveStatusByUserId,
             'totalPlaced' => $placedEmployees->count(),
             'totalPresent' => $placedEmployees->filter(fn (User $employee) => isset($presentLookup[$employee->id]))->count(),
             'assignmentHistory' => EmployeePlacement::query()

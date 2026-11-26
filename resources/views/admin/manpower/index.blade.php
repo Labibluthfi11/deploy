@@ -121,7 +121,12 @@
                             </summary>
                             <div class="divide-y divide-slate-100 dark:divide-slate-700">
                                 @foreach ($department->directEmployees as $employee)
-                                    @php $isPresent = in_array($employee->id, $presentUserIds, true); @endphp
+                                    @php
+                                        $isPresent = in_array($employee->id, $presentUserIds, true);
+                                        $attendanceStatus = $isPresent
+                                            ? 'Hadir'
+                                            : ($leaveStatusByUserId[$employee->id] ?? 'Belum terverifikasi');
+                                    @endphp
                                     <div class="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
                                         <div class="flex min-w-0 items-center gap-3">
                                             <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">{{ strtoupper(substr($employee->name ?? 'U', 0, 1)) }}</div>
@@ -129,7 +134,7 @@
                                                 <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $employee->name }}</p>
                                                 <span class="mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $isPresent ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
                                                     <span class="h-1.5 w-1.5 rounded-full {{ $isPresent ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
-                                                    {{ $isPresent ? 'Hadir' : 'Belum terverifikasi' }}
+                                                    {{ $attendanceStatus }}
                                                 </span>
                                             </div>
                                         </div>
@@ -224,7 +229,12 @@
                                         </summary>
                                         <div class="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-700 dark:border-slate-700">
                                         @forelse ($room->employees as $employee)
-                                            @php $isPresent = in_array($employee->id, $presentUserIds, true); @endphp
+                                            @php
+                                                $isPresent = in_array($employee->id, $presentUserIds, true);
+                                                $attendanceStatus = $isPresent
+                                                    ? 'Hadir'
+                                                    : ($leaveStatusByUserId[$employee->id] ?? 'Belum terverifikasi');
+                                            @endphp
                                             <div class="flex flex-col gap-3 px-4 py-3.5">
                                                 <div class="flex min-w-0 items-center gap-3">
                                                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
@@ -234,7 +244,7 @@
                                                         <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $employee->name }}</p>
                                                         <span class="mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $isPresent ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
                                                             <span class="h-1.5 w-1.5 rounded-full {{ $isPresent ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
-                                                            {{ $isPresent ? 'Hadir' : 'Belum terverifikasi' }}
+                                                            {{ $attendanceStatus }}
                                                         </span>
                                                     </div>
                                                 </div>
